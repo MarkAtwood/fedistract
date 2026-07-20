@@ -13,8 +13,8 @@ use sqlx::Row;
 /// A row from the `personas` table.
 #[derive(Debug, Clone)]
 pub struct PersonaRow {
-    pub id: String,
-    pub user_id: String,
+    pub id: i64,
+    pub user_id: i64,
     pub username: String,
     pub display_name: String,
     pub bio: String,
@@ -32,7 +32,7 @@ pub struct PersonaRow {
     pub last_status_at: Option<i64>,
 }
 
-pub(crate) const SELECT_COLS_PG: &str = "id::text, user_id::text, username, display_name, bio, bio_html, \
+pub(crate) const SELECT_COLS_PG: &str = "id, user_id, username, display_name, bio, bio_html, \
     private_key_pem, public_key_pem, avatar_media_id, header_media_id, \
     is_locked, discoverable, bot, did_web, fields_json::text, created_at, last_status_at";
 
@@ -121,13 +121,13 @@ pub async fn get_persona_by_username(
 /// Look up a persona by ID.
 pub async fn get_persona_by_id(
     pool: &Pool,
-    id: &str,
+    id: i64,
 ) -> Result<Option<PersonaRow>, sqlx::Error> {
     match pool {
         #[cfg(feature = "db-postgres")]
         Pool::Postgres(pg) => {
             let row = sqlx::query(
-                &format!("SELECT {SELECT_COLS_PG} FROM personas WHERE id = $1::uuid"),
+                &format!("SELECT {SELECT_COLS_PG} FROM personas WHERE id = $1"),
             )
             .bind(id)
             .fetch_optional(pg)
@@ -157,7 +157,7 @@ pub async fn create_persona(pool: &Pool, row: &PersonaRow) -> Result<(), sqlx::E
                  (id, user_id, username, display_name, bio, bio_html, \
                   private_key_pem, public_key_pem, avatar_media_id, header_media_id, \
                   is_locked, discoverable, bot, did_web, fields_json, created_at, last_status_at) \
-                 VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7, $8, $9, $10, \
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, \
                          $11, $12, $13, $14, $15::jsonb, $16, $17)",
             )
             .bind(&row.id)
@@ -220,7 +220,7 @@ pub async fn create_persona(pool: &Pool, row: &PersonaRow) -> Result<(), sqlx::E
 /// Update profile fields on a persona. Only non-`None` fields are updated.
 pub async fn update_persona_profile(
     pool: &Pool,
-    id: &str,
+    id: i64,
     display_name: Option<&str>,
     bio: Option<&str>,
     bio_html: Option<&str>,
@@ -230,15 +230,15 @@ pub async fn update_persona_profile(
         #[cfg(feature = "db-postgres")]
         Pool::Postgres(pg) => {
             if let Some(dn) = display_name {
-                sqlx::query("UPDATE personas SET display_name = $1 WHERE id = $2::uuid")
+                sqlx::query("UPDATE personas SET display_name = $1 WHERE id = $2")
                     .bind(dn).bind(id).execute(pg).await?;
             }
             if let Some(b) = bio {
-                sqlx::query("UPDATE personas SET bio = $1 WHERE id = $2::uuid")
+                sqlx::query("UPDATE personas SET bio = $1 WHERE id = $2")
                     .bind(b).bind(id).execute(pg).await?;
             }
             if let Some(bh) = bio_html {
-                sqlx::query("UPDATE personas SET bio_html = $1 WHERE id = $2::uuid")
+                sqlx::query("UPDATE personas SET bio_html = $1 WHERE id = $2")
                     .bind(bh).bind(id).execute(pg).await?;
             }
         }
@@ -301,7 +301,7 @@ mod tests {
         db::migrate(&pool).await.unwrap();
         sqlx::raw_sql(
             "INSERT INTO users (id, email, display_name, role, created_at) \
-             VALUES ('u1', 'test@example.com', 'Test', 'user', 1000);",
+             VALUES (1, 'test@example.com', 'Test', 'user', 1000);",
         )
         .execute(&sq)
         .await
@@ -309,10 +309,10 @@ mod tests {
         pool
     }
 
-    fn sample_persona(id: &str, username: &str) -> PersonaRow {
+    fn sample_persona(id: i64, username: &str) -> PersonaRow {
         PersonaRow {
-            id: id.into(),
-            user_id: "u1".into(),
+            id,
+            user_id: 1,
             username: username.into(),
             display_name: format!("Display {username}"),
             bio: "A test persona".into(),
@@ -334,11 +334,11 @@ mod tests {
     #[tokio::test]
     async fn create_and_get_by_id() {
         let pool = setup().await;
-        let persona = sample_persona("p1", "alice");
+        let persona = sample_persona(101, "alice");
         create_persona(&pool, &persona).await.unwrap();
 
-        let fetched = get_persona_by_id(&pool, "p1").await.unwrap().expect("should exist");
-        assert_eq!(fetched.id, "p1");
+        let fetched = get_persona_by_id(&pool, 101).await.unwrap().expect("should exist");
+        assert_eq!(fetched.id, 101);
         assert_eq!(fetched.username, "alice");
         assert_eq!(fetched.display_name, "Display alice");
         assert!(!fetched.is_locked);
@@ -349,26 +349,26 @@ mod tests {
     #[tokio::test]
     async fn get_by_username() {
         let pool = setup().await;
-        create_persona(&pool, &sample_persona("p1", "alice")).await.unwrap();
+        create_persona(&pool, &sample_persona(101, "alice")).await.unwrap();
 
         let fetched = get_persona_by_username(&pool, "alice").await.unwrap().expect("should exist");
-        assert_eq!(fetched.id, "p1");
+        assert_eq!(fetched.id, 101);
     }
 
     #[tokio::test]
     async fn get_nonexistent_returns_none() {
         let pool = setup().await;
-        assert!(get_persona_by_id(&pool, "nope").await.unwrap().is_none());
+        assert!(get_persona_by_id(&pool, 999).await.unwrap().is_none());
         assert!(get_persona_by_username(&pool, "nope").await.unwrap().is_none());
     }
 
     #[tokio::test]
     async fn update_profile() {
         let pool = setup().await;
-        create_persona(&pool, &sample_persona("p1", "alice")).await.unwrap();
+        create_persona(&pool, &sample_persona(101, "alice")).await.unwrap();
 
         update_persona_profile(
-            &pool, "p1",
+            &pool, 101,
             Some("New Name"),
             Some("New bio"),
             Some("<p>New bio</p>"),
@@ -376,7 +376,7 @@ mod tests {
         .await
         .unwrap();
 
-        let fetched = get_persona_by_id(&pool, "p1").await.unwrap().unwrap();
+        let fetched = get_persona_by_id(&pool, 101).await.unwrap().unwrap();
         assert_eq!(fetched.display_name, "New Name");
         assert_eq!(fetched.bio, "New bio");
         assert_eq!(fetched.bio_html, "<p>New bio</p>");
@@ -385,11 +385,11 @@ mod tests {
     #[tokio::test]
     async fn update_partial_fields() {
         let pool = setup().await;
-        create_persona(&pool, &sample_persona("p1", "alice")).await.unwrap();
+        create_persona(&pool, &sample_persona(101, "alice")).await.unwrap();
 
-        update_persona_profile(&pool, "p1", Some("Updated"), None, None).await.unwrap();
+        update_persona_profile(&pool, 101, Some("Updated"), None, None).await.unwrap();
 
-        let fetched = get_persona_by_id(&pool, "p1").await.unwrap().unwrap();
+        let fetched = get_persona_by_id(&pool, 101).await.unwrap().unwrap();
         assert_eq!(fetched.display_name, "Updated");
         assert_eq!(fetched.bio, "A test persona"); // unchanged
     }
@@ -397,8 +397,8 @@ mod tests {
     #[tokio::test]
     async fn list_personas_ordered() {
         let pool = setup().await;
-        create_persona(&pool, &sample_persona("p2", "bob")).await.unwrap();
-        create_persona(&pool, &sample_persona("p1", "alice")).await.unwrap();
+        create_persona(&pool, &sample_persona(102, "bob")).await.unwrap();
+        create_persona(&pool, &sample_persona(101, "alice")).await.unwrap();
 
         let all = list_personas(&pool).await.unwrap();
         assert_eq!(all.len(), 2);
@@ -416,13 +416,13 @@ mod tests {
     #[tokio::test]
     async fn boolean_fields_roundtrip() {
         let pool = setup().await;
-        let mut persona = sample_persona("p1", "alice");
+        let mut persona = sample_persona(101, "alice");
         persona.is_locked = true;
         persona.discoverable = false;
         persona.bot = true;
         create_persona(&pool, &persona).await.unwrap();
 
-        let fetched = get_persona_by_id(&pool, "p1").await.unwrap().unwrap();
+        let fetched = get_persona_by_id(&pool, 101).await.unwrap().unwrap();
         assert!(fetched.is_locked);
         assert!(!fetched.discoverable);
         assert!(fetched.bot);

@@ -59,13 +59,13 @@ pub struct RelayRow {
     pub id: i64,
     pub actor_uri: String,
     pub inbox_url: String,
-    pub persona_id: Option<String>,
+    pub persona_id: Option<i64>,
     pub follow_id: String,
     pub state: RelayState,
     pub created_at: i64,
 }
 
-type RawRow = (i64, String, String, Option<String>, String, String, i64);
+type RawRow = (i64, String, String, Option<i64>, String, String, i64);
 
 fn raw_to_relay(row: RawRow) -> RelayRow {
     RelayRow {
@@ -84,7 +84,7 @@ pub async fn subscribe(
     pool: &Pool,
     actor_uri: &str,
     inbox_url: &str,
-    persona_id: Option<&str>,
+    persona_id: Option<i64>,
     follow_id: &str,
 ) -> Result<i64, sqlx::Error> {
     let id = crate::id::generate_id();
@@ -98,7 +98,7 @@ pub async fn subscribe(
         Pool::Postgres(pg) => {
             sqlx::query(
                 "INSERT INTO relays (id, actor_uri, inbox_url, persona_id, follow_id, state, created_at) \
-                 VALUES ($1, $2, $3, $4::uuid, $5, 'pending', $6)",
+                 VALUES ($1, $2, $3, $4, $5, 'pending', $6)",
             )
             .bind(id)
             .bind(actor_uri)
@@ -197,7 +197,7 @@ pub async fn get_accepted(pool: &Pool) -> Result<Vec<RelayRow>, sqlx::Error> {
         #[cfg(feature = "db-postgres")]
         Pool::Postgres(pg) => {
             let rows: Vec<RawRow> = sqlx::query_as(
-                "SELECT id, actor_uri, inbox_url, persona_id::text, follow_id, state, created_at \
+                "SELECT id, actor_uri, inbox_url, persona_id, follow_id, state, created_at \
                  FROM relays WHERE state = 'accepted'",
             )
             .fetch_all(pg)
@@ -226,7 +226,7 @@ pub async fn find_by_actor(
         #[cfg(feature = "db-postgres")]
         Pool::Postgres(pg) => {
             let row: Option<RawRow> = sqlx::query_as(
-                "SELECT id, actor_uri, inbox_url, persona_id::text, follow_id, state, created_at \
+                "SELECT id, actor_uri, inbox_url, persona_id, follow_id, state, created_at \
                  FROM relays WHERE actor_uri = $1",
             )
             .bind(actor_uri)
@@ -297,15 +297,15 @@ mod tests {
         let Pool::Sqlite(sq) = &pool;
         sqlx::raw_sql(
             "INSERT INTO users (id, email, display_name, role, created_at) \
-             VALUES ('u1', 'test@example.com', 'Test', 'user', 1700000000); \
+             VALUES (1, 'test@example.com', 'Test', 'user', 1700000000); \
              INSERT INTO personas (id, user_id, username, private_key_pem, public_key_pem, created_at) \
-             VALUES ('p1', 'u1', 'alice', 'pk', 'pub', 1700000000);",
+             VALUES (101, 1, 'alice', 'pk', 'pub', 1700000000);",
         )
         .execute(sq)
         .await
         .unwrap();
 
-        let id = subscribe(&pool, "https://relay.example/actor", "https://relay.example/inbox", Some("p1"), "follow-2")
+        let id = subscribe(&pool, "https://relay.example/actor", "https://relay.example/inbox", Some(101), "follow-2")
             .await
             .unwrap();
 
@@ -315,7 +315,7 @@ mod tests {
             .expect("relay should exist");
 
         assert_eq!(row.id, id);
-        assert_eq!(row.persona_id.as_deref(), Some("p1"));
+        assert_eq!(row.persona_id, Some(101));
     }
 
     #[cfg(feature = "db-sqlite")]

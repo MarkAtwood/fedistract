@@ -16,7 +16,7 @@ use sqlx::Row;
 /// A row from the `users` table.
 #[derive(Debug, Clone)]
 pub struct UserRow {
-    pub id: String,
+    pub id: i64,
     pub email: String,
     pub password_hash: Option<String>,
     pub oidc_subject: Option<String>,
@@ -33,7 +33,7 @@ pub struct UserRow {
 }
 
 #[cfg(feature = "db-postgres")]
-const USER_COLS_PG: &str = "id::text, email, password_hash, oidc_subject, oidc_issuer, \
+const USER_COLS_PG: &str = "id, email, password_hash, oidc_subject, oidc_issuer, \
     display_name, role, created_at, suspended_at, suspended_reason, \
     did_key, did_plc, recovery_pubkey, legal_hold";
 
@@ -103,7 +103,7 @@ pub struct QuotaInfo {
 /// Create a new user.
 pub async fn create_user(
     pool: &Pool,
-    id: &str,
+    id: i64,
     email: &str,
     password_hash: Option<&str>,
     role: &str,
@@ -114,7 +114,7 @@ pub async fn create_user(
         Pool::Postgres(pg) => {
             sqlx::query(
                 "INSERT INTO users (id, email, password_hash, role, created_at) \
-                 VALUES ($1::uuid, $2, $3, $4, $5)",
+                 VALUES ($1, $2, $3, $4, $5)",
             )
             .bind(id)
             .bind(email)
@@ -174,13 +174,13 @@ pub async fn get_user_by_email(
 /// Look up a user by ID.
 pub async fn get_user_by_id(
     pool: &Pool,
-    id: &str,
+    id: i64,
 ) -> Result<Option<UserRow>, sqlx::Error> {
     match pool {
         #[cfg(feature = "db-postgres")]
         Pool::Postgres(pg) => {
             let row = sqlx::query(
-                &format!("SELECT {USER_COLS_PG} FROM users WHERE id = $1::uuid"),
+                &format!("SELECT {USER_COLS_PG} FROM users WHERE id = $1"),
             )
             .bind(id)
             .fetch_optional(pg)
@@ -227,7 +227,7 @@ pub async fn list_users(pool: &Pool) -> Result<Vec<UserRow>, sqlx::Error> {
 /// Suspend a user.
 pub async fn suspend_user(
     pool: &Pool,
-    id: &str,
+    id: i64,
     reason: &str,
     now: i64,
 ) -> Result<(), sqlx::Error> {
@@ -235,7 +235,7 @@ pub async fn suspend_user(
         #[cfg(feature = "db-postgres")]
         Pool::Postgres(pg) => {
             sqlx::query(
-                "UPDATE users SET suspended_at = $1, suspended_reason = $2 WHERE id = $3::uuid",
+                "UPDATE users SET suspended_at = $1, suspended_reason = $2 WHERE id = $3",
             )
             .bind(now)
             .bind(reason)
@@ -259,12 +259,12 @@ pub async fn suspend_user(
 }
 
 /// Unsuspend a user.
-pub async fn unsuspend_user(pool: &Pool, id: &str) -> Result<(), sqlx::Error> {
+pub async fn unsuspend_user(pool: &Pool, id: i64) -> Result<(), sqlx::Error> {
     match pool {
         #[cfg(feature = "db-postgres")]
         Pool::Postgres(pg) => {
             sqlx::query(
-                "UPDATE users SET suspended_at = NULL, suspended_reason = NULL WHERE id = $1::uuid",
+                "UPDATE users SET suspended_at = NULL, suspended_reason = NULL WHERE id = $1",
             )
             .bind(id)
             .execute(pg)
@@ -286,13 +286,13 @@ pub async fn unsuspend_user(pool: &Pool, id: &str) -> Result<(), sqlx::Error> {
 /// Update a user's password hash.
 pub async fn update_user_password(
     pool: &Pool,
-    id: &str,
+    id: i64,
     password_hash: &str,
 ) -> Result<(), sqlx::Error> {
     match pool {
         #[cfg(feature = "db-postgres")]
         Pool::Postgres(pg) => {
-            sqlx::query("UPDATE users SET password_hash = $1 WHERE id = $2::uuid")
+            sqlx::query("UPDATE users SET password_hash = $1 WHERE id = $2")
                 .bind(password_hash)
                 .bind(id)
                 .execute(pg)
@@ -313,7 +313,7 @@ pub async fn update_user_password(
 /// Update a user's DID key and recovery public key.
 pub async fn update_user_did(
     pool: &Pool,
-    id: &str,
+    id: i64,
     did_key: &str,
     recovery_pubkey: &str,
 ) -> Result<(), sqlx::Error> {
@@ -321,7 +321,7 @@ pub async fn update_user_did(
         #[cfg(feature = "db-postgres")]
         Pool::Postgres(pg) => {
             sqlx::query(
-                "UPDATE users SET did_key = $1, recovery_pubkey = $2 WHERE id = $3::uuid",
+                "UPDATE users SET did_key = $1, recovery_pubkey = $2 WHERE id = $3",
             )
             .bind(did_key)
             .bind(recovery_pubkey)
@@ -351,8 +351,8 @@ pub async fn update_user_did(
 /// Create a persona for a user.
 pub async fn create_persona_for_user(
     pool: &Pool,
-    persona_id: &str,
-    user_id: &str,
+    persona_id: i64,
+    user_id: i64,
     username: &str,
     display_name: &str,
     private_key_pem: &str,
@@ -365,7 +365,7 @@ pub async fn create_persona_for_user(
             sqlx::query(
                 "INSERT INTO personas \
                  (id, user_id, username, display_name, private_key_pem, public_key_pem, created_at) \
-                 VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7)",
+                 VALUES ($1, $2, $3, $4, $5, $6, $7)",
             )
             .bind(persona_id)
             .bind(user_id)
@@ -401,14 +401,14 @@ pub async fn create_persona_for_user(
 /// List all personas for a user. Reuses [`PersonaRow`] from `persona_db`.
 pub async fn list_personas_for_user(
     pool: &Pool,
-    user_id: &str,
+    user_id: i64,
 ) -> Result<Vec<PersonaRow>, sqlx::Error> {
     match pool {
         #[cfg(feature = "db-postgres")]
         Pool::Postgres(pg) => {
             use crate::persona_db::SELECT_COLS_PG;
             let rows = sqlx::query(
-                &format!("SELECT {SELECT_COLS_PG} FROM personas WHERE user_id = $1::uuid ORDER BY created_at"),
+                &format!("SELECT {SELECT_COLS_PG} FROM personas WHERE user_id = $1 ORDER BY created_at"),
             )
             .bind(user_id)
             .fetch_all(pg)
@@ -430,11 +430,11 @@ pub async fn list_personas_for_user(
 }
 
 /// Delete a persona by ID (CASCADE).
-pub async fn delete_persona(pool: &Pool, persona_id: &str) -> Result<(), sqlx::Error> {
+pub async fn delete_persona(pool: &Pool, persona_id: i64) -> Result<(), sqlx::Error> {
     match pool {
         #[cfg(feature = "db-postgres")]
         Pool::Postgres(pg) => {
-            sqlx::query("DELETE FROM personas WHERE id = $1::uuid")
+            sqlx::query("DELETE FROM personas WHERE id = $1")
                 .bind(persona_id)
                 .execute(pg)
                 .await?;
@@ -455,13 +455,13 @@ pub async fn delete_persona(pool: &Pool, persona_id: &str) -> Result<(), sqlx::E
 // ---------------------------------------------------------------------------
 
 /// Get quota limits for a user.
-pub async fn get_quota(pool: &Pool, user_id: &str) -> Result<QuotaInfo, sqlx::Error> {
+pub async fn get_quota(pool: &Pool, user_id: i64) -> Result<QuotaInfo, sqlx::Error> {
     match pool {
         #[cfg(feature = "db-postgres")]
         Pool::Postgres(pg) => {
             let row = sqlx::query(
                 "SELECT quota_media_bytes, quota_posts_per_day, quota_followers, quota_following \
-                 FROM users WHERE id = $1::uuid",
+                 FROM users WHERE id = $1",
             )
             .bind(user_id)
             .fetch_one(pg)
@@ -496,7 +496,7 @@ pub async fn get_quota(pool: &Pool, user_id: &str) -> Result<QuotaInfo, sqlx::Er
 /// `media_bytes`, `posts_per_day`, `followers`, `following`.
 pub async fn set_quota(
     pool: &Pool,
-    user_id: &str,
+    user_id: i64,
     field: &str,
     value: Option<i64>,
 ) -> Result<(), sqlx::Error> {
@@ -510,7 +510,7 @@ pub async fn set_quota(
     match pool {
         #[cfg(feature = "db-postgres")]
         Pool::Postgres(pg) => {
-            sqlx::query(&format!("UPDATE users SET {col} = $1 WHERE id = $2::uuid"))
+            sqlx::query(&format!("UPDATE users SET {col} = $1 WHERE id = $2"))
                 .bind(value)
                 .bind(user_id)
                 .execute(pg)
@@ -532,7 +532,7 @@ pub async fn set_quota(
 /// posting is allowed (no quota set, or under the limit).
 pub async fn check_post_quota(
     pool: &Pool,
-    user_id: &str,
+    user_id: i64,
     now: i64,
 ) -> Result<bool, sqlx::Error> {
     let quota = get_quota(pool, user_id).await?;
@@ -546,7 +546,7 @@ pub async fn check_post_quota(
         Pool::Postgres(pg) => {
             sqlx::query_as(
                 "SELECT COUNT(*)::bigint FROM posts \
-                 WHERE user_id = $1::uuid AND created_at >= $2",
+                 WHERE user_id = $1 AND created_at >= $2",
             )
             .bind(user_id)
             .bind(day_ago)
@@ -572,7 +572,7 @@ pub async fn check_post_quota(
 /// uploading is allowed (no quota set, or under the limit).
 pub async fn check_media_quota(
     pool: &Pool,
-    user_id: &str,
+    user_id: i64,
 ) -> Result<bool, sqlx::Error> {
     let quota = get_quota(pool, user_id).await?;
     let limit = match quota.media_bytes {
@@ -583,7 +583,7 @@ pub async fn check_media_quota(
         #[cfg(feature = "db-postgres")]
         Pool::Postgres(pg) => {
             sqlx::query_as(
-                "SELECT COALESCE(SUM(file_size), 0)::bigint FROM media WHERE user_id = $1::uuid",
+                "SELECT COALESCE(SUM(file_size), 0)::bigint FROM media WHERE user_id = $1",
             )
             .bind(user_id)
             .fetch_one(pg)
@@ -607,13 +607,13 @@ pub async fn check_media_quota(
 /// Looks up the quota from the persona's owning user.
 pub async fn check_follower_quota(
     pool: &Pool,
-    persona_id: &str,
+    persona_id: i64,
 ) -> Result<bool, sqlx::Error> {
     // Get the user_id for this persona, then check their quota
-    let user_id: Option<(String,)> = match pool {
+    let user_id: Option<(i64,)> = match pool {
         #[cfg(feature = "db-postgres")]
         Pool::Postgres(pg) => {
-            sqlx::query_as("SELECT user_id::text FROM personas WHERE id = $1::uuid")
+            sqlx::query_as("SELECT user_id FROM personas WHERE id = $1")
                 .bind(persona_id)
                 .fetch_optional(pg)
                 .await?
@@ -630,7 +630,7 @@ pub async fn check_follower_quota(
         Some(u) => u.0,
         None => return Ok(true),
     };
-    let quota = get_quota(pool, &uid).await?;
+    let quota = get_quota(pool, uid).await?;
     let limit = match quota.followers {
         Some(l) => l,
         None => return Ok(true),
@@ -639,7 +639,7 @@ pub async fn check_follower_quota(
         #[cfg(feature = "db-postgres")]
         Pool::Postgres(pg) => {
             sqlx::query_as(
-                "SELECT COUNT(*)::bigint FROM followers WHERE persona_id = $1::uuid",
+                "SELECT COUNT(*)::bigint FROM followers WHERE persona_id = $1",
             )
             .bind(persona_id)
             .fetch_one(pg)
@@ -663,12 +663,12 @@ pub async fn check_follower_quota(
 /// Looks up the quota from the persona's owning user.
 pub async fn check_following_quota(
     pool: &Pool,
-    persona_id: &str,
+    persona_id: i64,
 ) -> Result<bool, sqlx::Error> {
-    let user_id: Option<(String,)> = match pool {
+    let user_id: Option<(i64,)> = match pool {
         #[cfg(feature = "db-postgres")]
         Pool::Postgres(pg) => {
-            sqlx::query_as("SELECT user_id::text FROM personas WHERE id = $1::uuid")
+            sqlx::query_as("SELECT user_id FROM personas WHERE id = $1")
                 .bind(persona_id)
                 .fetch_optional(pg)
                 .await?
@@ -685,7 +685,7 @@ pub async fn check_following_quota(
         Some(u) => u.0,
         None => return Ok(true),
     };
-    let quota = get_quota(pool, &uid).await?;
+    let quota = get_quota(pool, uid).await?;
     let limit = match quota.following {
         Some(l) => l,
         None => return Ok(true),
@@ -694,7 +694,7 @@ pub async fn check_following_quota(
         #[cfg(feature = "db-postgres")]
         Pool::Postgres(pg) => {
             sqlx::query_as(
-                "SELECT COUNT(*)::bigint FROM follows WHERE persona_id = $1::uuid",
+                "SELECT COUNT(*)::bigint FROM follows WHERE persona_id = $1",
             )
             .bind(persona_id)
             .fetch_one(pg)
@@ -737,11 +737,11 @@ mod tests {
     #[tokio::test]
     async fn create_and_get_user_by_id() {
         let pool = setup().await;
-        create_user(&pool, "u1", "alice@example.com", Some("hash"), "user", 1000)
+        create_user(&pool, 1, "alice@example.com", Some("hash"), "user", 1000)
             .await
             .unwrap();
 
-        let user = get_user_by_id(&pool, "u1").await.unwrap().expect("should exist");
+        let user = get_user_by_id(&pool, 1).await.unwrap().expect("should exist");
         assert_eq!(user.email, "alice@example.com");
         assert_eq!(user.role, "user");
         assert!(user.suspended_at.is_none());
@@ -750,7 +750,7 @@ mod tests {
     #[tokio::test]
     async fn get_user_by_email_works() {
         let pool = setup().await;
-        create_user(&pool, "u1", "alice@example.com", None, "user", 1000)
+        create_user(&pool, 1, "alice@example.com", None, "user", 1000)
             .await
             .unwrap();
 
@@ -758,45 +758,45 @@ mod tests {
             .await
             .unwrap()
             .expect("should exist");
-        assert_eq!(user.id, "u1");
+        assert_eq!(user.id, 1);
     }
 
     #[tokio::test]
     async fn get_nonexistent_user_returns_none() {
         let pool = setup().await;
-        assert!(get_user_by_id(&pool, "nope").await.unwrap().is_none());
+        assert!(get_user_by_id(&pool, 999).await.unwrap().is_none());
         assert!(get_user_by_email(&pool, "nope@x.com").await.unwrap().is_none());
     }
 
     #[tokio::test]
     async fn list_users_ordered() {
         let pool = setup().await;
-        create_user(&pool, "u2", "bob@example.com", None, "user", 2000)
+        create_user(&pool, 2, "bob@example.com", None, "user", 2000)
             .await
             .unwrap();
-        create_user(&pool, "u1", "alice@example.com", None, "user", 1000)
+        create_user(&pool, 1, "alice@example.com", None, "user", 1000)
             .await
             .unwrap();
 
         let users = list_users(&pool).await.unwrap();
         assert_eq!(users.len(), 2);
-        assert_eq!(users[0].id, "u1"); // earlier created_at first
+        assert_eq!(users[0].id, 1); // earlier created_at first
     }
 
     #[tokio::test]
     async fn suspend_and_unsuspend() {
         let pool = setup().await;
-        create_user(&pool, "u1", "alice@example.com", None, "user", 1000)
+        create_user(&pool, 1, "alice@example.com", None, "user", 1000)
             .await
             .unwrap();
 
-        suspend_user(&pool, "u1", "spam", 2000).await.unwrap();
-        let user = get_user_by_id(&pool, "u1").await.unwrap().unwrap();
+        suspend_user(&pool, 1, "spam", 2000).await.unwrap();
+        let user = get_user_by_id(&pool, 1).await.unwrap().unwrap();
         assert_eq!(user.suspended_at, Some(2000));
         assert_eq!(user.suspended_reason.as_deref(), Some("spam"));
 
-        unsuspend_user(&pool, "u1").await.unwrap();
-        let user = get_user_by_id(&pool, "u1").await.unwrap().unwrap();
+        unsuspend_user(&pool, 1).await.unwrap();
+        let user = get_user_by_id(&pool, 1).await.unwrap().unwrap();
         assert!(user.suspended_at.is_none());
         assert!(user.suspended_reason.is_none());
     }
@@ -804,24 +804,24 @@ mod tests {
     #[tokio::test]
     async fn update_password() {
         let pool = setup().await;
-        create_user(&pool, "u1", "alice@example.com", Some("old"), "user", 1000)
+        create_user(&pool, 1, "alice@example.com", Some("old"), "user", 1000)
             .await
             .unwrap();
 
-        update_user_password(&pool, "u1", "new_hash").await.unwrap();
-        let user = get_user_by_id(&pool, "u1").await.unwrap().unwrap();
+        update_user_password(&pool, 1, "new_hash").await.unwrap();
+        let user = get_user_by_id(&pool, 1).await.unwrap().unwrap();
         assert_eq!(user.password_hash.as_deref(), Some("new_hash"));
     }
 
     #[tokio::test]
     async fn update_did() {
         let pool = setup().await;
-        create_user(&pool, "u1", "alice@example.com", None, "user", 1000)
+        create_user(&pool, 1, "alice@example.com", None, "user", 1000)
             .await
             .unwrap();
 
-        update_user_did(&pool, "u1", "did:key:z6Mk...", "abcdef").await.unwrap();
-        let user = get_user_by_id(&pool, "u1").await.unwrap().unwrap();
+        update_user_did(&pool, 1, "did:key:z6Mk...", "abcdef").await.unwrap();
+        let user = get_user_by_id(&pool, 1).await.unwrap().unwrap();
         assert_eq!(user.did_key.as_deref(), Some("did:key:z6Mk..."));
         assert_eq!(user.recovery_pubkey.as_deref(), Some("abcdef"));
     }
@@ -829,98 +829,98 @@ mod tests {
     #[tokio::test]
     async fn create_and_list_personas() {
         let pool = setup().await;
-        create_user(&pool, "u1", "alice@example.com", None, "user", 1000)
+        create_user(&pool, 1, "alice@example.com", None, "user", 1000)
             .await
             .unwrap();
 
         create_persona_for_user(
-            &pool, "p1", "u1", "alice", "Alice", "privkey", "pubkey", 1000,
+            &pool, 101, 1, "alice", "Alice", "privkey", "pubkey", 1000,
         )
         .await
         .unwrap();
 
-        let personas = list_personas_for_user(&pool, "u1").await.unwrap();
+        let personas = list_personas_for_user(&pool, 1).await.unwrap();
         assert_eq!(personas.len(), 1);
         assert_eq!(personas[0].username, "alice");
-        assert_eq!(personas[0].user_id, "u1");
+        assert_eq!(personas[0].user_id, 1);
     }
 
     #[tokio::test]
     async fn delete_persona_removes() {
         let pool = setup().await;
-        create_user(&pool, "u1", "alice@example.com", None, "user", 1000)
+        create_user(&pool, 1, "alice@example.com", None, "user", 1000)
             .await
             .unwrap();
         create_persona_for_user(
-            &pool, "p1", "u1", "alice", "Alice", "privkey", "pubkey", 1000,
+            &pool, 101, 1, "alice", "Alice", "privkey", "pubkey", 1000,
         )
         .await
         .unwrap();
 
-        delete_persona(&pool, "p1").await.unwrap();
-        let personas = list_personas_for_user(&pool, "u1").await.unwrap();
+        delete_persona(&pool, 101).await.unwrap();
+        let personas = list_personas_for_user(&pool, 1).await.unwrap();
         assert!(personas.is_empty());
     }
 
     #[tokio::test]
     async fn quota_get_set() {
         let pool = setup().await;
-        create_user(&pool, "u1", "alice@example.com", None, "user", 1000)
+        create_user(&pool, 1, "alice@example.com", None, "user", 1000)
             .await
             .unwrap();
 
-        let q = get_quota(&pool, "u1").await.unwrap();
+        let q = get_quota(&pool, 1).await.unwrap();
         assert!(q.media_bytes.is_none());
         assert!(q.posts_per_day.is_none());
 
-        set_quota(&pool, "u1", "media_bytes", Some(1_000_000)).await.unwrap();
-        set_quota(&pool, "u1", "posts_per_day", Some(10)).await.unwrap();
+        set_quota(&pool, 1, "media_bytes", Some(1_000_000)).await.unwrap();
+        set_quota(&pool, 1, "posts_per_day", Some(10)).await.unwrap();
 
-        let q = get_quota(&pool, "u1").await.unwrap();
+        let q = get_quota(&pool, 1).await.unwrap();
         assert_eq!(q.media_bytes, Some(1_000_000));
         assert_eq!(q.posts_per_day, Some(10));
 
         // Clear a quota
-        set_quota(&pool, "u1", "media_bytes", None).await.unwrap();
-        let q = get_quota(&pool, "u1").await.unwrap();
+        set_quota(&pool, 1, "media_bytes", None).await.unwrap();
+        let q = get_quota(&pool, 1).await.unwrap();
         assert!(q.media_bytes.is_none());
     }
 
     #[tokio::test]
     async fn set_quota_invalid_field() {
         let pool = setup().await;
-        create_user(&pool, "u1", "alice@example.com", None, "user", 1000)
+        create_user(&pool, 1, "alice@example.com", None, "user", 1000)
             .await
             .unwrap();
 
-        let result = set_quota(&pool, "u1", "bogus", Some(42)).await;
+        let result = set_quota(&pool, 1, "bogus", Some(42)).await;
         assert!(result.is_err());
     }
 
     #[tokio::test]
     async fn check_post_quota_no_limit() {
         let pool = setup().await;
-        create_user(&pool, "u1", "alice@example.com", None, "user", 1000)
+        create_user(&pool, 1, "alice@example.com", None, "user", 1000)
             .await
             .unwrap();
 
         // No quota set: always allowed
-        assert!(check_post_quota(&pool, "u1", 5000).await.unwrap());
+        assert!(check_post_quota(&pool, 1, 5000).await.unwrap());
     }
 
     #[tokio::test]
     async fn check_post_quota_under_limit() {
         let pool = setup().await;
-        create_user(&pool, "u1", "alice@example.com", None, "user", 1000)
+        create_user(&pool, 1, "alice@example.com", None, "user", 1000)
             .await
             .unwrap();
         create_persona_for_user(
-            &pool, "p1", "u1", "alice", "Alice", "privkey", "pubkey", 1000,
+            &pool, 101, 1, "alice", "Alice", "privkey", "pubkey", 1000,
         )
         .await
         .unwrap();
 
-        set_quota(&pool, "u1", "posts_per_day", Some(5)).await.unwrap();
+        set_quota(&pool, 1, "posts_per_day", Some(5)).await.unwrap();
 
         // Insert a post within the last 24h
         let now = 100_000i64;
@@ -930,8 +930,8 @@ mod tests {
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
         )
         .bind(1i64)
-        .bind("u1")
-        .bind("p1")
+        .bind(1i64)
+        .bind(101i64)
         .bind("https://example.com/posts/1")
         .bind("hello")
         .bind("<p>hello</p>")
@@ -941,22 +941,22 @@ mod tests {
         .await
         .unwrap();
 
-        assert!(check_post_quota(&pool, "u1", now).await.unwrap());
+        assert!(check_post_quota(&pool, 1, now).await.unwrap());
     }
 
     #[tokio::test]
     async fn check_post_quota_at_limit() {
         let pool = setup().await;
-        create_user(&pool, "u1", "alice@example.com", None, "user", 1000)
+        create_user(&pool, 1, "alice@example.com", None, "user", 1000)
             .await
             .unwrap();
         create_persona_for_user(
-            &pool, "p1", "u1", "alice", "Alice", "privkey", "pubkey", 1000,
+            &pool, 101, 1, "alice", "Alice", "privkey", "pubkey", 1000,
         )
         .await
         .unwrap();
 
-        set_quota(&pool, "u1", "posts_per_day", Some(2)).await.unwrap();
+        set_quota(&pool, 1, "posts_per_day", Some(2)).await.unwrap();
 
         let now = 100_000i64;
         let Pool::Sqlite(sq) = &pool;
@@ -966,8 +966,8 @@ mod tests {
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
             )
             .bind(i + 1i64)
-            .bind("u1")
-            .bind("p1")
+            .bind(1i64)
+            .bind(101i64)
             .bind(format!("https://example.com/posts/{}", i + 1))
             .bind("hello")
             .bind("<p>hello</p>")
@@ -978,32 +978,32 @@ mod tests {
             .unwrap();
         }
 
-        assert!(!check_post_quota(&pool, "u1", now).await.unwrap());
+        assert!(!check_post_quota(&pool, 1, now).await.unwrap());
     }
 
     #[tokio::test]
     async fn check_media_quota_no_limit() {
         let pool = setup().await;
-        create_user(&pool, "u1", "alice@example.com", None, "user", 1000)
+        create_user(&pool, 1, "alice@example.com", None, "user", 1000)
             .await
             .unwrap();
 
-        assert!(check_media_quota(&pool, "u1").await.unwrap());
+        assert!(check_media_quota(&pool, 1).await.unwrap());
     }
 
     #[tokio::test]
     async fn check_media_quota_under_limit() {
         let pool = setup().await;
-        create_user(&pool, "u1", "alice@example.com", None, "user", 1000)
+        create_user(&pool, 1, "alice@example.com", None, "user", 1000)
             .await
             .unwrap();
         create_persona_for_user(
-            &pool, "p1", "u1", "alice", "Alice", "privkey", "pubkey", 1000,
+            &pool, 101, 1, "alice", "Alice", "privkey", "pubkey", 1000,
         )
         .await
         .unwrap();
 
-        set_quota(&pool, "u1", "media_bytes", Some(1_000_000)).await.unwrap();
+        set_quota(&pool, 1, "media_bytes", Some(1_000_000)).await.unwrap();
 
         let Pool::Sqlite(sq) = &pool;
         sqlx::query(
@@ -1011,8 +1011,8 @@ mod tests {
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
         )
         .bind(1i64)
-        .bind("u1")
-        .bind("p1")
+        .bind(1i64)
+        .bind(101i64)
         .bind("/tmp/test.jpg")
         .bind("image/jpeg")
         .bind(500_000i64)
@@ -1021,22 +1021,22 @@ mod tests {
         .await
         .unwrap();
 
-        assert!(check_media_quota(&pool, "u1").await.unwrap());
+        assert!(check_media_quota(&pool, 1).await.unwrap());
     }
 
     #[tokio::test]
     async fn check_media_quota_over_limit() {
         let pool = setup().await;
-        create_user(&pool, "u1", "alice@example.com", None, "user", 1000)
+        create_user(&pool, 1, "alice@example.com", None, "user", 1000)
             .await
             .unwrap();
         create_persona_for_user(
-            &pool, "p1", "u1", "alice", "Alice", "privkey", "pubkey", 1000,
+            &pool, 101, 1, "alice", "Alice", "privkey", "pubkey", 1000,
         )
         .await
         .unwrap();
 
-        set_quota(&pool, "u1", "media_bytes", Some(100)).await.unwrap();
+        set_quota(&pool, 1, "media_bytes", Some(100)).await.unwrap();
 
         let Pool::Sqlite(sq) = &pool;
         sqlx::query(
@@ -1044,8 +1044,8 @@ mod tests {
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
         )
         .bind(1i64)
-        .bind("u1")
-        .bind("p1")
+        .bind(1i64)
+        .bind(101i64)
         .bind("/tmp/test.jpg")
         .bind("image/jpeg")
         .bind(200i64)
@@ -1054,37 +1054,37 @@ mod tests {
         .await
         .unwrap();
 
-        assert!(!check_media_quota(&pool, "u1").await.unwrap());
+        assert!(!check_media_quota(&pool, 1).await.unwrap());
     }
 
     #[tokio::test]
     async fn check_follower_quota_no_limit() {
         let pool = setup().await;
-        create_user(&pool, "u1", "alice@example.com", None, "user", 1000)
+        create_user(&pool, 1, "alice@example.com", None, "user", 1000)
             .await
             .unwrap();
         create_persona_for_user(
-            &pool, "p1", "u1", "alice", "Alice", "privkey", "pubkey", 1000,
+            &pool, 101, 1, "alice", "Alice", "privkey", "pubkey", 1000,
         )
         .await
         .unwrap();
 
-        assert!(check_follower_quota(&pool, "p1").await.unwrap());
+        assert!(check_follower_quota(&pool, 101).await.unwrap());
     }
 
     #[tokio::test]
     async fn check_follower_quota_at_limit() {
         let pool = setup().await;
-        create_user(&pool, "u1", "alice@example.com", None, "user", 1000)
+        create_user(&pool, 1, "alice@example.com", None, "user", 1000)
             .await
             .unwrap();
         create_persona_for_user(
-            &pool, "p1", "u1", "alice", "Alice", "privkey", "pubkey", 1000,
+            &pool, 101, 1, "alice", "Alice", "privkey", "pubkey", 1000,
         )
         .await
         .unwrap();
 
-        set_quota(&pool, "u1", "followers", Some(1)).await.unwrap();
+        set_quota(&pool, 1, "followers", Some(1)).await.unwrap();
 
         // Insert a remote account and a follower
         let Pool::Sqlite(sq) = &pool;
@@ -1110,45 +1110,45 @@ mod tests {
             "INSERT INTO followers (persona_id, user_id, remote_account_id, accepted_at) \
              VALUES (?1, ?2, ?3, ?4)",
         )
-        .bind("p1")
-        .bind("u1")
+        .bind(101i64)
+        .bind(1i64)
         .bind(1i64)
         .bind(2000i64)
         .execute(sq)
         .await
         .unwrap();
 
-        assert!(!check_follower_quota(&pool, "p1").await.unwrap());
+        assert!(!check_follower_quota(&pool, 101).await.unwrap());
     }
 
     #[tokio::test]
     async fn check_following_quota_no_limit() {
         let pool = setup().await;
-        create_user(&pool, "u1", "alice@example.com", None, "user", 1000)
+        create_user(&pool, 1, "alice@example.com", None, "user", 1000)
             .await
             .unwrap();
         create_persona_for_user(
-            &pool, "p1", "u1", "alice", "Alice", "privkey", "pubkey", 1000,
+            &pool, 101, 1, "alice", "Alice", "privkey", "pubkey", 1000,
         )
         .await
         .unwrap();
 
-        assert!(check_following_quota(&pool, "p1").await.unwrap());
+        assert!(check_following_quota(&pool, 101).await.unwrap());
     }
 
     #[tokio::test]
     async fn check_following_quota_at_limit() {
         let pool = setup().await;
-        create_user(&pool, "u1", "alice@example.com", None, "user", 1000)
+        create_user(&pool, 1, "alice@example.com", None, "user", 1000)
             .await
             .unwrap();
         create_persona_for_user(
-            &pool, "p1", "u1", "alice", "Alice", "privkey", "pubkey", 1000,
+            &pool, 101, 1, "alice", "Alice", "privkey", "pubkey", 1000,
         )
         .await
         .unwrap();
 
-        set_quota(&pool, "u1", "following", Some(1)).await.unwrap();
+        set_quota(&pool, 1, "following", Some(1)).await.unwrap();
 
         // Insert a remote account and a follow
         let Pool::Sqlite(sq) = &pool;
@@ -1174,14 +1174,14 @@ mod tests {
             "INSERT INTO follows (persona_id, user_id, followee_remote_id, created_at) \
              VALUES (?1, ?2, ?3, ?4)",
         )
-        .bind("p1")
-        .bind("u1")
+        .bind(101i64)
+        .bind(1i64)
         .bind(1i64)
         .bind(2000i64)
         .execute(sq)
         .await
         .unwrap();
 
-        assert!(!check_following_quota(&pool, "p1").await.unwrap());
+        assert!(!check_following_quota(&pool, 101).await.unwrap());
     }
 }

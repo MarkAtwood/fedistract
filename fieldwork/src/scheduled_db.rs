@@ -10,14 +10,14 @@ use crate::db::Pool;
 #[derive(Debug, Clone)]
 pub struct ScheduledRow {
     pub id: i64,
-    pub user_id: String,
-    pub persona_id: String,
+    pub user_id: i64,
+    pub persona_id: i64,
     pub scheduled_at: i64,
     pub params_json: String,
     pub created_at: i64,
 }
 
-type RowTuple = (i64, String, String, i64, String, i64);
+type RowTuple = (i64, i64, i64, i64, String, i64);
 
 fn tuple_to_row(t: RowTuple) -> ScheduledRow {
     ScheduledRow {
@@ -38,7 +38,7 @@ pub async fn create_scheduled(pool: &Pool, row: &ScheduledRow) -> Result<(), sql
             sqlx::query(
                 "INSERT INTO scheduled_statuses \
                  (id, user_id, persona_id, scheduled_at, params_json, created_at) \
-                 VALUES ($1, $2::uuid, $3::uuid, $4, $5, $6)",
+                 VALUES ($1, $2, $3, $4, $5, $6)",
             )
             .bind(row.id)
             .bind(&row.user_id)
@@ -75,7 +75,7 @@ pub async fn get_scheduled(pool: &Pool, id: i64) -> Result<Option<ScheduledRow>,
         #[cfg(feature = "db-postgres")]
         Pool::Postgres(pg) => {
             let row: Option<RowTuple> = sqlx::query_as(
-                "SELECT id, user_id::text, persona_id::text, scheduled_at, params_json, created_at \
+                "SELECT id, user_id, persona_id, scheduled_at, params_json, created_at \
                  FROM scheduled_statuses WHERE id = $1",
             )
             .bind(id)
@@ -100,14 +100,14 @@ pub async fn get_scheduled(pool: &Pool, id: i64) -> Result<Option<ScheduledRow>,
 /// List all scheduled statuses for a user.
 pub async fn list_scheduled(
     pool: &Pool,
-    user_id: &str,
+    user_id: i64,
 ) -> Result<Vec<ScheduledRow>, sqlx::Error> {
     match pool {
         #[cfg(feature = "db-postgres")]
         Pool::Postgres(pg) => {
             let rows: Vec<RowTuple> = sqlx::query_as(
-                "SELECT id, user_id::text, persona_id::text, scheduled_at, params_json, created_at \
-                 FROM scheduled_statuses WHERE user_id = $1::uuid ORDER BY scheduled_at",
+                "SELECT id, user_id, persona_id, scheduled_at, params_json, created_at \
+                 FROM scheduled_statuses WHERE user_id = $1 ORDER BY scheduled_at",
             )
             .bind(user_id)
             .fetch_all(pg)
@@ -196,7 +196,7 @@ pub async fn fetch_due(pool: &Pool, now: i64) -> Result<Vec<ScheduledRow>, sqlx:
         #[cfg(feature = "db-postgres")]
         Pool::Postgres(pg) => {
             let rows: Vec<RowTuple> = sqlx::query_as(
-                "SELECT id, user_id::text, persona_id::text, scheduled_at, params_json, created_at \
+                "SELECT id, user_id, persona_id, scheduled_at, params_json, created_at \
                  FROM scheduled_statuses WHERE scheduled_at <= $1 ORDER BY scheduled_at",
             )
             .bind(now)
@@ -234,9 +234,9 @@ mod tests {
         db::migrate(&pool).await.unwrap();
         sqlx::raw_sql(
             "INSERT INTO users (id, email, display_name, role, created_at) \
-             VALUES ('u1', 'test@example.com', 'Test', 'user', 1000); \
+             VALUES (1, 'test@example.com', 'Test', 'user', 1000); \
              INSERT INTO personas (id, user_id, username, private_key_pem, public_key_pem, created_at) \
-             VALUES ('p1', 'u1', 'alice', 'pk', 'pub', 1000);",
+             VALUES (101, 1, 'alice', 'pk', 'pub', 1000);",
         )
         .execute(&sq)
         .await
@@ -247,8 +247,8 @@ mod tests {
     fn sample_row(id: i64, scheduled_at: i64) -> ScheduledRow {
         ScheduledRow {
             id,
-            user_id: "u1".into(),
-            persona_id: "p1".into(),
+            user_id: 1,
+            persona_id: 101,
             scheduled_at,
             params_json: r#"{"content":"hello"}"#.into(),
             created_at: 1000,
@@ -261,7 +261,7 @@ mod tests {
         create_scheduled(&pool, &sample_row(1, 5000)).await.unwrap();
 
         let fetched = get_scheduled(&pool, 1).await.unwrap().expect("should exist");
-        assert_eq!(fetched.persona_id, "p1");
+        assert_eq!(fetched.persona_id, 101);
         assert_eq!(fetched.scheduled_at, 5000);
     }
 
@@ -271,7 +271,7 @@ mod tests {
         create_scheduled(&pool, &sample_row(1, 5000)).await.unwrap();
         create_scheduled(&pool, &sample_row(2, 3000)).await.unwrap();
 
-        let list = list_scheduled(&pool, "u1").await.unwrap();
+        let list = list_scheduled(&pool, 1).await.unwrap();
         assert_eq!(list.len(), 2);
         // ordered by scheduled_at
         assert_eq!(list[0].scheduled_at, 3000);

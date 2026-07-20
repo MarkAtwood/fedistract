@@ -11,7 +11,7 @@ use crate::db::Pool;
 pub struct MentionRow {
     pub post_id: i64,
     pub mentioned_remote_id: Option<i64>,
-    pub mentioned_persona_id: Option<String>,
+    pub mentioned_persona_id: Option<i64>,
 }
 
 /// Add a mention to a post.
@@ -19,14 +19,14 @@ pub async fn add_mention(
     pool: &Pool,
     post_id: i64,
     remote_id: Option<i64>,
-    persona_id: Option<&str>,
+    persona_id: Option<i64>,
 ) -> Result<(), sqlx::Error> {
     match pool {
         #[cfg(feature = "db-postgres")]
         Pool::Postgres(pg) => {
             sqlx::query(
                 "INSERT INTO mentions (post_id, mentioned_remote_id, mentioned_persona_id) \
-                 VALUES ($1, $2, $3::uuid)",
+                 VALUES ($1, $2, $3)",
             )
             .bind(post_id)
             .bind(remote_id)
@@ -58,8 +58,8 @@ pub async fn get_mentions(
     match pool {
         #[cfg(feature = "db-postgres")]
         Pool::Postgres(pg) => {
-            let rows: Vec<(i64, Option<i64>, Option<String>)> = sqlx::query_as(
-                "SELECT post_id, mentioned_remote_id, mentioned_persona_id::text \
+            let rows: Vec<(i64, Option<i64>, Option<i64>)> = sqlx::query_as(
+                "SELECT post_id, mentioned_remote_id, mentioned_persona_id \
                  FROM mentions WHERE post_id = $1",
             )
             .bind(post_id)
@@ -76,7 +76,7 @@ pub async fn get_mentions(
         }
         #[cfg(feature = "db-sqlite")]
         Pool::Sqlite(sq) => {
-            let rows: Vec<(i64, Option<i64>, Option<String>)> = sqlx::query_as(
+            let rows: Vec<(i64, Option<i64>, Option<i64>)> = sqlx::query_as(
                 "SELECT post_id, mentioned_remote_id, mentioned_persona_id \
                  FROM mentions WHERE post_id = ?1",
             )
@@ -132,17 +132,17 @@ mod tests {
         db::migrate(&pool).await.unwrap();
         sqlx::raw_sql(
             "INSERT INTO users (id, email, display_name, role, created_at) \
-             VALUES ('u1', 'test@example.com', 'Test', 'user', 1000); \
+             VALUES (1, 'test@example.com', 'Test', 'user', 1000); \
              INSERT INTO personas (id, user_id, username, private_key_pem, public_key_pem, created_at) \
-             VALUES ('p1', 'u1', 'alice', 'pk', 'pub', 1000); \
+             VALUES (101, 1, 'alice', 'pk', 'pub', 1000); \
              INSERT INTO personas (id, user_id, username, private_key_pem, public_key_pem, created_at) \
-             VALUES ('p2', 'u1', 'bob', 'pk2', 'pub2', 1000); \
+             VALUES (102, 1, 'bob', 'pk2', 'pub2', 1000); \
              INSERT INTO remote_accounts (id, actor_uri, username, domain, display_name, \
                  public_key_pem, public_key_id, inbox_url, last_fetched_at) \
              VALUES (1, 'https://remote/users/carol', 'carol', 'remote', 'Carol', \
                      'pk', 'https://remote/users/carol#key', 'https://remote/inbox', 1000); \
              INSERT INTO posts (id, user_id, persona_id, ap_id, content, content_html, visibility, created_at) \
-             VALUES (100, 'u1', 'p1', 'https://example.com/posts/100', 'hi', '<p>hi</p>', 'public', 1000);",
+             VALUES (100, 1, 101, 'https://example.com/posts/100', 'hi', '<p>hi</p>', 'public', 1000);",
         )
         .execute(&sq)
         .await
@@ -153,11 +153,11 @@ mod tests {
     #[tokio::test]
     async fn add_and_get_local_mention() {
         let pool = setup().await;
-        add_mention(&pool, 100, None, Some("p2")).await.unwrap();
+        add_mention(&pool, 100, None, Some(102)).await.unwrap();
 
         let mentions = get_mentions(&pool, 100).await.unwrap();
         assert_eq!(mentions.len(), 1);
-        assert_eq!(mentions[0].mentioned_persona_id.as_deref(), Some("p2"));
+        assert_eq!(mentions[0].mentioned_persona_id, Some(102));
         assert!(mentions[0].mentioned_remote_id.is_none());
     }
 
@@ -175,7 +175,7 @@ mod tests {
     #[tokio::test]
     async fn multiple_mentions() {
         let pool = setup().await;
-        add_mention(&pool, 100, None, Some("p2")).await.unwrap();
+        add_mention(&pool, 100, None, Some(102)).await.unwrap();
         add_mention(&pool, 100, Some(1), None).await.unwrap();
 
         let mentions = get_mentions(&pool, 100).await.unwrap();
@@ -185,7 +185,7 @@ mod tests {
     #[tokio::test]
     async fn remove_mentions_clears_all() {
         let pool = setup().await;
-        add_mention(&pool, 100, None, Some("p2")).await.unwrap();
+        add_mention(&pool, 100, None, Some(102)).await.unwrap();
         add_mention(&pool, 100, Some(1), None).await.unwrap();
         remove_mentions(&pool, 100).await.unwrap();
 

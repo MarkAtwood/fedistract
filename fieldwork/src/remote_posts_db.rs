@@ -248,9 +248,9 @@ mod tests {
         db::migrate(&pool).await.unwrap();
         sqlx::raw_sql(
             "INSERT INTO users (id, email, display_name, role, created_at) \
-             VALUES ('u1', 'test@example.com', 'Test', 'user', 1000); \
+             VALUES (1, 'test@example.com', 'Test', 'user', 1000); \
              INSERT INTO personas (id, user_id, username, private_key_pem, public_key_pem, created_at) \
-             VALUES ('p1', 'u1', 'alice', 'pk', 'pub', 1000); \
+             VALUES (101, 1, 'alice', 'pk', 'pub', 1000); \
              INSERT INTO remote_accounts (id, actor_uri, username, domain, display_name, \
                  public_key_pem, public_key_id, inbox_url, last_fetched_at) \
              VALUES (1, 'https://remote/users/bob', 'bob', 'remote', 'Bob', \

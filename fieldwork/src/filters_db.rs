@@ -10,7 +10,7 @@ use crate::db::Pool;
 #[derive(Debug, Clone)]
 pub struct FilterRow {
     pub id: i64,
-    pub user_id: String,
+    pub user_id: i64,
     pub title: String,
     pub context: String,
     pub filter_action: String,
@@ -35,7 +35,7 @@ pub async fn create_filter(pool: &Pool, filter: &FilterRow) -> Result<(), sqlx::
             sqlx::query(
                 "INSERT INTO filters \
                  (id, user_id, title, context, filter_action, expires_at, created_at) \
-                 VALUES ($1, $2::uuid, $3, $4, $5, $6, $7)",
+                 VALUES ($1, $2, $3, $4, $5, $6, $7)",
             )
             .bind(filter.id)
             .bind(&filter.user_id)
@@ -73,9 +73,9 @@ pub async fn get_filter(pool: &Pool, id: i64) -> Result<Option<FilterRow>, sqlx:
     match pool {
         #[cfg(feature = "db-postgres")]
         Pool::Postgres(pg) => {
-            let row: Option<(i64, String, String, String, String, Option<i64>, i64)> =
+            let row: Option<(i64, i64, String, String, String, Option<i64>, i64)> =
                 sqlx::query_as(
-                    "SELECT id, user_id::text, title, context, filter_action, expires_at, created_at \
+                    "SELECT id, user_id, title, context, filter_action, expires_at, created_at \
                      FROM filters WHERE id = $1",
                 )
                 .bind(id)
@@ -93,7 +93,7 @@ pub async fn get_filter(pool: &Pool, id: i64) -> Result<Option<FilterRow>, sqlx:
         }
         #[cfg(feature = "db-sqlite")]
         Pool::Sqlite(sq) => {
-            let row: Option<(i64, String, String, String, String, Option<i64>, i64)> =
+            let row: Option<(i64, i64, String, String, String, Option<i64>, i64)> =
                 sqlx::query_as(
                     "SELECT id, user_id, title, context, filter_action, expires_at, created_at \
                      FROM filters WHERE id = ?1",
@@ -115,14 +115,14 @@ pub async fn get_filter(pool: &Pool, id: i64) -> Result<Option<FilterRow>, sqlx:
 }
 
 /// Get all filters for a user.
-pub async fn get_filters(pool: &Pool, user_id: &str) -> Result<Vec<FilterRow>, sqlx::Error> {
+pub async fn get_filters(pool: &Pool, user_id: i64) -> Result<Vec<FilterRow>, sqlx::Error> {
     match pool {
         #[cfg(feature = "db-postgres")]
         Pool::Postgres(pg) => {
-            let rows: Vec<(i64, String, String, String, String, Option<i64>, i64)> =
+            let rows: Vec<(i64, i64, String, String, String, Option<i64>, i64)> =
                 sqlx::query_as(
-                    "SELECT id, user_id::text, title, context, filter_action, expires_at, created_at \
-                     FROM filters WHERE user_id = $1::uuid ORDER BY id",
+                    "SELECT id, user_id, title, context, filter_action, expires_at, created_at \
+                     FROM filters WHERE user_id = $1 ORDER BY id",
                 )
                 .bind(user_id)
                 .fetch_all(pg)
@@ -142,7 +142,7 @@ pub async fn get_filters(pool: &Pool, user_id: &str) -> Result<Vec<FilterRow>, s
         }
         #[cfg(feature = "db-sqlite")]
         Pool::Sqlite(sq) => {
-            let rows: Vec<(i64, String, String, String, String, Option<i64>, i64)> =
+            let rows: Vec<(i64, i64, String, String, String, Option<i64>, i64)> =
                 sqlx::query_as(
                     "SELECT id, user_id, title, context, filter_action, expires_at, created_at \
                      FROM filters WHERE user_id = ?1 ORDER BY id",
@@ -355,7 +355,7 @@ mod tests {
         db::migrate(&pool).await.unwrap();
         sqlx::raw_sql(
             "INSERT INTO users (id, email, display_name, role, created_at) \
-             VALUES ('u1', 'test@example.com', 'Test', 'user', 1000);",
+             VALUES (1, 'test@example.com', 'Test', 'user', 1000);",
         )
         .execute(&sq)
         .await
@@ -368,7 +368,7 @@ mod tests {
         let pool = setup().await;
         let f = FilterRow {
             id: 1,
-            user_id: "u1".into(),
+            user_id: 1,
             title: "Spoilers".into(),
             context: "[\"home\"]".into(),
             filter_action: "warn".into(),
@@ -388,14 +388,14 @@ mod tests {
         let pool = setup().await;
         create_filter(
             &pool,
-            &FilterRow { id: 1, user_id: "u1".into(), title: "A".into(), context: "[]".into(), filter_action: "warn".into(), expires_at: None, created_at: 1000 },
+            &FilterRow { id: 1, user_id: 1, title: "A".into(), context: "[]".into(), filter_action: "warn".into(), expires_at: None, created_at: 1000 },
         ).await.unwrap();
         create_filter(
             &pool,
-            &FilterRow { id: 2, user_id: "u1".into(), title: "B".into(), context: "[]".into(), filter_action: "hide".into(), expires_at: Some(9999), created_at: 2000 },
+            &FilterRow { id: 2, user_id: 1, title: "B".into(), context: "[]".into(), filter_action: "hide".into(), expires_at: Some(9999), created_at: 2000 },
         ).await.unwrap();
 
-        let filters = get_filters(&pool, "u1").await.unwrap();
+        let filters = get_filters(&pool, 1).await.unwrap();
         assert_eq!(filters.len(), 2);
         assert_eq!(filters[1].filter_action, "hide");
     }
@@ -405,7 +405,7 @@ mod tests {
         let pool = setup().await;
         create_filter(
             &pool,
-            &FilterRow { id: 1, user_id: "u1".into(), title: "Old".into(), context: "[]".into(), filter_action: "warn".into(), expires_at: None, created_at: 1000 },
+            &FilterRow { id: 1, user_id: 1, title: "Old".into(), context: "[]".into(), filter_action: "warn".into(), expires_at: None, created_at: 1000 },
         ).await.unwrap();
 
         update_filter(&pool, 1, Some("New"), None, Some("hide"), None).await.unwrap();
@@ -420,7 +420,7 @@ mod tests {
         let pool = setup().await;
         create_filter(
             &pool,
-            &FilterRow { id: 1, user_id: "u1".into(), title: "X".into(), context: "[]".into(), filter_action: "warn".into(), expires_at: None, created_at: 1000 },
+            &FilterRow { id: 1, user_id: 1, title: "X".into(), context: "[]".into(), filter_action: "warn".into(), expires_at: None, created_at: 1000 },
         ).await.unwrap();
         add_keyword(
             &pool,
@@ -438,7 +438,7 @@ mod tests {
         let pool = setup().await;
         create_filter(
             &pool,
-            &FilterRow { id: 1, user_id: "u1".into(), title: "X".into(), context: "[]".into(), filter_action: "warn".into(), expires_at: None, created_at: 1000 },
+            &FilterRow { id: 1, user_id: 1, title: "X".into(), context: "[]".into(), filter_action: "warn".into(), expires_at: None, created_at: 1000 },
         ).await.unwrap();
 
         add_keyword(&pool, &FilterKeywordRow { id: 10, filter_id: 1, keyword: "foo".into(), whole_word: true }).await.unwrap();

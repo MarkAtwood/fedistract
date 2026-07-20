@@ -10,15 +10,15 @@ use crate::db::Pool;
 #[derive(Debug, Clone)]
 pub struct InviteCodeRow {
     pub code: String,
-    pub created_by: Option<String>,
-    pub used_by: Option<String>,
+    pub created_by: Option<i64>,
+    pub used_by: Option<i64>,
     pub max_uses: i32,
     pub uses: i32,
     pub expires_at: Option<i64>,
     pub created_at: i64,
 }
 
-type InviteCodeTuple = (String, Option<String>, Option<String>, i32, i32, Option<i64>, i64);
+type InviteCodeTuple = (String, Option<i64>, Option<i64>, i32, i32, Option<i64>, i64);
 
 fn tuple_to_row(t: InviteCodeTuple) -> InviteCodeRow {
     InviteCodeRow {
@@ -39,7 +39,7 @@ pub async fn create_code(pool: &Pool, row: &InviteCodeRow) -> Result<(), sqlx::E
         Pool::Postgres(pg) => {
             sqlx::query(
                 "INSERT INTO invite_codes (code, created_by, used_by, max_uses, uses, expires_at, created_at) \
-                 VALUES ($1, $2::uuid, $3::uuid, $4, $5, $6, $7)",
+                 VALUES ($1, $2, $3, $4, $5, $6, $7)",
             )
             .bind(&row.code)
             .bind(&row.created_by)
@@ -77,7 +77,7 @@ pub async fn get_code(pool: &Pool, code: &str) -> Result<Option<InviteCodeRow>, 
         #[cfg(feature = "db-postgres")]
         Pool::Postgres(pg) => {
             let row = sqlx::query_as::<_, InviteCodeTuple>(
-                "SELECT code, created_by::text, used_by::text, max_uses, uses, expires_at, created_at \
+                "SELECT code, created_by, used_by, max_uses, uses, expires_at, created_at \
                  FROM invite_codes WHERE code = $1",
             )
             .bind(code)
@@ -101,7 +101,7 @@ pub async fn get_code(pool: &Pool, code: &str) -> Result<Option<InviteCodeRow>, 
 
 /// Attempt to use an invite code. Increments `uses`, sets `used_by` if
 /// `max_uses == 1`. Returns `false` if the code is expired or exhausted.
-pub async fn use_code(pool: &Pool, code: &str, user_id: &str, now: i64) -> Result<bool, sqlx::Error> {
+pub async fn use_code(pool: &Pool, code: &str, user_id: i64, now: i64) -> Result<bool, sqlx::Error> {
     let row = match get_code(pool, code).await? {
         Some(r) => r,
         None => return Ok(false),
@@ -125,7 +125,7 @@ pub async fn use_code(pool: &Pool, code: &str, user_id: &str, now: i64) -> Resul
             #[cfg(feature = "db-postgres")]
             Pool::Postgres(pg) => {
                 sqlx::query(
-                    "UPDATE invite_codes SET uses = uses + 1, used_by = $1::uuid WHERE code = $2",
+                    "UPDATE invite_codes SET uses = uses + 1, used_by = $1 WHERE code = $2",
                 )
                 .bind(user_id)
                 .bind(code)
@@ -171,7 +171,7 @@ pub async fn list_codes(pool: &Pool) -> Result<Vec<InviteCodeRow>, sqlx::Error> 
         #[cfg(feature = "db-postgres")]
         Pool::Postgres(pg) => {
             let rows = sqlx::query_as::<_, InviteCodeTuple>(
-                "SELECT code, created_by::text, used_by::text, max_uses, uses, expires_at, created_at \
+                "SELECT code, created_by, used_by, max_uses, uses, expires_at, created_at \
                  FROM invite_codes ORDER BY created_at",
             )
             .fetch_all(pg)
@@ -229,15 +229,15 @@ mod tests {
         // Create test users so FK constraints on used_by are satisfied.
         sqlx::raw_sql(
             "INSERT INTO users (id, email, display_name, role, created_at) \
-             VALUES ('user1', 'user1@test.com', 'User1', 'user', 1000); \
+             VALUES (10, 'user1@test.com', 'User1', 'user', 1000); \
              INSERT INTO users (id, email, display_name, role, created_at) \
-             VALUES ('u1', 'u1@test.com', 'U1', 'user', 1000); \
+             VALUES (1, 'u1@test.com', 'U1', 'user', 1000); \
              INSERT INTO users (id, email, display_name, role, created_at) \
-             VALUES ('u2', 'u2@test.com', 'U2', 'user', 1000); \
+             VALUES (2, 'u2@test.com', 'U2', 'user', 1000); \
              INSERT INTO users (id, email, display_name, role, created_at) \
-             VALUES ('u3', 'u3@test.com', 'U3', 'user', 1000); \
+             VALUES (3, 'u3@test.com', 'U3', 'user', 1000); \
              INSERT INTO users (id, email, display_name, role, created_at) \
-             VALUES ('u4', 'u4@test.com', 'U4', 'user', 1000);",
+             VALUES (4, 'u4@test.com', 'U4', 'user', 1000);",
         )
         .execute(&sq)
         .await
@@ -281,15 +281,15 @@ mod tests {
         let pool = setup().await;
         create_code(&pool, &sample_code("SINGLE")).await.unwrap();
 
-        let ok = use_code(&pool, "SINGLE", "user1", 500).await.unwrap();
+        let ok = use_code(&pool, "SINGLE", 10, 500).await.unwrap();
         assert!(ok);
 
         let fetched = get_code(&pool, "SINGLE").await.unwrap().unwrap();
         assert_eq!(fetched.uses, 1);
-        assert_eq!(fetched.used_by.as_deref(), Some("user1"));
+        assert_eq!(fetched.used_by, Some(10));
 
         // Second use should fail (exhausted)
-        let ok = use_code(&pool, "SINGLE", "user2", 500).await.unwrap();
+        let ok = use_code(&pool, "SINGLE", 11, 500).await.unwrap();
         assert!(!ok);
     }
 
@@ -300,11 +300,11 @@ mod tests {
         row.max_uses = 3;
         create_code(&pool, &row).await.unwrap();
 
-        assert!(use_code(&pool, "MULTI", "u1", 500).await.unwrap());
-        assert!(use_code(&pool, "MULTI", "u2", 500).await.unwrap());
-        assert!(use_code(&pool, "MULTI", "u3", 500).await.unwrap());
+        assert!(use_code(&pool, "MULTI", 1, 500).await.unwrap());
+        assert!(use_code(&pool, "MULTI", 2, 500).await.unwrap());
+        assert!(use_code(&pool, "MULTI", 3, 500).await.unwrap());
         // Fourth use should fail
-        assert!(!use_code(&pool, "MULTI", "u4", 500).await.unwrap());
+        assert!(!use_code(&pool, "MULTI", 4, 500).await.unwrap());
 
         let fetched = get_code(&pool, "MULTI").await.unwrap().unwrap();
         assert_eq!(fetched.uses, 3);
@@ -319,14 +319,14 @@ mod tests {
         row.expires_at = Some(100);
         create_code(&pool, &row).await.unwrap();
 
-        let ok = use_code(&pool, "EXPIRED", "user1", 200).await.unwrap();
+        let ok = use_code(&pool, "EXPIRED", 10, 200).await.unwrap();
         assert!(!ok);
     }
 
     #[tokio::test]
     async fn nonexistent_code_use_returns_false() {
         let pool = setup().await;
-        let ok = use_code(&pool, "NOPE", "user1", 500).await.unwrap();
+        let ok = use_code(&pool, "NOPE", 10, 500).await.unwrap();
         assert!(!ok);
     }
 

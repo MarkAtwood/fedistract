@@ -1,0 +1,16 @@
+{
+  "id": "fedistract-3k45",
+  "title": "Unify all IDs to i64 snowflake — eliminate TEXT UUID for users/personas",
+  "description": "The canonical schema has a type split: posts/media/notifications use INTEGER snowflake IDs, but users/personas use TEXT UUIDs. This causes type conversion pain everywhere. ActivityPub doesn't require UUIDs — internal IDs are never exposed to federation. Unify to i64 snowflake IDs everywhere: schema migration v4 changes users.id and personas.id from TEXT to INTEGER, all fieldwork modules change user_id/persona_id params from \u0026str to i64, all three servers update accordingly. One ID type, zero conversions.",
+  "status": "in_progress",
+  "priority": 0,
+  "issue_type": "feature",
+  "assignee": "Mark Atwood",
+  "owner": "mark@wolfssl.com",
+  "created_at": "2026-07-20T18:23:19.186866313Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T18:23:19.271190955Z",
+  "started_at": "2026-07-20T18:23:19.271190955Z",
+  "lease_expires_at": "2026-07-20T18:28:19.271190955Z",
+  "heartbeat_at": "2026-07-20T18:23:19.271190955Z"
+}

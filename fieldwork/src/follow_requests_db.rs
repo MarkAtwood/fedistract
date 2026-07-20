@@ -8,7 +8,7 @@ use crate::db::Pool;
 pub struct FollowRequestRow {
     pub id: i64,
     pub requester_remote_id: i64,
-    pub target_persona_id: String,
+    pub target_persona_id: i64,
     pub ap_id: String,
     pub created_at: i64,
 }
@@ -20,7 +20,7 @@ pub async fn create_request(pool: &Pool, row: &FollowRequestRow) -> Result<(), s
         Pool::Postgres(pg) => {
             sqlx::query(
                 "INSERT INTO follow_requests (id, requester_remote_id, target_persona_id, ap_id, created_at) \
-                 VALUES ($1, $2, $3::uuid, $4, $5)",
+                 VALUES ($1, $2, $3, $4, $5)",
             )
             .bind(row.id)
             .bind(row.requester_remote_id)
@@ -51,16 +51,16 @@ pub async fn create_request(pool: &Pool, row: &FollowRequestRow) -> Result<(), s
 /// Get pending follow requests for a persona, ordered by newest first.
 pub async fn get_requests(
     pool: &Pool,
-    persona_id: &str,
+    persona_id: i64,
     limit: i64,
 ) -> Result<Vec<FollowRequestRow>, sqlx::Error> {
     match pool {
         #[cfg(feature = "db-postgres")]
         Pool::Postgres(pg) => {
             sqlx::query_as(
-                "SELECT id, requester_remote_id, target_persona_id::text AS target_persona_id, \
+                "SELECT id, requester_remote_id, target_persona_id, \
                  ap_id, created_at \
-                 FROM follow_requests WHERE target_persona_id = $1::uuid \
+                 FROM follow_requests WHERE target_persona_id = $1 \
                  ORDER BY created_at DESC LIMIT $2",
             )
             .bind(persona_id)
@@ -92,7 +92,7 @@ pub async fn get_request_by_ap_id(
         #[cfg(feature = "db-postgres")]
         Pool::Postgres(pg) => {
             sqlx::query_as(
-                "SELECT id, requester_remote_id, target_persona_id::text AS target_persona_id, \
+                "SELECT id, requester_remote_id, target_persona_id, \
                  ap_id, created_at \
                  FROM follow_requests WHERE ap_id = $1",
             )
@@ -150,9 +150,9 @@ mod tests {
         db::migrate(&pool).await.unwrap();
         sqlx::raw_sql(
             "INSERT INTO users (id, email, display_name, role, created_at) \
-             VALUES ('u1', 'test@example.com', 'Test', 'user', 1000); \
+             VALUES (1, 'test@example.com', 'Test', 'user', 1000); \
              INSERT INTO personas (id, user_id, username, private_key_pem, public_key_pem, created_at) \
-             VALUES ('p1', 'u1', 'alice', 'pk', 'pub', 1000); \
+             VALUES (101, 1, 'alice', 'pk', 'pub', 1000); \
              INSERT INTO remote_accounts (id, actor_uri, username, domain, display_name, \
                  public_key_pem, public_key_id, inbox_url, last_fetched_at) \
              VALUES (1, 'https://remote/users/bob', 'bob', 'remote', 'Bob', \
@@ -174,13 +174,13 @@ mod tests {
         let row = FollowRequestRow {
             id: 10,
             requester_remote_id: 1,
-            target_persona_id: "p1".to_string(),
+            target_persona_id: 101,
             ap_id: "https://remote/activities/follow-1".to_string(),
             created_at: 2000,
         };
         create_request(&pool, &row).await.unwrap();
 
-        let reqs = get_requests(&pool, "p1", 10).await.unwrap();
+        let reqs = get_requests(&pool, 101, 10).await.unwrap();
         assert_eq!(reqs.len(), 1);
         assert_eq!(reqs[0].requester_remote_id, 1);
     }
@@ -191,7 +191,7 @@ mod tests {
         let row = FollowRequestRow {
             id: 10,
             requester_remote_id: 1,
-            target_persona_id: "p1".to_string(),
+            target_persona_id: 101,
             ap_id: "https://remote/activities/follow-1".to_string(),
             created_at: 2000,
         };
@@ -219,13 +219,13 @@ mod tests {
         let row = FollowRequestRow {
             id: 10,
             requester_remote_id: 1,
-            target_persona_id: "p1".to_string(),
+            target_persona_id: 101,
             ap_id: "https://remote/activities/follow-1".to_string(),
             created_at: 2000,
         };
         create_request(&pool, &row).await.unwrap();
         delete_request(&pool, 10).await.unwrap();
-        assert!(get_requests(&pool, "p1", 10).await.unwrap().is_empty());
+        assert!(get_requests(&pool, 101, 10).await.unwrap().is_empty());
     }
 
     #[tokio::test]
@@ -235,13 +235,13 @@ mod tests {
             let row = FollowRequestRow {
                 id: 10 + i,
                 requester_remote_id: 1,
-                target_persona_id: "p1".to_string(),
+                target_persona_id: 101,
                 ap_id: format!("https://remote/follow-{i}"),
                 created_at: 2000 + i as i64,
             };
             create_request(&pool, &row).await.unwrap();
         }
-        let reqs = get_requests(&pool, "p1", 3).await.unwrap();
+        let reqs = get_requests(&pool, 101, 3).await.unwrap();
         assert_eq!(reqs.len(), 3);
     }
 }

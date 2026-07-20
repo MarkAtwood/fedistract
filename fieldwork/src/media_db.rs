@@ -8,8 +8,8 @@ use crate::db::Pool;
 /// A row in the `media` table.
 pub struct MediaRow {
     pub id: i64,
-    pub user_id: String,
-    pub persona_id: String,
+    pub user_id: i64,
+    pub persona_id: i64,
     pub post_id: Option<i64>,
     pub file_path: String,
     pub mime_type: String,
@@ -30,7 +30,7 @@ pub async fn insert_media(pool: &Pool, media: &MediaRow) -> Result<(), sqlx::Err
             sqlx::query(
                 "INSERT INTO media (id, user_id, persona_id, post_id, file_path, mime_type, \
                  file_size, width, height, blurhash, integrity, description, created_at) \
-                 VALUES ($1, $2::uuid, $3::uuid, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)",
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)",
             )
             .bind(media.id)
             .bind(&media.user_id)
@@ -75,13 +75,13 @@ pub async fn insert_media(pool: &Pool, media: &MediaRow) -> Result<(), sqlx::Err
     Ok(())
 }
 
-const SELECT_COLS_PG: &str = "id, user_id::text, persona_id::text, post_id, file_path, mime_type, \
+const SELECT_COLS_PG: &str = "id, user_id, persona_id, post_id, file_path, mime_type, \
     file_size, width, height, blurhash, integrity, description, created_at";
 const SELECT_COLS_SQ: &str = "id, user_id, persona_id, post_id, file_path, mime_type, \
     file_size, width, height, blurhash, integrity, description, created_at";
 
 type MediaTuple = (
-    i64, String, String, Option<i64>, String, String,
+    i64, i64, i64, Option<i64>, String, String,
     i64, Option<i32>, Option<i32>, Option<String>, Option<String>, String, i64,
 );
 
@@ -199,11 +199,11 @@ mod tests {
     async fn seed_parents(pool: &Pool) {
         let sql = "\
             INSERT INTO users (id, email, display_name, role, created_at) \
-            VALUES ('u1', 'test@example.com', 'Test', 'user', 1000);\
+            VALUES (1, 'test@example.com', 'Test', 'user', 1000);\
             INSERT INTO personas (id, user_id, username, display_name, private_key_pem, public_key_pem, created_at) \
-            VALUES ('p1', 'u1', 'alice', 'Alice', 'pk', 'pub', 1000);\
+            VALUES (101, 1, 'alice', 'Alice', 'pk', 'pub', 1000);\
             INSERT INTO posts (id, user_id, persona_id, ap_id, content, content_html, visibility, created_at) \
-            VALUES (100, 'u1', 'p1', 'https://example.com/posts/100', 'hi', '<p>hi</p>', 'public', 1000);";
+            VALUES (100, 1, 101, 'https://example.com/posts/100', 'hi', '<p>hi</p>', 'public', 1000);";
         match pool {
             #[cfg(feature = "db-postgres")]
             Pool::Postgres(_) => unreachable!(),
@@ -217,8 +217,8 @@ mod tests {
     fn sample_media(id: i64, post_id: Option<i64>) -> MediaRow {
         MediaRow {
             id,
-            user_id: "u1".into(),
-            persona_id: "p1".into(),
+            user_id: 1,
+            persona_id: 101,
             post_id,
             file_path: format!("media/u1/{id}.png"),
             mime_type: "image/png".into(),

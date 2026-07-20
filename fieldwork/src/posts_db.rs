@@ -13,8 +13,8 @@ use crate::db::Pool;
 #[derive(Debug, Clone)]
 pub struct PostRow {
     pub id: i64,
-    pub user_id: String,
-    pub persona_id: String,
+    pub user_id: i64,
+    pub persona_id: i64,
     pub ap_id: String,
     pub in_reply_to_id: Option<i64>,
     pub in_reply_to_uri: Option<String>,
@@ -105,7 +105,7 @@ pub async fn create_post(pool: &Pool, post: &PostRow) -> Result<(), sqlx::Error>
                     sensitive, language, context_url, \
                     created_at, edited_at, deleted_at, deleted_reason\
                  ) VALUES (\
-                    $1, $2::uuid, $3::uuid, $4, \
+                    $1, $2, $3, $4, \
                     $5, $6, $7, $8, \
                     $9, $10, $11, $12, \
                     $13, $14, $15, \
@@ -307,7 +307,7 @@ pub async fn delete_post(
 /// Excludes soft-deleted posts.
 pub async fn posts_by_persona(
     pool: &Pool,
-    persona_id: &str,
+    persona_id: i64,
     limit: i64,
     max_id: Option<i64>,
 ) -> Result<Vec<PostRow>, sqlx::Error> {
@@ -317,7 +317,7 @@ pub async fn posts_by_persona(
         Pool::Postgres(pg) => {
             let sql = format!(
                 "SELECT {COLUMNS} FROM posts \
-                 WHERE persona_id = $1::uuid AND id < $2 AND deleted_at IS NULL \
+                 WHERE persona_id = $1 AND id < $2 AND deleted_at IS NULL \
                  ORDER BY id DESC LIMIT $3"
             );
             let rows = sqlx::query(&sql)
@@ -347,13 +347,13 @@ pub async fn posts_by_persona(
 }
 
 /// Count non-deleted posts for a persona.
-pub async fn posts_count(pool: &Pool, persona_id: &str) -> Result<i64, sqlx::Error> {
+pub async fn posts_count(pool: &Pool, persona_id: i64) -> Result<i64, sqlx::Error> {
     let row: (i64,) = match pool {
         #[cfg(feature = "db-postgres")]
         Pool::Postgres(pg) => {
             sqlx::query_as(
                 "SELECT COUNT(*)::bigint FROM posts \
-                 WHERE persona_id = $1::uuid AND deleted_at IS NULL",
+                 WHERE persona_id = $1 AND deleted_at IS NULL",
             )
             .bind(persona_id)
             .fetch_one(pg)
@@ -389,9 +389,9 @@ mod tests {
         db::migrate(&pool).await.unwrap();
         sqlx::raw_sql(
             "INSERT INTO users (id, email, display_name, role, created_at) \
-             VALUES ('u1', 'test@example.com', 'Test', 'user', 1000); \
+             VALUES (1, 'test@example.com', 'Test', 'user', 1000); \
              INSERT INTO personas (id, user_id, username, private_key_pem, public_key_pem, created_at) \
-             VALUES ('p1', 'u1', 'alice', 'pk', 'pub', 1000);",
+             VALUES (101, 1, 'alice', 'pk', 'pub', 1000);",
         )
         .execute(&sq)
         .await
@@ -402,8 +402,8 @@ mod tests {
     fn make_post(id: i64) -> PostRow {
         PostRow {
             id,
-            user_id: "u1".into(),
-            persona_id: "p1".into(),
+            user_id: 1,
+            persona_id: 101,
             ap_id: format!("https://example.com/posts/{id}"),
             in_reply_to_id: None,
             in_reply_to_uri: None,
@@ -487,12 +487,12 @@ mod tests {
             create_post(&pool, &make_post(i)).await.unwrap();
         }
 
-        let page1 = posts_by_persona(&pool, "p1", 3, None).await.unwrap();
+        let page1 = posts_by_persona(&pool, 101, 3, None).await.unwrap();
         assert_eq!(page1.len(), 3);
         assert_eq!(page1[0].id, 5);
         assert_eq!(page1[2].id, 3);
 
-        let page2 = posts_by_persona(&pool, "p1", 3, Some(3)).await.unwrap();
+        let page2 = posts_by_persona(&pool, 101, 3, Some(3)).await.unwrap();
         assert_eq!(page2.len(), 2);
         assert_eq!(page2[0].id, 2);
     }
@@ -504,7 +504,7 @@ mod tests {
         create_post(&pool, &make_post(201)).await.unwrap();
         delete_post(&pool, 200, 9000, None).await.unwrap();
 
-        let posts = posts_by_persona(&pool, "p1", 10, None).await.unwrap();
+        let posts = posts_by_persona(&pool, 101, 10, None).await.unwrap();
         assert_eq!(posts.len(), 1);
         assert_eq!(posts[0].id, 201);
     }
@@ -514,9 +514,9 @@ mod tests {
         let pool = setup().await;
         create_post(&pool, &make_post(300)).await.unwrap();
         create_post(&pool, &make_post(301)).await.unwrap();
-        assert_eq!(posts_count(&pool, "p1").await.unwrap(), 2);
+        assert_eq!(posts_count(&pool, 101).await.unwrap(), 2);
 
         delete_post(&pool, 300, 9000, None).await.unwrap();
-        assert_eq!(posts_count(&pool, "p1").await.unwrap(), 1);
+        assert_eq!(posts_count(&pool, 101).await.unwrap(), 1);
     }
 }

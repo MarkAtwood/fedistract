@@ -10,10 +10,10 @@ use crate::db::Pool;
 #[derive(Debug, Clone)]
 pub struct NotificationRow {
     pub id: i64,
-    pub user_id: String,
-    pub persona_id: String,
+    pub user_id: i64,
+    pub persona_id: i64,
     pub kind: String,
-    pub from_persona_id: Option<String>,
+    pub from_persona_id: Option<i64>,
     pub from_remote_account_id: Option<i64>,
     pub post_id: Option<i64>,
     pub remote_post_id: Option<i64>,
@@ -22,8 +22,8 @@ pub struct NotificationRow {
 }
 
 type NotifTuple = (
-    i64, String, String, String,
-    Option<String>, Option<i64>,
+    i64, i64, i64, String,
+    Option<i64>, Option<i64>,
     Option<i64>, Option<i64>,
     i64, Option<i64>,
 );
@@ -55,7 +55,7 @@ pub async fn create_notification(
                 "INSERT INTO notifications \
                  (id, user_id, persona_id, kind, from_persona_id, from_remote_account_id, \
                   post_id, remote_post_id, created_at, read_at) \
-                 VALUES ($1, $2::uuid, $3::uuid, $4, $5::uuid, $6, $7, $8, $9, $10)",
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
             )
             .bind(row.id)
             .bind(&row.user_id)
@@ -98,17 +98,17 @@ pub async fn create_notification(
 /// Get notifications for a user, newest first.
 pub async fn get_notifications(
     pool: &Pool,
-    user_id: &str,
+    user_id: i64,
     limit: i64,
 ) -> Result<Vec<NotificationRow>, sqlx::Error> {
     match pool {
         #[cfg(feature = "db-postgres")]
         Pool::Postgres(pg) => {
             let rows: Vec<NotifTuple> = sqlx::query_as(
-                "SELECT id, user_id::text, persona_id::text, kind, \
-                 from_persona_id::text, from_remote_account_id, \
+                "SELECT id, user_id, persona_id, kind, \
+                 from_persona_id, from_remote_account_id, \
                  post_id, remote_post_id, created_at, read_at \
-                 FROM notifications WHERE user_id = $1::uuid \
+                 FROM notifications WHERE user_id = $1 \
                  ORDER BY created_at DESC LIMIT $2",
             )
             .bind(user_id)
@@ -138,7 +138,7 @@ pub async fn get_notifications(
 /// Mark a single notification as read.
 pub async fn mark_read(
     pool: &Pool,
-    user_id: &str,
+    user_id: i64,
     notification_id: i64,
 ) -> Result<(), sqlx::Error> {
     let now = std::time::SystemTime::now()
@@ -150,7 +150,7 @@ pub async fn mark_read(
         Pool::Postgres(pg) => {
             sqlx::query(
                 "UPDATE notifications SET read_at = $1 \
-                 WHERE id = $2 AND user_id = $3::uuid AND read_at IS NULL",
+                 WHERE id = $2 AND user_id = $3 AND read_at IS NULL",
             )
             .bind(now)
             .bind(notification_id)
@@ -175,13 +175,13 @@ pub async fn mark_read(
 }
 
 /// Mark all notifications as read for a user.
-pub async fn mark_all_read(pool: &Pool, user_id: &str, now: i64) -> Result<(), sqlx::Error> {
+pub async fn mark_all_read(pool: &Pool, user_id: i64, now: i64) -> Result<(), sqlx::Error> {
     match pool {
         #[cfg(feature = "db-postgres")]
         Pool::Postgres(pg) => {
             sqlx::query(
                 "UPDATE notifications SET read_at = $1 \
-                 WHERE user_id = $2::uuid AND read_at IS NULL",
+                 WHERE user_id = $2 AND read_at IS NULL",
             )
             .bind(now)
             .bind(user_id)
@@ -204,11 +204,11 @@ pub async fn mark_all_read(pool: &Pool, user_id: &str, now: i64) -> Result<(), s
 }
 
 /// Delete all notifications for a user.
-pub async fn clear_notifications(pool: &Pool, user_id: &str) -> Result<(), sqlx::Error> {
+pub async fn clear_notifications(pool: &Pool, user_id: i64) -> Result<(), sqlx::Error> {
     match pool {
         #[cfg(feature = "db-postgres")]
         Pool::Postgres(pg) => {
-            sqlx::query("DELETE FROM notifications WHERE user_id = $1::uuid")
+            sqlx::query("DELETE FROM notifications WHERE user_id = $1")
                 .bind(user_id)
                 .execute(pg)
                 .await?;
@@ -240,11 +240,11 @@ mod tests {
         db::migrate(&pool).await.unwrap();
         sqlx::raw_sql(
             "INSERT INTO users (id, email, display_name, role, created_at) \
-             VALUES ('u1', 'test@example.com', 'Test', 'user', 1000); \
+             VALUES (1, 'test@example.com', 'Test', 'user', 1000); \
              INSERT INTO personas (id, user_id, username, private_key_pem, public_key_pem, created_at) \
-             VALUES ('p1', 'u1', 'alice', 'pk', 'pub', 1000); \
+             VALUES (101, 1, 'alice', 'pk', 'pub', 1000); \
              INSERT INTO personas (id, user_id, username, private_key_pem, public_key_pem, created_at) \
-             VALUES ('p2', 'u1', 'bob', 'pk2', 'pub2', 1000);",
+             VALUES (102, 1, 'bob', 'pk2', 'pub2', 1000);",
         )
         .execute(&sq)
         .await
@@ -255,10 +255,10 @@ mod tests {
     fn sample_notif(id: i64, kind: &str) -> NotificationRow {
         NotificationRow {
             id,
-            user_id: "u1".into(),
-            persona_id: "p1".into(),
+            user_id: 1,
+            persona_id: 101,
             kind: kind.into(),
-            from_persona_id: Some("p2".into()),
+            from_persona_id: Some(102),
             from_remote_account_id: None,
             post_id: None,
             remote_post_id: None,
@@ -272,11 +272,11 @@ mod tests {
         let pool = setup().await;
         create_notification(&pool, &sample_notif(1, "follow")).await.unwrap();
 
-        let notifs = get_notifications(&pool, "u1", 10).await.unwrap();
+        let notifs = get_notifications(&pool, 1, 10).await.unwrap();
         assert_eq!(notifs.len(), 1);
         assert_eq!(notifs[0].id, 1);
         assert_eq!(notifs[0].kind, "follow");
-        assert_eq!(notifs[0].from_persona_id.as_deref(), Some("p2"));
+        assert_eq!(notifs[0].from_persona_id, Some(102));
         assert!(notifs[0].read_at.is_none());
     }
 
@@ -287,7 +287,7 @@ mod tests {
         create_notification(&pool, &sample_notif(2, "mention")).await.unwrap();
         create_notification(&pool, &sample_notif(3, "favourite")).await.unwrap();
 
-        let notifs = get_notifications(&pool, "u1", 10).await.unwrap();
+        let notifs = get_notifications(&pool, 1, 10).await.unwrap();
         assert_eq!(notifs.len(), 3);
         assert_eq!(notifs[0].id, 3);
         assert_eq!(notifs[2].id, 1);
@@ -299,7 +299,7 @@ mod tests {
         for i in 1..=5 {
             create_notification(&pool, &sample_notif(i, "follow")).await.unwrap();
         }
-        let notifs = get_notifications(&pool, "u1", 2).await.unwrap();
+        let notifs = get_notifications(&pool, 1, 2).await.unwrap();
         assert_eq!(notifs.len(), 2);
     }
 
@@ -307,9 +307,9 @@ mod tests {
     async fn mark_read_sets_timestamp() {
         let pool = setup().await;
         create_notification(&pool, &sample_notif(1, "follow")).await.unwrap();
-        mark_read(&pool, "u1", 1).await.unwrap();
+        mark_read(&pool, 1, 1).await.unwrap();
 
-        let notifs = get_notifications(&pool, "u1", 10).await.unwrap();
+        let notifs = get_notifications(&pool, 1, 10).await.unwrap();
         assert!(notifs[0].read_at.is_some());
     }
 
@@ -318,9 +318,9 @@ mod tests {
         let pool = setup().await;
         create_notification(&pool, &sample_notif(1, "follow")).await.unwrap();
         create_notification(&pool, &sample_notif(2, "mention")).await.unwrap();
-        mark_all_read(&pool, "u1", 5000).await.unwrap();
+        mark_all_read(&pool, 1, 5000).await.unwrap();
 
-        let notifs = get_notifications(&pool, "u1", 10).await.unwrap();
+        let notifs = get_notifications(&pool, 1, 10).await.unwrap();
         assert!(notifs.iter().all(|n| n.read_at == Some(5000)));
     }
 
@@ -329,19 +329,19 @@ mod tests {
         let pool = setup().await;
         create_notification(&pool, &sample_notif(1, "follow")).await.unwrap();
         create_notification(&pool, &sample_notif(2, "mention")).await.unwrap();
-        clear_notifications(&pool, "u1").await.unwrap();
+        clear_notifications(&pool, 1).await.unwrap();
 
-        let notifs = get_notifications(&pool, "u1", 10).await.unwrap();
+        let notifs = get_notifications(&pool, 1, 10).await.unwrap();
         assert!(notifs.is_empty());
     }
 
     #[tokio::test]
     async fn operations_on_empty_are_ok() {
         let pool = setup().await;
-        mark_read(&pool, "u1", 999).await.unwrap();
-        mark_all_read(&pool, "u1", 5000).await.unwrap();
-        clear_notifications(&pool, "u1").await.unwrap();
-        let notifs = get_notifications(&pool, "u1", 10).await.unwrap();
+        mark_read(&pool, 1, 999).await.unwrap();
+        mark_all_read(&pool, 1, 5000).await.unwrap();
+        clear_notifications(&pool, 1).await.unwrap();
+        let notifs = get_notifications(&pool, 1, 10).await.unwrap();
         assert!(notifs.is_empty());
     }
 }

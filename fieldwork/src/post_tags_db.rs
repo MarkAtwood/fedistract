@@ -101,13 +101,13 @@ mod tests {
         db::migrate(&pool).await.unwrap();
         sqlx::raw_sql(
             "INSERT INTO users (id, email, display_name, role, created_at) \
-             VALUES ('u1', 'test@example.com', 'Test', 'user', 1000); \
+             VALUES (1, 'test@example.com', 'Test', 'user', 1000); \
              INSERT INTO personas (id, user_id, username, private_key_pem, public_key_pem, created_at) \
-             VALUES ('p1', 'u1', 'alice', 'pk', 'pub', 1000); \
+             VALUES (101, 1, 'alice', 'pk', 'pub', 1000); \
              INSERT INTO posts (id, user_id, persona_id, ap_id, content, content_html, visibility, created_at) \
-             VALUES (100, 'u1', 'p1', 'https://example.com/posts/100', 'hi', '<p>hi</p>', 'public', 1000); \
+             VALUES (100, 1, 101, 'https://example.com/posts/100', 'hi', '<p>hi</p>', 'public', 1000); \
              INSERT INTO posts (id, user_id, persona_id, ap_id, content, content_html, visibility, created_at) \
-             VALUES (200, 'u1', 'p1', 'https://example.com/posts/200', 'yo', '<p>yo</p>', 'public', 1000);",
+             VALUES (200, 1, 101, 'https://example.com/posts/200', 'yo', '<p>yo</p>', 'public', 1000);",
         )
         .execute(&sq)
         .await

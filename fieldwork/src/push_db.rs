@@ -7,7 +7,7 @@ use crate::db::Pool;
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct PushSubscriptionRow {
     pub id: i64,
-    pub user_id: String,
+    pub user_id: i64,
     pub endpoint: String,
     pub key_p256dh: String,
     pub key_auth: String,
@@ -28,7 +28,7 @@ pub async fn create_subscription(
     match pool {
         #[cfg(feature = "db-postgres")]
         Pool::Postgres(pg) => {
-            sqlx::query("DELETE FROM push_subscriptions WHERE user_id = $1::uuid")
+            sqlx::query("DELETE FROM push_subscriptions WHERE user_id = $1")
                 .bind(&row.user_id)
                 .execute(pg)
                 .await?;
@@ -37,7 +37,7 @@ pub async fn create_subscription(
                  (id, user_id, endpoint, key_p256dh, key_auth, \
                   alerts_mention, alerts_favourite, alerts_reblog, alerts_follow, alerts_poll, \
                   policy, created_at) \
-                 VALUES ($1, $2::uuid, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)",
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)",
             )
             .bind(row.id)
             .bind(&row.user_id)
@@ -89,16 +89,16 @@ pub async fn create_subscription(
 /// Get the push subscription for a user, if any.
 pub async fn get_subscription(
     pool: &Pool,
-    user_id: &str,
+    user_id: i64,
 ) -> Result<Option<PushSubscriptionRow>, sqlx::Error> {
     match pool {
         #[cfg(feature = "db-postgres")]
         Pool::Postgres(pg) => {
             sqlx::query_as(
-                "SELECT id, user_id::text AS user_id, endpoint, key_p256dh, key_auth, \
+                "SELECT id, user_id, endpoint, key_p256dh, key_auth, \
                  alerts_mention, alerts_favourite, alerts_reblog, alerts_follow, alerts_poll, \
                  policy, created_at \
-                 FROM push_subscriptions WHERE user_id = $1::uuid",
+                 FROM push_subscriptions WHERE user_id = $1",
             )
             .bind(user_id)
             .fetch_optional(pg)
@@ -172,11 +172,11 @@ pub async fn update_subscription(
 }
 
 /// Delete the push subscription for a user.
-pub async fn delete_subscription(pool: &Pool, user_id: &str) -> Result<(), sqlx::Error> {
+pub async fn delete_subscription(pool: &Pool, user_id: i64) -> Result<(), sqlx::Error> {
     match pool {
         #[cfg(feature = "db-postgres")]
         Pool::Postgres(pg) => {
-            sqlx::query("DELETE FROM push_subscriptions WHERE user_id = $1::uuid")
+            sqlx::query("DELETE FROM push_subscriptions WHERE user_id = $1")
                 .bind(user_id)
                 .execute(pg)
                 .await?;
@@ -264,7 +264,7 @@ mod tests {
         db::migrate(&pool).await.unwrap();
         sqlx::raw_sql(
             "INSERT INTO users (id, email, display_name, role, created_at) \
-             VALUES ('u1', 'test@example.com', 'Test', 'user', 1000);",
+             VALUES (1, 'test@example.com', 'Test', 'user', 1000);",
         )
         .execute(&sq)
         .await
@@ -275,7 +275,7 @@ mod tests {
     fn make_row() -> PushSubscriptionRow {
         PushSubscriptionRow {
             id: 100,
-            user_id: "u1".to_string(),
+            user_id: 1,
             endpoint: "https://push.example.com/sub1".to_string(),
             key_p256dh: "p256dh-key".to_string(),
             key_auth: "auth-key".to_string(),
@@ -295,7 +295,7 @@ mod tests {
         let row = make_row();
         create_subscription(&pool, &row).await.unwrap();
 
-        let got = get_subscription(&pool, "u1").await.unwrap().unwrap();
+        let got = get_subscription(&pool, 1).await.unwrap().unwrap();
         assert_eq!(got.id, 100);
         assert_eq!(got.endpoint, "https://push.example.com/sub1");
         assert!(got.alerts_mention);
@@ -313,7 +313,7 @@ mod tests {
         row2.endpoint = "https://push.example.com/sub2".to_string();
         create_subscription(&pool, &row2).await.unwrap();
 
-        let got = get_subscription(&pool, "u1").await.unwrap().unwrap();
+        let got = get_subscription(&pool, 1).await.unwrap().unwrap();
         assert_eq!(got.id, 200);
         assert_eq!(got.endpoint, "https://push.example.com/sub2");
     }
@@ -328,7 +328,7 @@ mod tests {
             .await
             .unwrap();
 
-        let got = get_subscription(&pool, "u1").await.unwrap().unwrap();
+        let got = get_subscription(&pool, 1).await.unwrap().unwrap();
         assert!(!got.alerts_mention);
         assert!(got.alerts_reblog);
         assert!(got.alerts_poll);
@@ -339,14 +339,14 @@ mod tests {
     async fn delete_subscription_removes() {
         let pool = setup().await;
         create_subscription(&pool, &make_row()).await.unwrap();
-        delete_subscription(&pool, "u1").await.unwrap();
-        assert!(get_subscription(&pool, "u1").await.unwrap().is_none());
+        delete_subscription(&pool, 1).await.unwrap();
+        assert!(get_subscription(&pool, 1).await.unwrap().is_none());
     }
 
     #[tokio::test]
     async fn get_nonexistent_returns_none() {
         let pool = setup().await;
-        assert!(get_subscription(&pool, "u1").await.unwrap().is_none());
+        assert!(get_subscription(&pool, 1).await.unwrap().is_none());
     }
 
     #[tokio::test]

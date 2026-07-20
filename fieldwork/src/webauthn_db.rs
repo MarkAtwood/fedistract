@@ -10,7 +10,7 @@ use crate::db::Pool;
 pub async fn store_credential(
     pool: &Pool,
     id: i64,
-    user_id: &str,
+    user_id: i64,
     credential_json: &str,
     now: i64,
 ) -> Result<(), sqlx::Error> {
@@ -19,7 +19,7 @@ pub async fn store_credential(
         Pool::Postgres(pg) => {
             sqlx::query(
                 "INSERT INTO webauthn_credentials (id, user_id, credential_json, created_at) \
-                 VALUES ($1, $2::uuid, $3, $4)",
+                 VALUES ($1, $2, $3, $4)",
             )
             .bind(id)
             .bind(user_id)
@@ -48,14 +48,14 @@ pub async fn store_credential(
 /// Get all credentials for a user. Returns (id, credential_json) pairs.
 pub async fn get_credentials(
     pool: &Pool,
-    user_id: &str,
+    user_id: i64,
 ) -> Result<Vec<(i64, String)>, sqlx::Error> {
     match pool {
         #[cfg(feature = "db-postgres")]
         Pool::Postgres(pg) => {
             sqlx::query_as(
                 "SELECT id, credential_json FROM webauthn_credentials \
-                 WHERE user_id = $1::uuid ORDER BY id",
+                 WHERE user_id = $1 ORDER BY id",
             )
             .bind(user_id)
             .fetch_all(pg)
@@ -219,7 +219,7 @@ mod tests {
         db::migrate(&pool).await.unwrap();
         sqlx::raw_sql(
             "INSERT INTO users (id, email, display_name, role, created_at) \
-             VALUES ('u1', 'test@example.com', 'Test', 'user', 1000);",
+             VALUES (1, 'test@example.com', 'Test', 'user', 1000);",
         )
         .execute(&sq)
         .await
@@ -230,11 +230,11 @@ mod tests {
     #[tokio::test]
     async fn store_and_get_credential() {
         let pool = setup().await;
-        store_credential(&pool, 1, "u1", r#"{"cred":"data"}"#, 2000)
+        store_credential(&pool, 1, 1, r#"{"cred":"data"}"#, 2000)
             .await
             .unwrap();
 
-        let creds = get_credentials(&pool, "u1").await.unwrap();
+        let creds = get_credentials(&pool, 1).await.unwrap();
         assert_eq!(creds.len(), 1);
         assert_eq!(creds[0].0, 1);
         assert_eq!(creds[0].1, r#"{"cred":"data"}"#);
@@ -243,16 +243,16 @@ mod tests {
     #[tokio::test]
     async fn delete_credential_works() {
         let pool = setup().await;
-        store_credential(&pool, 1, "u1", r#"{"a":1}"#, 2000).await.unwrap();
+        store_credential(&pool, 1, 1, r#"{"a":1}"#, 2000).await.unwrap();
         delete_credential(&pool, 1).await.unwrap();
-        let creds = get_credentials(&pool, "u1").await.unwrap();
+        let creds = get_credentials(&pool, 1).await.unwrap();
         assert!(creds.is_empty());
     }
 
     #[tokio::test]
     async fn no_credentials_returns_empty() {
         let pool = setup().await;
-        let creds = get_credentials(&pool, "u1").await.unwrap();
+        let creds = get_credentials(&pool, 1).await.unwrap();
         assert!(creds.is_empty());
     }
 

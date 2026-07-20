@@ -10,7 +10,7 @@ use crate::db::Pool;
 #[derive(Debug, Clone)]
 pub struct ListRow {
     pub id: i64,
-    pub user_id: String,
+    pub user_id: i64,
     pub title: String,
     pub replies_policy: String,
     pub created_at: i64,
@@ -23,7 +23,7 @@ pub async fn create_list(pool: &Pool, row: &ListRow) -> Result<(), sqlx::Error> 
         Pool::Postgres(pg) => {
             sqlx::query(
                 "INSERT INTO lists (id, user_id, title, replies_policy, created_at) \
-                 VALUES ($1, $2::uuid, $3, $4, $5)",
+                 VALUES ($1, $2, $3, $4, $5)",
             )
             .bind(row.id)
             .bind(&row.user_id)
@@ -56,8 +56,8 @@ pub async fn get_list(pool: &Pool, id: i64) -> Result<Option<ListRow>, sqlx::Err
     match pool {
         #[cfg(feature = "db-postgres")]
         Pool::Postgres(pg) => {
-            let row: Option<(i64, String, String, String, i64)> = sqlx::query_as(
-                "SELECT id, user_id::text, title, replies_policy, created_at \
+            let row: Option<(i64, i64, String, String, i64)> = sqlx::query_as(
+                "SELECT id, user_id, title, replies_policy, created_at \
                  FROM lists WHERE id = $1",
             )
             .bind(id)
@@ -73,7 +73,7 @@ pub async fn get_list(pool: &Pool, id: i64) -> Result<Option<ListRow>, sqlx::Err
         }
         #[cfg(feature = "db-sqlite")]
         Pool::Sqlite(sq) => {
-            let row: Option<(i64, String, String, String, i64)> = sqlx::query_as(
+            let row: Option<(i64, i64, String, String, i64)> = sqlx::query_as(
                 "SELECT id, user_id, title, replies_policy, created_at \
                  FROM lists WHERE id = ?1",
             )
@@ -92,13 +92,13 @@ pub async fn get_list(pool: &Pool, id: i64) -> Result<Option<ListRow>, sqlx::Err
 }
 
 /// Get all lists for a user.
-pub async fn get_lists(pool: &Pool, user_id: &str) -> Result<Vec<ListRow>, sqlx::Error> {
+pub async fn get_lists(pool: &Pool, user_id: i64) -> Result<Vec<ListRow>, sqlx::Error> {
     match pool {
         #[cfg(feature = "db-postgres")]
         Pool::Postgres(pg) => {
-            let rows: Vec<(i64, String, String, String, i64)> = sqlx::query_as(
-                "SELECT id, user_id::text, title, replies_policy, created_at \
-                 FROM lists WHERE user_id = $1::uuid ORDER BY id",
+            let rows: Vec<(i64, i64, String, String, i64)> = sqlx::query_as(
+                "SELECT id, user_id, title, replies_policy, created_at \
+                 FROM lists WHERE user_id = $1 ORDER BY id",
             )
             .bind(user_id)
             .fetch_all(pg)
@@ -116,7 +116,7 @@ pub async fn get_lists(pool: &Pool, user_id: &str) -> Result<Vec<ListRow>, sqlx:
         }
         #[cfg(feature = "db-sqlite")]
         Pool::Sqlite(sq) => {
-            let rows: Vec<(i64, String, String, String, i64)> = sqlx::query_as(
+            let rows: Vec<(i64, i64, String, String, i64)> = sqlx::query_as(
                 "SELECT id, user_id, title, replies_policy, created_at \
                  FROM lists WHERE user_id = ?1 ORDER BY id",
             )
@@ -210,7 +210,7 @@ pub async fn delete_list(pool: &Pool, id: i64) -> Result<(), sqlx::Error> {
 pub async fn add_to_list(
     pool: &Pool,
     list_id: i64,
-    persona_id: Option<&str>,
+    persona_id: Option<i64>,
     remote_id: Option<i64>,
 ) -> Result<(), sqlx::Error> {
     match pool {
@@ -218,11 +218,11 @@ pub async fn add_to_list(
         Pool::Postgres(pg) => {
             sqlx::query(
                 "INSERT INTO list_accounts (list_id, persona_id, remote_id) \
-                 SELECT $1, $2::uuid, $3 \
+                 SELECT $1, $2, $3 \
                  WHERE NOT EXISTS ( \
                      SELECT 1 FROM list_accounts \
                      WHERE list_id = $1 \
-                     AND persona_id IS NOT DISTINCT FROM $2::uuid \
+                     AND persona_id IS NOT DISTINCT FROM $2 \
                      AND remote_id IS NOT DISTINCT FROM $3 \
                  )",
             )
@@ -258,7 +258,7 @@ pub async fn add_to_list(
 pub async fn remove_from_list(
     pool: &Pool,
     list_id: i64,
-    persona_id: Option<&str>,
+    persona_id: Option<i64>,
     remote_id: Option<i64>,
 ) -> Result<(), sqlx::Error> {
     match pool {
@@ -267,7 +267,7 @@ pub async fn remove_from_list(
             sqlx::query(
                 "DELETE FROM list_accounts \
                  WHERE list_id = $1 \
-                 AND persona_id IS NOT DISTINCT FROM $2::uuid \
+                 AND persona_id IS NOT DISTINCT FROM $2 \
                  AND remote_id IS NOT DISTINCT FROM $3",
             )
             .bind(list_id)
@@ -298,12 +298,12 @@ pub async fn remove_from_list(
 pub async fn list_members(
     pool: &Pool,
     list_id: i64,
-) -> Result<Vec<(Option<String>, Option<i64>)>, sqlx::Error> {
+) -> Result<Vec<(Option<i64>, Option<i64>)>, sqlx::Error> {
     match pool {
         #[cfg(feature = "db-postgres")]
         Pool::Postgres(pg) => {
             sqlx::query_as(
-                "SELECT persona_id::text, remote_id FROM list_accounts \
+                "SELECT persona_id, remote_id FROM list_accounts \
                  WHERE list_id = $1 ORDER BY persona_id, remote_id",
             )
             .bind(list_id)
@@ -339,9 +339,9 @@ mod tests {
         db::migrate(&pool).await.unwrap();
         sqlx::raw_sql(
             "INSERT INTO users (id, email, display_name, role, created_at) \
-             VALUES ('u1', 'test@example.com', 'Test', 'user', 1000); \
+             VALUES (1, 'test@example.com', 'Test', 'user', 1000); \
              INSERT INTO personas (id, user_id, username, private_key_pem, public_key_pem, created_at) \
-             VALUES ('p1', 'u1', 'alice', 'pk', 'pub', 1000);",
+             VALUES (101, 1, 'alice', 'pk', 'pub', 1000);",
         )
         .execute(&sq)
         .await
@@ -354,7 +354,7 @@ mod tests {
         let pool = setup().await;
         let row = ListRow {
             id: 1,
-            user_id: "u1".into(),
+            user_id: 1,
             title: "Friends".into(),
             replies_policy: "list".into(),
             created_at: 2000,
@@ -371,18 +371,18 @@ mod tests {
         let pool = setup().await;
         create_list(
             &pool,
-            &ListRow { id: 1, user_id: "u1".into(), title: "A".into(), replies_policy: "list".into(), created_at: 1000 },
+            &ListRow { id: 1, user_id: 1, title: "A".into(), replies_policy: "list".into(), created_at: 1000 },
         ).await.unwrap();
         create_list(
             &pool,
-            &ListRow { id: 2, user_id: "u1".into(), title: "B".into(), replies_policy: "none".into(), created_at: 2000 },
+            &ListRow { id: 2, user_id: 1, title: "B".into(), replies_policy: "none".into(), created_at: 2000 },
         ).await.unwrap();
 
-        let lists = get_lists(&pool, "u1").await.unwrap();
+        let lists = get_lists(&pool, 1).await.unwrap();
         assert_eq!(lists.len(), 2);
         assert_eq!(lists[0].title, "A");
 
-        let empty = get_lists(&pool, "u-none").await.unwrap();
+        let empty = get_lists(&pool, 999).await.unwrap();
         assert!(empty.is_empty());
     }
 
@@ -391,7 +391,7 @@ mod tests {
         let pool = setup().await;
         create_list(
             &pool,
-            &ListRow { id: 1, user_id: "u1".into(), title: "Old".into(), replies_policy: "list".into(), created_at: 1000 },
+            &ListRow { id: 1, user_id: 1, title: "Old".into(), replies_policy: "list".into(), created_at: 1000 },
         ).await.unwrap();
 
         update_list(&pool, 1, Some("New"), None).await.unwrap();
@@ -405,9 +405,9 @@ mod tests {
         let pool = setup().await;
         create_list(
             &pool,
-            &ListRow { id: 1, user_id: "u1".into(), title: "X".into(), replies_policy: "list".into(), created_at: 1000 },
+            &ListRow { id: 1, user_id: 1, title: "X".into(), replies_policy: "list".into(), created_at: 1000 },
         ).await.unwrap();
-        add_to_list(&pool, 1, Some("p1"), None).await.unwrap();
+        add_to_list(&pool, 1, Some(101), None).await.unwrap();
 
         delete_list(&pool, 1).await.unwrap();
         assert!(get_list(&pool, 1).await.unwrap().is_none());
@@ -418,19 +418,19 @@ mod tests {
         let pool = setup().await;
         create_list(
             &pool,
-            &ListRow { id: 1, user_id: "u1".into(), title: "X".into(), replies_policy: "list".into(), created_at: 1000 },
+            &ListRow { id: 1, user_id: 1, title: "X".into(), replies_policy: "list".into(), created_at: 1000 },
         ).await.unwrap();
 
-        add_to_list(&pool, 1, Some("p1"), None).await.unwrap();
+        add_to_list(&pool, 1, Some(101), None).await.unwrap();
         // duplicate is ignored
-        add_to_list(&pool, 1, Some("p1"), None).await.unwrap();
+        add_to_list(&pool, 1, Some(101), None).await.unwrap();
 
         let members = list_members(&pool, 1).await.unwrap();
         assert_eq!(members.len(), 1);
-        assert_eq!(members[0].0.as_deref(), Some("p1"));
+        assert_eq!(members[0].0, Some(101));
         assert!(members[0].1.is_none());
 
-        remove_from_list(&pool, 1, Some("p1"), None).await.unwrap();
+        remove_from_list(&pool, 1, Some(101), None).await.unwrap();
         let members = list_members(&pool, 1).await.unwrap();
         assert!(members.is_empty());
     }

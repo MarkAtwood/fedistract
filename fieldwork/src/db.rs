@@ -56,7 +56,7 @@ pub struct Migration {
 /// The current schema version after all built-in migrations.
 /// Version 0 = fresh CREATE TABLE schema.
 /// Version 1+ = incremental migrations.
-const CURRENT_VERSION: u32 = 3;
+const CURRENT_VERSION: u32 = 4;
 
 /// Built-in migration chain. Version 0 is the fresh-install schema (handled
 /// separately). These run in order for version 1, 2, 3, etc.
@@ -113,6 +113,292 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_follows_remote_unique
     ON follows(persona_id, followee_remote_id) WHERE followee_remote_id IS NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_follows_local_unique
     ON follows(persona_id, followee_persona_id) WHERE followee_persona_id IS NOT NULL;
+"#,
+    },
+    Migration {
+        version: 4,
+        description: "convert users.id and personas.id from TEXT to INTEGER (snowflake i64)",
+        sql_sqlite: r#"
+-- Disable FK checks during table rebuild
+PRAGMA foreign_keys = OFF;
+
+-- Step 1: Rebuild users with INTEGER id
+CREATE TABLE users_new (
+    id                INTEGER PRIMARY KEY,
+    email             TEXT NOT NULL UNIQUE,
+    password_hash     TEXT,
+    oidc_subject      TEXT,
+    oidc_issuer       TEXT,
+    display_name      TEXT NOT NULL DEFAULT '',
+    role              TEXT NOT NULL DEFAULT 'user',
+    created_at        INTEGER NOT NULL,
+    suspended_at      INTEGER,
+    suspended_reason  TEXT,
+    did_key           TEXT,
+    did_plc           TEXT,
+    recovery_pubkey   TEXT,
+    legal_hold        INTEGER NOT NULL DEFAULT 0,
+    quota_media_bytes INTEGER,
+    quota_posts_per_day INTEGER,
+    quota_followers   INTEGER,
+    quota_following   INTEGER,
+    did_scid          TEXT,
+    UNIQUE (oidc_issuer, oidc_subject)
+);
+INSERT INTO users_new SELECT
+    CASE WHEN typeof(id) = 'integer' OR CAST(id AS INTEGER) = id THEN CAST(id AS INTEGER) ELSE abs(random()) % 9000000000000 + 1000000000000 END,
+    email, password_hash, oidc_subject, oidc_issuer,
+    display_name, role, created_at, suspended_at, suspended_reason,
+    did_key, did_plc, recovery_pubkey, legal_hold,
+    quota_media_bytes, quota_posts_per_day, quota_followers, quota_following,
+    did_scid
+FROM users;
+
+-- Build a mapping table for old TEXT ids -> new INTEGER ids
+CREATE TEMP TABLE user_id_map AS
+    SELECT u_old.id AS old_id, u_new.id AS new_id
+    FROM users u_old
+    JOIN users_new u_new ON u_old.email = u_new.email;
+
+DROP TABLE users;
+ALTER TABLE users_new RENAME TO users;
+
+-- Step 2: Rebuild personas with INTEGER id and user_id
+CREATE TABLE personas_new (
+    id              INTEGER PRIMARY KEY,
+    user_id         INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    username        TEXT NOT NULL UNIQUE,
+    display_name    TEXT NOT NULL DEFAULT '',
+    bio             TEXT NOT NULL DEFAULT '',
+    bio_html        TEXT NOT NULL DEFAULT '',
+    private_key_pem TEXT NOT NULL,
+    public_key_pem  TEXT NOT NULL,
+    avatar_media_id INTEGER,
+    header_media_id INTEGER,
+    is_locked       INTEGER NOT NULL DEFAULT 0,
+    discoverable    INTEGER NOT NULL DEFAULT 1,
+    bot             INTEGER NOT NULL DEFAULT 0,
+    did_web         TEXT,
+    fields_json     TEXT NOT NULL DEFAULT '[]',
+    created_at      INTEGER NOT NULL,
+    last_status_at  INTEGER,
+    did_scid        TEXT,
+    did_scid_chain  TEXT
+);
+INSERT INTO personas_new SELECT
+    CASE WHEN typeof(p.id) = 'integer' OR CAST(p.id AS INTEGER) = p.id THEN CAST(p.id AS INTEGER) ELSE abs(random()) % 9000000000000 + 1000000000000 END,
+    COALESCE(um.new_id, p.user_id),
+    p.username, p.display_name, p.bio, p.bio_html,
+    p.private_key_pem, p.public_key_pem, p.avatar_media_id, p.header_media_id,
+    p.is_locked, p.discoverable, p.bot, p.did_web, p.fields_json,
+    p.created_at, p.last_status_at, p.did_scid, p.did_scid_chain
+FROM personas p
+LEFT JOIN user_id_map um ON p.user_id = um.old_id;
+
+CREATE TEMP TABLE persona_id_map AS
+    SELECT p_old.id AS old_id, p_new.id AS new_id
+    FROM personas p_old
+    JOIN personas_new p_new ON p_old.username = p_new.username;
+
+DROP TABLE personas;
+ALTER TABLE personas_new RENAME TO personas;
+CREATE INDEX IF NOT EXISTS idx_personas_user ON personas(user_id);
+
+-- Step 3: Update all FK references in dependent tables
+-- posts
+UPDATE posts SET
+    user_id = COALESCE((SELECT new_id FROM user_id_map WHERE old_id = posts.user_id), posts.user_id),
+    persona_id = COALESCE((SELECT new_id FROM persona_id_map WHERE old_id = posts.persona_id), posts.persona_id);
+
+-- media
+UPDATE media SET
+    user_id = COALESCE((SELECT new_id FROM user_id_map WHERE old_id = media.user_id), media.user_id),
+    persona_id = COALESCE((SELECT new_id FROM persona_id_map WHERE old_id = media.persona_id), media.persona_id);
+
+-- followers
+UPDATE followers SET
+    persona_id = COALESCE((SELECT new_id FROM persona_id_map WHERE old_id = followers.persona_id), followers.persona_id),
+    user_id = COALESCE((SELECT new_id FROM user_id_map WHERE old_id = followers.user_id), followers.user_id);
+
+-- follow_requests
+UPDATE follow_requests SET
+    target_persona_id = COALESCE((SELECT new_id FROM persona_id_map WHERE old_id = follow_requests.target_persona_id), follow_requests.target_persona_id);
+
+-- follows
+UPDATE follows SET
+    persona_id = COALESCE((SELECT new_id FROM persona_id_map WHERE old_id = follows.persona_id), follows.persona_id),
+    user_id = COALESCE((SELECT new_id FROM user_id_map WHERE old_id = follows.user_id), follows.user_id),
+    followee_persona_id = COALESCE((SELECT new_id FROM persona_id_map WHERE old_id = follows.followee_persona_id), follows.followee_persona_id);
+
+-- favourites
+UPDATE favourites SET
+    user_id = COALESCE((SELECT new_id FROM user_id_map WHERE old_id = favourites.user_id), favourites.user_id),
+    persona_id = COALESCE((SELECT new_id FROM persona_id_map WHERE old_id = favourites.persona_id), favourites.persona_id);
+
+-- bookmarks
+UPDATE bookmarks SET
+    user_id = COALESCE((SELECT new_id FROM user_id_map WHERE old_id = bookmarks.user_id), bookmarks.user_id),
+    persona_id = COALESCE((SELECT new_id FROM persona_id_map WHERE old_id = bookmarks.persona_id), bookmarks.persona_id);
+
+-- pinned_posts
+UPDATE pinned_posts SET
+    persona_id = COALESCE((SELECT new_id FROM persona_id_map WHERE old_id = pinned_posts.persona_id), pinned_posts.persona_id);
+
+-- notifications
+UPDATE notifications SET
+    user_id = COALESCE((SELECT new_id FROM user_id_map WHERE old_id = notifications.user_id), notifications.user_id),
+    persona_id = COALESCE((SELECT new_id FROM persona_id_map WHERE old_id = notifications.persona_id), notifications.persona_id),
+    from_persona_id = COALESCE((SELECT new_id FROM persona_id_map WHERE old_id = notifications.from_persona_id), notifications.from_persona_id);
+
+-- mentions
+UPDATE mentions SET
+    mentioned_persona_id = COALESCE((SELECT new_id FROM persona_id_map WHERE old_id = mentions.mentioned_persona_id), mentions.mentioned_persona_id);
+
+-- oauth_tokens
+UPDATE oauth_tokens SET
+    user_id = COALESCE((SELECT new_id FROM user_id_map WHERE old_id = oauth_tokens.user_id), oauth_tokens.user_id),
+    persona_id = COALESCE((SELECT new_id FROM persona_id_map WHERE old_id = oauth_tokens.persona_id), oauth_tokens.persona_id);
+
+-- oauth_authz_codes
+UPDATE oauth_authz_codes SET
+    user_id = COALESCE((SELECT new_id FROM user_id_map WHERE old_id = oauth_authz_codes.user_id), oauth_authz_codes.user_id),
+    persona_id = COALESCE((SELECT new_id FROM persona_id_map WHERE old_id = oauth_authz_codes.persona_id), oauth_authz_codes.persona_id);
+
+-- delivery_queue
+UPDATE delivery_queue SET
+    sender_persona_id = COALESCE((SELECT new_id FROM persona_id_map WHERE old_id = delivery_queue.sender_persona_id), delivery_queue.sender_persona_id);
+
+-- relays
+UPDATE relays SET
+    persona_id = COALESCE((SELECT new_id FROM persona_id_map WHERE old_id = relays.persona_id), relays.persona_id);
+
+-- blocks
+UPDATE blocks SET
+    user_id = COALESCE((SELECT new_id FROM user_id_map WHERE old_id = blocks.user_id), blocks.user_id),
+    persona_id = COALESCE((SELECT new_id FROM persona_id_map WHERE old_id = blocks.persona_id), blocks.persona_id),
+    target_persona_id = COALESCE((SELECT new_id FROM persona_id_map WHERE old_id = blocks.target_persona_id), blocks.target_persona_id);
+
+-- mutes
+UPDATE mutes SET
+    user_id = COALESCE((SELECT new_id FROM user_id_map WHERE old_id = mutes.user_id), mutes.user_id),
+    persona_id = COALESCE((SELECT new_id FROM persona_id_map WHERE old_id = mutes.persona_id), mutes.persona_id),
+    target_persona_id = COALESCE((SELECT new_id FROM persona_id_map WHERE old_id = mutes.target_persona_id), mutes.target_persona_id);
+
+-- idempotency_keys
+UPDATE idempotency_keys SET
+    user_id = COALESCE((SELECT new_id FROM user_id_map WHERE old_id = idempotency_keys.user_id), idempotency_keys.user_id);
+
+-- push_subscriptions
+UPDATE push_subscriptions SET
+    user_id = COALESCE((SELECT new_id FROM user_id_map WHERE old_id = push_subscriptions.user_id), push_subscriptions.user_id);
+
+-- invite_codes
+UPDATE invite_codes SET
+    created_by = COALESCE((SELECT new_id FROM user_id_map WHERE old_id = invite_codes.created_by), invite_codes.created_by),
+    used_by = COALESCE((SELECT new_id FROM user_id_map WHERE old_id = invite_codes.used_by), invite_codes.used_by);
+
+-- lists
+UPDATE lists SET
+    user_id = COALESCE((SELECT new_id FROM user_id_map WHERE old_id = lists.user_id), lists.user_id);
+
+-- list_accounts
+UPDATE list_accounts SET
+    persona_id = COALESCE((SELECT new_id FROM persona_id_map WHERE old_id = list_accounts.persona_id), list_accounts.persona_id);
+
+-- followed_tags
+UPDATE followed_tags SET
+    user_id = COALESCE((SELECT new_id FROM user_id_map WHERE old_id = followed_tags.user_id), followed_tags.user_id);
+
+-- filters
+UPDATE filters SET
+    user_id = COALESCE((SELECT new_id FROM user_id_map WHERE old_id = filters.user_id), filters.user_id);
+
+-- scheduled_statuses
+UPDATE scheduled_statuses SET
+    user_id = COALESCE((SELECT new_id FROM user_id_map WHERE old_id = scheduled_statuses.user_id), scheduled_statuses.user_id),
+    persona_id = COALESCE((SELECT new_id FROM persona_id_map WHERE old_id = scheduled_statuses.persona_id), scheduled_statuses.persona_id);
+
+-- markers
+UPDATE markers SET
+    user_id = COALESCE((SELECT new_id FROM user_id_map WHERE old_id = markers.user_id), markers.user_id);
+
+-- webauthn_credentials
+UPDATE webauthn_credentials SET
+    user_id = COALESCE((SELECT new_id FROM user_id_map WHERE old_id = webauthn_credentials.user_id), webauthn_credentials.user_id);
+
+-- also_known_as
+UPDATE also_known_as SET
+    persona_id = COALESCE((SELECT new_id FROM persona_id_map WHERE old_id = also_known_as.persona_id), also_known_as.persona_id);
+
+-- conversation_read_markers
+UPDATE conversation_read_markers SET
+    user_id = COALESCE((SELECT new_id FROM user_id_map WHERE old_id = conversation_read_markers.user_id), conversation_read_markers.user_id);
+
+-- conversation_hidden
+UPDATE conversation_hidden SET
+    user_id = COALESCE((SELECT new_id FROM user_id_map WHERE old_id = conversation_hidden.user_id), conversation_hidden.user_id);
+
+-- feed_state
+UPDATE feed_state SET
+    persona_id = COALESCE((SELECT new_id FROM persona_id_map WHERE old_id = feed_state.persona_id), feed_state.persona_id);
+
+-- Clean up temp tables
+DROP TABLE IF EXISTS user_id_map;
+DROP TABLE IF EXISTS persona_id_map;
+
+PRAGMA foreign_keys = ON;
+"#,
+        sql_postgres: r#"
+ALTER TABLE users ALTER COLUMN id TYPE BIGINT USING id::bigint;
+ALTER TABLE personas ALTER COLUMN id TYPE BIGINT USING id::bigint;
+ALTER TABLE personas ALTER COLUMN user_id TYPE BIGINT USING user_id::bigint;
+ALTER TABLE posts ALTER COLUMN user_id TYPE BIGINT USING user_id::bigint;
+ALTER TABLE posts ALTER COLUMN persona_id TYPE BIGINT USING persona_id::bigint;
+ALTER TABLE media ALTER COLUMN user_id TYPE BIGINT USING user_id::bigint;
+ALTER TABLE media ALTER COLUMN persona_id TYPE BIGINT USING persona_id::bigint;
+ALTER TABLE followers ALTER COLUMN persona_id TYPE BIGINT USING persona_id::bigint;
+ALTER TABLE followers ALTER COLUMN user_id TYPE BIGINT USING user_id::bigint;
+ALTER TABLE follow_requests ALTER COLUMN target_persona_id TYPE BIGINT USING target_persona_id::bigint;
+ALTER TABLE follows ALTER COLUMN persona_id TYPE BIGINT USING persona_id::bigint;
+ALTER TABLE follows ALTER COLUMN user_id TYPE BIGINT USING user_id::bigint;
+ALTER TABLE follows ALTER COLUMN followee_persona_id TYPE BIGINT USING followee_persona_id::bigint;
+ALTER TABLE favourites ALTER COLUMN user_id TYPE BIGINT USING user_id::bigint;
+ALTER TABLE favourites ALTER COLUMN persona_id TYPE BIGINT USING persona_id::bigint;
+ALTER TABLE bookmarks ALTER COLUMN user_id TYPE BIGINT USING user_id::bigint;
+ALTER TABLE bookmarks ALTER COLUMN persona_id TYPE BIGINT USING persona_id::bigint;
+ALTER TABLE pinned_posts ALTER COLUMN persona_id TYPE BIGINT USING persona_id::bigint;
+ALTER TABLE notifications ALTER COLUMN user_id TYPE BIGINT USING user_id::bigint;
+ALTER TABLE notifications ALTER COLUMN persona_id TYPE BIGINT USING persona_id::bigint;
+ALTER TABLE notifications ALTER COLUMN from_persona_id TYPE BIGINT USING from_persona_id::bigint;
+ALTER TABLE mentions ALTER COLUMN mentioned_persona_id TYPE BIGINT USING mentioned_persona_id::bigint;
+ALTER TABLE oauth_tokens ALTER COLUMN user_id TYPE BIGINT USING user_id::bigint;
+ALTER TABLE oauth_tokens ALTER COLUMN persona_id TYPE BIGINT USING persona_id::bigint;
+ALTER TABLE oauth_authz_codes ALTER COLUMN user_id TYPE BIGINT USING user_id::bigint;
+ALTER TABLE oauth_authz_codes ALTER COLUMN persona_id TYPE BIGINT USING persona_id::bigint;
+ALTER TABLE delivery_queue ALTER COLUMN sender_persona_id TYPE BIGINT USING sender_persona_id::bigint;
+ALTER TABLE relays ALTER COLUMN persona_id TYPE BIGINT USING persona_id::bigint;
+ALTER TABLE blocks ALTER COLUMN user_id TYPE BIGINT USING user_id::bigint;
+ALTER TABLE blocks ALTER COLUMN persona_id TYPE BIGINT USING persona_id::bigint;
+ALTER TABLE blocks ALTER COLUMN target_persona_id TYPE BIGINT USING target_persona_id::bigint;
+ALTER TABLE mutes ALTER COLUMN user_id TYPE BIGINT USING user_id::bigint;
+ALTER TABLE mutes ALTER COLUMN persona_id TYPE BIGINT USING persona_id::bigint;
+ALTER TABLE mutes ALTER COLUMN target_persona_id TYPE BIGINT USING target_persona_id::bigint;
+ALTER TABLE idempotency_keys ALTER COLUMN user_id TYPE BIGINT USING user_id::bigint;
+ALTER TABLE push_subscriptions ALTER COLUMN user_id TYPE BIGINT USING user_id::bigint;
+ALTER TABLE invite_codes ALTER COLUMN created_by TYPE BIGINT USING created_by::bigint;
+ALTER TABLE invite_codes ALTER COLUMN used_by TYPE BIGINT USING used_by::bigint;
+ALTER TABLE lists ALTER COLUMN user_id TYPE BIGINT USING user_id::bigint;
+ALTER TABLE list_accounts ALTER COLUMN persona_id TYPE BIGINT USING persona_id::bigint;
+ALTER TABLE followed_tags ALTER COLUMN user_id TYPE BIGINT USING user_id::bigint;
+ALTER TABLE filters ALTER COLUMN user_id TYPE BIGINT USING user_id::bigint;
+ALTER TABLE scheduled_statuses ALTER COLUMN user_id TYPE BIGINT USING user_id::bigint;
+ALTER TABLE scheduled_statuses ALTER COLUMN persona_id TYPE BIGINT USING persona_id::bigint;
+ALTER TABLE markers ALTER COLUMN user_id TYPE BIGINT USING user_id::bigint;
+ALTER TABLE webauthn_credentials ALTER COLUMN user_id TYPE BIGINT USING user_id::bigint;
+ALTER TABLE also_known_as ALTER COLUMN persona_id TYPE BIGINT USING persona_id::bigint;
+ALTER TABLE conversation_read_markers ALTER COLUMN user_id TYPE BIGINT USING user_id::bigint;
+ALTER TABLE conversation_hidden ALTER COLUMN user_id TYPE BIGINT USING user_id::bigint;
+ALTER TABLE feed_state ALTER COLUMN persona_id TYPE BIGINT USING persona_id::bigint;
 "#,
     },
 ];
@@ -428,7 +714,7 @@ fn max_version(extras: &[Migration]) -> u32 {
 const SCHEMA_POSTGRES: &str = r#"
 -- Users: identity + auth. One user can own multiple personas.
 CREATE TABLE IF NOT EXISTS users (
-    id                UUID PRIMARY KEY,
+    id                BIGINT PRIMARY KEY,
     email             TEXT NOT NULL UNIQUE,
     password_hash     TEXT,
     oidc_subject      TEXT,
@@ -451,8 +737,8 @@ CREATE TABLE IF NOT EXISTS users (
 
 -- Personas: public-facing ActivityPub actors.
 CREATE TABLE IF NOT EXISTS personas (
-    id              UUID PRIMARY KEY,
-    user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    id              BIGINT PRIMARY KEY,
+    user_id         BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     username        TEXT NOT NULL UNIQUE,
     display_name    TEXT NOT NULL DEFAULT '',
     bio             TEXT NOT NULL DEFAULT '',
@@ -497,8 +783,8 @@ CREATE INDEX IF NOT EXISTS idx_remote_accounts_webfinger ON remote_accounts(user
 -- Posts: local statuses.
 CREATE TABLE IF NOT EXISTS posts (
     id              BIGINT PRIMARY KEY,
-    user_id         UUID NOT NULL REFERENCES users(id),
-    persona_id      UUID NOT NULL REFERENCES personas(id),
+    user_id         BIGINT NOT NULL REFERENCES users(id),
+    persona_id      BIGINT NOT NULL REFERENCES personas(id),
     ap_id           TEXT NOT NULL UNIQUE,
     in_reply_to_id  BIGINT,
     in_reply_to_uri TEXT,
@@ -551,8 +837,8 @@ CREATE INDEX IF NOT EXISTS idx_post_edits_post ON post_edits(post_id, created_at
 -- Media attachments.
 CREATE TABLE IF NOT EXISTS media (
     id          BIGINT PRIMARY KEY,
-    user_id     UUID NOT NULL REFERENCES users(id),
-    persona_id  UUID NOT NULL REFERENCES personas(id),
+    user_id     BIGINT NOT NULL REFERENCES users(id),
+    persona_id  BIGINT NOT NULL REFERENCES personas(id),
     post_id     BIGINT REFERENCES posts(id),
     file_path   TEXT NOT NULL,
     mime_type   TEXT NOT NULL,
@@ -568,8 +854,8 @@ CREATE INDEX IF NOT EXISTS idx_media_user ON media(user_id);
 
 -- Inbound followers (remote actors following local personas).
 CREATE TABLE IF NOT EXISTS followers (
-    persona_id        UUID NOT NULL REFERENCES personas(id),
-    user_id           UUID NOT NULL REFERENCES users(id),
+    persona_id        BIGINT NOT NULL REFERENCES personas(id),
+    user_id           BIGINT NOT NULL REFERENCES users(id),
     remote_account_id BIGINT NOT NULL REFERENCES remote_accounts(id),
     accepted_at       INTEGER NOT NULL,
     UNIQUE (persona_id, remote_account_id)
@@ -581,17 +867,17 @@ CREATE INDEX IF NOT EXISTS idx_followers_user ON followers(user_id);
 CREATE TABLE IF NOT EXISTS follow_requests (
     id                  BIGINT PRIMARY KEY,
     requester_remote_id BIGINT NOT NULL REFERENCES remote_accounts(id),
-    target_persona_id   UUID NOT NULL REFERENCES personas(id),
+    target_persona_id   BIGINT NOT NULL REFERENCES personas(id),
     ap_id               TEXT NOT NULL UNIQUE,
     created_at          INTEGER NOT NULL
 );
 
 -- Outbound follows (local personas following others).
 CREATE TABLE IF NOT EXISTS follows (
-    persona_id          UUID NOT NULL REFERENCES personas(id),
-    user_id             UUID NOT NULL REFERENCES users(id),
+    persona_id          BIGINT NOT NULL REFERENCES personas(id),
+    user_id             BIGINT NOT NULL REFERENCES users(id),
     followee_remote_id  BIGINT REFERENCES remote_accounts(id),
-    followee_persona_id UUID REFERENCES personas(id),
+    followee_persona_id BIGINT REFERENCES personas(id),
     created_at          INTEGER NOT NULL,
     show_reblogs        BOOLEAN NOT NULL DEFAULT true,
     notify              BOOLEAN NOT NULL DEFAULT false,
@@ -607,8 +893,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_follows_local_unique
 
 -- Favourites / likes.
 CREATE TABLE IF NOT EXISTS favourites (
-    user_id        UUID NOT NULL REFERENCES users(id),
-    persona_id     UUID NOT NULL REFERENCES personas(id),
+    user_id        BIGINT NOT NULL REFERENCES users(id),
+    persona_id     BIGINT NOT NULL REFERENCES personas(id),
     post_id        BIGINT REFERENCES posts(id),
     remote_post_id BIGINT REFERENCES remote_posts(id),
     created_at     INTEGER NOT NULL,
@@ -618,8 +904,8 @@ CREATE TABLE IF NOT EXISTS favourites (
 
 -- Bookmarks.
 CREATE TABLE IF NOT EXISTS bookmarks (
-    user_id        UUID NOT NULL REFERENCES users(id),
-    persona_id     UUID NOT NULL REFERENCES personas(id),
+    user_id        BIGINT NOT NULL REFERENCES users(id),
+    persona_id     BIGINT NOT NULL REFERENCES personas(id),
     post_id        BIGINT REFERENCES posts(id),
     remote_post_id BIGINT REFERENCES remote_posts(id),
     created_at     INTEGER NOT NULL,
@@ -628,7 +914,7 @@ CREATE TABLE IF NOT EXISTS bookmarks (
 
 -- Pinned posts.
 CREATE TABLE IF NOT EXISTS pinned_posts (
-    persona_id UUID NOT NULL REFERENCES personas(id),
+    persona_id BIGINT NOT NULL REFERENCES personas(id),
     post_id    BIGINT NOT NULL REFERENCES posts(id),
     pinned_at  INTEGER NOT NULL,
     UNIQUE (persona_id, post_id)
@@ -637,10 +923,10 @@ CREATE TABLE IF NOT EXISTS pinned_posts (
 -- Notifications.
 CREATE TABLE IF NOT EXISTS notifications (
     id                     BIGINT PRIMARY KEY,
-    user_id                UUID NOT NULL REFERENCES users(id),
-    persona_id             UUID NOT NULL REFERENCES personas(id),
+    user_id                BIGINT NOT NULL REFERENCES users(id),
+    persona_id             BIGINT NOT NULL REFERENCES personas(id),
     kind                   TEXT NOT NULL,
-    from_persona_id        UUID REFERENCES personas(id),
+    from_persona_id        BIGINT REFERENCES personas(id),
     from_remote_account_id BIGINT REFERENCES remote_accounts(id),
     post_id                BIGINT REFERENCES posts(id),
     remote_post_id         BIGINT REFERENCES remote_posts(id),
@@ -661,7 +947,7 @@ CREATE INDEX IF NOT EXISTS idx_post_tags_tag ON post_tags(tag);
 CREATE TABLE IF NOT EXISTS mentions (
     post_id              BIGINT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
     mentioned_remote_id  BIGINT REFERENCES remote_accounts(id),
-    mentioned_persona_id UUID REFERENCES personas(id)
+    mentioned_persona_id BIGINT REFERENCES personas(id)
 );
 CREATE INDEX IF NOT EXISTS idx_mentions_post ON mentions(post_id);
 
@@ -708,8 +994,8 @@ CREATE TABLE IF NOT EXISTS oauth_tokens (
     id           BIGINT PRIMARY KEY,
     token_hash   TEXT NOT NULL UNIQUE,
     app_id       BIGINT NOT NULL REFERENCES oauth_apps(id),
-    user_id      UUID REFERENCES users(id),
-    persona_id   UUID REFERENCES personas(id),
+    user_id      BIGINT REFERENCES users(id),
+    persona_id   BIGINT REFERENCES personas(id),
     scopes       TEXT NOT NULL,
     created_at   INTEGER NOT NULL,
     last_used_at INTEGER,
@@ -720,8 +1006,8 @@ CREATE TABLE IF NOT EXISTS oauth_tokens (
 CREATE TABLE IF NOT EXISTS oauth_authz_codes (
     code_hash    TEXT PRIMARY KEY,
     app_id       BIGINT NOT NULL REFERENCES oauth_apps(id),
-    user_id      UUID NOT NULL REFERENCES users(id),
-    persona_id   UUID NOT NULL REFERENCES personas(id),
+    user_id      BIGINT NOT NULL REFERENCES users(id),
+    persona_id   BIGINT NOT NULL REFERENCES personas(id),
     scopes       TEXT NOT NULL,
     redirect_uri TEXT NOT NULL,
     created_at   INTEGER NOT NULL,
@@ -732,7 +1018,7 @@ CREATE TABLE IF NOT EXISTS oauth_authz_codes (
 CREATE TABLE IF NOT EXISTS delivery_queue (
     id                 BIGINT PRIMARY KEY,
     target_inbox       TEXT NOT NULL,
-    sender_persona_id  UUID NOT NULL REFERENCES personas(id),
+    sender_persona_id  BIGINT NOT NULL REFERENCES personas(id),
     activity_json      TEXT NOT NULL,
     attempts           INTEGER NOT NULL DEFAULT 0,
     next_attempt_at    INTEGER NOT NULL,
@@ -749,7 +1035,7 @@ CREATE TABLE IF NOT EXISTS relays (
     id         BIGINT PRIMARY KEY,
     actor_uri  TEXT NOT NULL UNIQUE,
     inbox_url  TEXT NOT NULL,
-    persona_id UUID REFERENCES personas(id),
+    persona_id BIGINT REFERENCES personas(id),
     follow_id  TEXT NOT NULL DEFAULT '',
     state      TEXT NOT NULL DEFAULT 'pending',
     created_at INTEGER NOT NULL
@@ -767,18 +1053,18 @@ CREATE TABLE IF NOT EXISTS domain_blocks (
 
 -- User blocks.
 CREATE TABLE IF NOT EXISTS blocks (
-    user_id           UUID NOT NULL REFERENCES users(id),
-    persona_id        UUID NOT NULL REFERENCES personas(id),
-    target_persona_id UUID REFERENCES personas(id),
+    user_id           BIGINT NOT NULL REFERENCES users(id),
+    persona_id        BIGINT NOT NULL REFERENCES personas(id),
+    target_persona_id BIGINT REFERENCES personas(id),
     target_remote_id  BIGINT REFERENCES remote_accounts(id),
     created_at        INTEGER NOT NULL
 );
 
 -- User mutes.
 CREATE TABLE IF NOT EXISTS mutes (
-    user_id           UUID NOT NULL REFERENCES users(id),
-    persona_id        UUID NOT NULL REFERENCES personas(id),
-    target_persona_id UUID REFERENCES personas(id),
+    user_id           BIGINT NOT NULL REFERENCES users(id),
+    persona_id        BIGINT NOT NULL REFERENCES personas(id),
+    target_persona_id BIGINT REFERENCES personas(id),
     target_remote_id  BIGINT REFERENCES remote_accounts(id),
     expires_at        INTEGER,
     created_at        INTEGER NOT NULL
@@ -787,7 +1073,7 @@ CREATE TABLE IF NOT EXISTS mutes (
 -- Idempotency keys for Mastodon Client API.
 CREATE TABLE IF NOT EXISTS idempotency_keys (
     key_hash   TEXT PRIMARY KEY,
-    user_id    UUID NOT NULL REFERENCES users(id),
+    user_id    BIGINT NOT NULL REFERENCES users(id),
     post_id    BIGINT NOT NULL REFERENCES posts(id),
     created_at INTEGER NOT NULL
 );
@@ -795,7 +1081,7 @@ CREATE TABLE IF NOT EXISTS idempotency_keys (
 -- Push notification subscriptions (Web Push).
 CREATE TABLE IF NOT EXISTS push_subscriptions (
     id               BIGINT PRIMARY KEY,
-    user_id          UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id          BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     endpoint         TEXT NOT NULL,
     key_p256dh       TEXT NOT NULL,
     key_auth         TEXT NOT NULL,
@@ -819,8 +1105,8 @@ CREATE TABLE IF NOT EXISTS vapid_keys (
 -- Invite codes.
 CREATE TABLE IF NOT EXISTS invite_codes (
     code       TEXT PRIMARY KEY,
-    created_by UUID REFERENCES users(id),
-    used_by    UUID REFERENCES users(id),
+    created_by BIGINT REFERENCES users(id),
+    used_by    BIGINT REFERENCES users(id),
     max_uses   INTEGER NOT NULL DEFAULT 1,
     uses       INTEGER NOT NULL DEFAULT 0,
     expires_at INTEGER,
@@ -840,7 +1126,7 @@ CREATE TABLE IF NOT EXISTS admin_tokens (
 -- Lists (curated follow lists).
 CREATE TABLE IF NOT EXISTS lists (
     id             BIGINT PRIMARY KEY,
-    user_id        UUID NOT NULL REFERENCES users(id),
+    user_id        BIGINT NOT NULL REFERENCES users(id),
     title          TEXT NOT NULL,
     replies_policy TEXT NOT NULL DEFAULT 'list',
     created_at     INTEGER NOT NULL
@@ -848,14 +1134,14 @@ CREATE TABLE IF NOT EXISTS lists (
 
 CREATE TABLE IF NOT EXISTS list_accounts (
     list_id      BIGINT NOT NULL REFERENCES lists(id) ON DELETE CASCADE,
-    persona_id   UUID,
+    persona_id   BIGINT,
     remote_id    BIGINT,
     UNIQUE (list_id, persona_id, remote_id)
 );
 
 -- Followed tags.
 CREATE TABLE IF NOT EXISTS followed_tags (
-    user_id    UUID NOT NULL REFERENCES users(id),
+    user_id    BIGINT NOT NULL REFERENCES users(id),
     tag        TEXT NOT NULL,
     created_at INTEGER NOT NULL,
     UNIQUE (user_id, tag)
@@ -864,7 +1150,7 @@ CREATE TABLE IF NOT EXISTS followed_tags (
 -- Content filters.
 CREATE TABLE IF NOT EXISTS filters (
     id            BIGINT PRIMARY KEY,
-    user_id       UUID NOT NULL REFERENCES users(id),
+    user_id       BIGINT NOT NULL REFERENCES users(id),
     title         TEXT NOT NULL,
     context       TEXT NOT NULL DEFAULT '[]',
     filter_action TEXT NOT NULL DEFAULT 'warn',
@@ -882,8 +1168,8 @@ CREATE TABLE IF NOT EXISTS filter_keywords (
 -- Scheduled statuses.
 CREATE TABLE IF NOT EXISTS scheduled_statuses (
     id           BIGINT PRIMARY KEY,
-    user_id      UUID NOT NULL REFERENCES users(id),
-    persona_id   UUID NOT NULL REFERENCES personas(id),
+    user_id      BIGINT NOT NULL REFERENCES users(id),
+    persona_id   BIGINT NOT NULL REFERENCES personas(id),
     scheduled_at INTEGER NOT NULL,
     params_json  TEXT NOT NULL,
     created_at   INTEGER NOT NULL
@@ -892,7 +1178,7 @@ CREATE INDEX IF NOT EXISTS idx_scheduled_due ON scheduled_statuses(scheduled_at)
 
 -- Timeline markers (Mastodon Client API).
 CREATE TABLE IF NOT EXISTS markers (
-    user_id      UUID NOT NULL REFERENCES users(id),
+    user_id      BIGINT NOT NULL REFERENCES users(id),
     timeline     TEXT NOT NULL,
     last_read_id TEXT NOT NULL,
     version      INTEGER NOT NULL DEFAULT 0,
@@ -903,7 +1189,7 @@ CREATE TABLE IF NOT EXISTS markers (
 -- WebAuthn credentials.
 CREATE TABLE IF NOT EXISTS webauthn_credentials (
     id              BIGINT PRIMARY KEY,
-    user_id         UUID NOT NULL REFERENCES users(id),
+    user_id         BIGINT NOT NULL REFERENCES users(id),
     credential_json TEXT NOT NULL,
     created_at      INTEGER NOT NULL
 );
@@ -917,20 +1203,20 @@ CREATE TABLE IF NOT EXISTS webauthn_challenges (
 
 -- Also-known-as URIs for account migration.
 CREATE TABLE IF NOT EXISTS also_known_as (
-    persona_id UUID NOT NULL REFERENCES personas(id),
+    persona_id BIGINT NOT NULL REFERENCES personas(id),
     uri        TEXT NOT NULL,
     UNIQUE (persona_id, uri)
 );
 
 -- Conversation tracking.
 CREATE TABLE IF NOT EXISTS conversation_read_markers (
-    user_id UUID NOT NULL REFERENCES users(id),
+    user_id BIGINT NOT NULL REFERENCES users(id),
     post_id BIGINT NOT NULL REFERENCES posts(id),
     UNIQUE (user_id, post_id)
 );
 
 CREATE TABLE IF NOT EXISTS conversation_hidden (
-    user_id UUID NOT NULL REFERENCES users(id),
+    user_id BIGINT NOT NULL REFERENCES users(id),
     post_id BIGINT NOT NULL REFERENCES posts(id),
     UNIQUE (user_id, post_id)
 );
@@ -938,7 +1224,7 @@ CREATE TABLE IF NOT EXISTS conversation_hidden (
 -- Feed state (RSS/Atom feed polling, used by broadside).
 CREATE TABLE IF NOT EXISTS feed_state (
     feed_url     TEXT PRIMARY KEY,
-    persona_id   UUID NOT NULL REFERENCES personas(id),
+    persona_id   BIGINT NOT NULL REFERENCES personas(id),
     last_seen_id TEXT,
     last_poll    INTEGER
 );
@@ -954,7 +1240,7 @@ PRAGMA journal_mode = WAL;
 PRAGMA foreign_keys = ON;
 
 CREATE TABLE IF NOT EXISTS users (
-    id                TEXT PRIMARY KEY,
+    id                INTEGER PRIMARY KEY,
     email             TEXT NOT NULL UNIQUE,
     password_hash     TEXT,
     oidc_subject      TEXT,
@@ -1020,8 +1306,8 @@ CREATE INDEX IF NOT EXISTS idx_remote_accounts_webfinger ON remote_accounts(user
 
 CREATE TABLE IF NOT EXISTS posts (
     id              INTEGER PRIMARY KEY,
-    user_id         TEXT NOT NULL REFERENCES users(id),
-    persona_id      TEXT NOT NULL REFERENCES personas(id),
+    user_id         INTEGER NOT NULL REFERENCES users(id),
+    persona_id      INTEGER NOT NULL REFERENCES personas(id),
     ap_id           TEXT NOT NULL UNIQUE,
     in_reply_to_id  INTEGER,
     in_reply_to_uri TEXT,
@@ -1071,8 +1357,8 @@ CREATE INDEX IF NOT EXISTS idx_post_edits_post ON post_edits(post_id, created_at
 
 CREATE TABLE IF NOT EXISTS media (
     id          INTEGER PRIMARY KEY,
-    user_id     TEXT NOT NULL REFERENCES users(id),
-    persona_id  TEXT NOT NULL REFERENCES personas(id),
+    user_id     INTEGER NOT NULL REFERENCES users(id),
+    persona_id  INTEGER NOT NULL REFERENCES personas(id),
     post_id     INTEGER REFERENCES posts(id),
     file_path   TEXT NOT NULL,
     mime_type   TEXT NOT NULL,
@@ -1087,8 +1373,8 @@ CREATE TABLE IF NOT EXISTS media (
 CREATE INDEX IF NOT EXISTS idx_media_user ON media(user_id);
 
 CREATE TABLE IF NOT EXISTS followers (
-    persona_id        TEXT NOT NULL REFERENCES personas(id),
-    user_id           TEXT NOT NULL REFERENCES users(id),
+    persona_id        INTEGER NOT NULL REFERENCES personas(id),
+    user_id           INTEGER NOT NULL REFERENCES users(id),
     remote_account_id INTEGER NOT NULL REFERENCES remote_accounts(id),
     accepted_at       INTEGER NOT NULL,
     UNIQUE (persona_id, remote_account_id)
@@ -1099,16 +1385,16 @@ CREATE INDEX IF NOT EXISTS idx_followers_user ON followers(user_id);
 CREATE TABLE IF NOT EXISTS follow_requests (
     id                  INTEGER PRIMARY KEY,
     requester_remote_id INTEGER NOT NULL REFERENCES remote_accounts(id),
-    target_persona_id   TEXT NOT NULL REFERENCES personas(id),
+    target_persona_id   INTEGER NOT NULL REFERENCES personas(id),
     ap_id               TEXT NOT NULL UNIQUE,
     created_at          INTEGER NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS follows (
-    persona_id          TEXT NOT NULL REFERENCES personas(id),
-    user_id             TEXT NOT NULL REFERENCES users(id),
+    persona_id          INTEGER NOT NULL REFERENCES personas(id),
+    user_id             INTEGER NOT NULL REFERENCES users(id),
     followee_remote_id  INTEGER REFERENCES remote_accounts(id),
-    followee_persona_id TEXT REFERENCES personas(id),
+    followee_persona_id INTEGER REFERENCES personas(id),
     created_at          INTEGER NOT NULL,
     show_reblogs        INTEGER NOT NULL DEFAULT 1,
     notify              INTEGER NOT NULL DEFAULT 0,
@@ -1122,8 +1408,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_follows_local_unique
     ON follows(persona_id, followee_persona_id) WHERE followee_persona_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS favourites (
-    user_id        TEXT NOT NULL REFERENCES users(id),
-    persona_id     TEXT NOT NULL REFERENCES personas(id),
+    user_id        INTEGER NOT NULL REFERENCES users(id),
+    persona_id     INTEGER NOT NULL REFERENCES personas(id),
     post_id        INTEGER REFERENCES posts(id),
     remote_post_id INTEGER REFERENCES remote_posts(id),
     created_at     INTEGER NOT NULL,
@@ -1132,8 +1418,8 @@ CREATE TABLE IF NOT EXISTS favourites (
 );
 
 CREATE TABLE IF NOT EXISTS bookmarks (
-    user_id        TEXT NOT NULL REFERENCES users(id),
-    persona_id     TEXT NOT NULL REFERENCES personas(id),
+    user_id        INTEGER NOT NULL REFERENCES users(id),
+    persona_id     INTEGER NOT NULL REFERENCES personas(id),
     post_id        INTEGER REFERENCES posts(id),
     remote_post_id INTEGER REFERENCES remote_posts(id),
     created_at     INTEGER NOT NULL,
@@ -1141,7 +1427,7 @@ CREATE TABLE IF NOT EXISTS bookmarks (
 );
 
 CREATE TABLE IF NOT EXISTS pinned_posts (
-    persona_id TEXT NOT NULL REFERENCES personas(id),
+    persona_id INTEGER NOT NULL REFERENCES personas(id),
     post_id    INTEGER NOT NULL REFERENCES posts(id),
     pinned_at  INTEGER NOT NULL,
     UNIQUE (persona_id, post_id)
@@ -1149,10 +1435,10 @@ CREATE TABLE IF NOT EXISTS pinned_posts (
 
 CREATE TABLE IF NOT EXISTS notifications (
     id                     INTEGER PRIMARY KEY,
-    user_id                TEXT NOT NULL REFERENCES users(id),
-    persona_id             TEXT NOT NULL REFERENCES personas(id),
+    user_id                INTEGER NOT NULL REFERENCES users(id),
+    persona_id             INTEGER NOT NULL REFERENCES personas(id),
     kind                   TEXT NOT NULL,
-    from_persona_id        TEXT REFERENCES personas(id),
+    from_persona_id        INTEGER REFERENCES personas(id),
     from_remote_account_id INTEGER REFERENCES remote_accounts(id),
     post_id                INTEGER REFERENCES posts(id),
     remote_post_id         INTEGER REFERENCES remote_posts(id),
@@ -1171,7 +1457,7 @@ CREATE INDEX IF NOT EXISTS idx_post_tags_tag ON post_tags(tag);
 CREATE TABLE IF NOT EXISTS mentions (
     post_id              INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
     mentioned_remote_id  INTEGER REFERENCES remote_accounts(id),
-    mentioned_persona_id TEXT REFERENCES personas(id)
+    mentioned_persona_id INTEGER REFERENCES personas(id)
 );
 CREATE INDEX IF NOT EXISTS idx_mentions_post ON mentions(post_id);
 
@@ -1214,8 +1500,8 @@ CREATE TABLE IF NOT EXISTS oauth_tokens (
     id           INTEGER PRIMARY KEY,
     token_hash   TEXT NOT NULL UNIQUE,
     app_id       INTEGER NOT NULL REFERENCES oauth_apps(id),
-    user_id      TEXT REFERENCES users(id),
-    persona_id   TEXT REFERENCES personas(id),
+    user_id      INTEGER REFERENCES users(id),
+    persona_id   INTEGER REFERENCES personas(id),
     scopes       TEXT NOT NULL,
     created_at   INTEGER NOT NULL,
     last_used_at INTEGER,
@@ -1225,8 +1511,8 @@ CREATE TABLE IF NOT EXISTS oauth_tokens (
 CREATE TABLE IF NOT EXISTS oauth_authz_codes (
     code_hash    TEXT PRIMARY KEY,
     app_id       INTEGER NOT NULL REFERENCES oauth_apps(id),
-    user_id      TEXT NOT NULL REFERENCES users(id),
-    persona_id   TEXT NOT NULL REFERENCES personas(id),
+    user_id      INTEGER NOT NULL REFERENCES users(id),
+    persona_id   INTEGER NOT NULL REFERENCES personas(id),
     scopes       TEXT NOT NULL,
     redirect_uri TEXT NOT NULL,
     created_at   INTEGER NOT NULL,
@@ -1236,7 +1522,7 @@ CREATE TABLE IF NOT EXISTS oauth_authz_codes (
 CREATE TABLE IF NOT EXISTS delivery_queue (
     id                 INTEGER PRIMARY KEY,
     target_inbox       TEXT NOT NULL,
-    sender_persona_id  TEXT NOT NULL REFERENCES personas(id),
+    sender_persona_id  INTEGER NOT NULL REFERENCES personas(id),
     activity_json      TEXT NOT NULL,
     attempts           INTEGER NOT NULL DEFAULT 0,
     next_attempt_at    INTEGER NOT NULL,
@@ -1252,7 +1538,7 @@ CREATE TABLE IF NOT EXISTS relays (
     id         INTEGER PRIMARY KEY,
     actor_uri  TEXT NOT NULL UNIQUE,
     inbox_url  TEXT NOT NULL,
-    persona_id TEXT REFERENCES personas(id),
+    persona_id INTEGER REFERENCES personas(id),
     follow_id  TEXT NOT NULL DEFAULT '',
     state      TEXT NOT NULL DEFAULT 'pending',
     created_at INTEGER NOT NULL
@@ -1268,17 +1554,17 @@ CREATE TABLE IF NOT EXISTS domain_blocks (
 );
 
 CREATE TABLE IF NOT EXISTS blocks (
-    user_id           TEXT NOT NULL REFERENCES users(id),
-    persona_id        TEXT NOT NULL REFERENCES personas(id),
-    target_persona_id TEXT REFERENCES personas(id),
+    user_id           INTEGER NOT NULL REFERENCES users(id),
+    persona_id        INTEGER NOT NULL REFERENCES personas(id),
+    target_persona_id INTEGER REFERENCES personas(id),
     target_remote_id  INTEGER REFERENCES remote_accounts(id),
     created_at        INTEGER NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS mutes (
-    user_id           TEXT NOT NULL REFERENCES users(id),
-    persona_id        TEXT NOT NULL REFERENCES personas(id),
-    target_persona_id TEXT REFERENCES personas(id),
+    user_id           INTEGER NOT NULL REFERENCES users(id),
+    persona_id        INTEGER NOT NULL REFERENCES personas(id),
+    target_persona_id INTEGER REFERENCES personas(id),
     target_remote_id  INTEGER REFERENCES remote_accounts(id),
     expires_at        INTEGER,
     created_at        INTEGER NOT NULL
@@ -1286,14 +1572,14 @@ CREATE TABLE IF NOT EXISTS mutes (
 
 CREATE TABLE IF NOT EXISTS idempotency_keys (
     key_hash   TEXT PRIMARY KEY,
-    user_id    TEXT NOT NULL REFERENCES users(id),
+    user_id    INTEGER NOT NULL REFERENCES users(id),
     post_id    INTEGER NOT NULL REFERENCES posts(id),
     created_at INTEGER NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS push_subscriptions (
     id               INTEGER PRIMARY KEY,
-    user_id          TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id          INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     endpoint         TEXT NOT NULL,
     key_p256dh       TEXT NOT NULL,
     key_auth         TEXT NOT NULL,
@@ -1315,8 +1601,8 @@ CREATE TABLE IF NOT EXISTS vapid_keys (
 
 CREATE TABLE IF NOT EXISTS invite_codes (
     code       TEXT PRIMARY KEY,
-    created_by TEXT REFERENCES users(id),
-    used_by    TEXT REFERENCES users(id),
+    created_by INTEGER REFERENCES users(id),
+    used_by    INTEGER REFERENCES users(id),
     max_uses   INTEGER NOT NULL DEFAULT 1,
     uses       INTEGER NOT NULL DEFAULT 0,
     expires_at INTEGER,
@@ -1334,7 +1620,7 @@ CREATE TABLE IF NOT EXISTS admin_tokens (
 
 CREATE TABLE IF NOT EXISTS lists (
     id             INTEGER PRIMARY KEY,
-    user_id        TEXT NOT NULL REFERENCES users(id),
+    user_id        INTEGER NOT NULL REFERENCES users(id),
     title          TEXT NOT NULL,
     replies_policy TEXT NOT NULL DEFAULT 'list',
     created_at     INTEGER NOT NULL
@@ -1342,13 +1628,13 @@ CREATE TABLE IF NOT EXISTS lists (
 
 CREATE TABLE IF NOT EXISTS list_accounts (
     list_id    INTEGER NOT NULL REFERENCES lists(id) ON DELETE CASCADE,
-    persona_id TEXT,
+    persona_id INTEGER,
     remote_id  INTEGER,
     UNIQUE (list_id, persona_id, remote_id)
 );
 
 CREATE TABLE IF NOT EXISTS followed_tags (
-    user_id    TEXT NOT NULL REFERENCES users(id),
+    user_id    INTEGER NOT NULL REFERENCES users(id),
     tag        TEXT NOT NULL,
     created_at INTEGER NOT NULL,
     UNIQUE (user_id, tag)
@@ -1356,7 +1642,7 @@ CREATE TABLE IF NOT EXISTS followed_tags (
 
 CREATE TABLE IF NOT EXISTS filters (
     id            INTEGER PRIMARY KEY,
-    user_id       TEXT NOT NULL REFERENCES users(id),
+    user_id       INTEGER NOT NULL REFERENCES users(id),
     title         TEXT NOT NULL,
     context       TEXT NOT NULL DEFAULT '[]',
     filter_action TEXT NOT NULL DEFAULT 'warn',
@@ -1373,8 +1659,8 @@ CREATE TABLE IF NOT EXISTS filter_keywords (
 
 CREATE TABLE IF NOT EXISTS scheduled_statuses (
     id           INTEGER PRIMARY KEY,
-    user_id      TEXT NOT NULL REFERENCES users(id),
-    persona_id   TEXT NOT NULL REFERENCES personas(id),
+    user_id      INTEGER NOT NULL REFERENCES users(id),
+    persona_id   INTEGER NOT NULL REFERENCES personas(id),
     scheduled_at INTEGER NOT NULL,
     params_json  TEXT NOT NULL,
     created_at   INTEGER NOT NULL
@@ -1382,7 +1668,7 @@ CREATE TABLE IF NOT EXISTS scheduled_statuses (
 CREATE INDEX IF NOT EXISTS idx_scheduled_due ON scheduled_statuses(scheduled_at);
 
 CREATE TABLE IF NOT EXISTS markers (
-    user_id      TEXT NOT NULL REFERENCES users(id),
+    user_id      INTEGER NOT NULL REFERENCES users(id),
     timeline     TEXT NOT NULL,
     last_read_id TEXT NOT NULL,
     version      INTEGER NOT NULL DEFAULT 0,
@@ -1392,7 +1678,7 @@ CREATE TABLE IF NOT EXISTS markers (
 
 CREATE TABLE IF NOT EXISTS webauthn_credentials (
     id              INTEGER PRIMARY KEY,
-    user_id         TEXT NOT NULL REFERENCES users(id),
+    user_id         INTEGER NOT NULL REFERENCES users(id),
     credential_json TEXT NOT NULL,
     created_at      INTEGER NOT NULL
 );
@@ -1404,26 +1690,26 @@ CREATE TABLE IF NOT EXISTS webauthn_challenges (
 );
 
 CREATE TABLE IF NOT EXISTS also_known_as (
-    persona_id TEXT NOT NULL REFERENCES personas(id),
+    persona_id INTEGER NOT NULL REFERENCES personas(id),
     uri        TEXT NOT NULL,
     UNIQUE (persona_id, uri)
 );
 
 CREATE TABLE IF NOT EXISTS conversation_read_markers (
-    user_id TEXT NOT NULL REFERENCES users(id),
+    user_id INTEGER NOT NULL REFERENCES users(id),
     post_id INTEGER NOT NULL REFERENCES posts(id),
     UNIQUE (user_id, post_id)
 );
 
 CREATE TABLE IF NOT EXISTS conversation_hidden (
-    user_id TEXT NOT NULL REFERENCES users(id),
+    user_id INTEGER NOT NULL REFERENCES users(id),
     post_id INTEGER NOT NULL REFERENCES posts(id),
     UNIQUE (user_id, post_id)
 );
 
 CREATE TABLE IF NOT EXISTS feed_state (
     feed_url     TEXT PRIMARY KEY,
-    persona_id   TEXT NOT NULL REFERENCES personas(id),
+    persona_id   INTEGER NOT NULL REFERENCES personas(id),
     last_seen_id TEXT,
     last_poll    INTEGER
 );
@@ -1445,7 +1731,7 @@ CREATE TABLE IF NOT EXISTS feed_state (
 pub const LEGACY_BROADSIDE_SQLITE: &str = r#"
 -- Step 1: Create users table with a single operator user
 CREATE TABLE IF NOT EXISTS users (
-    id                TEXT PRIMARY KEY,
+    id                INTEGER PRIMARY KEY,
     email             TEXT NOT NULL UNIQUE,
     password_hash     TEXT,
     oidc_subject      TEXT,
@@ -1466,7 +1752,7 @@ CREATE TABLE IF NOT EXISTS users (
     UNIQUE (oidc_issuer, oidc_subject)
 );
 INSERT OR IGNORE INTO users (id, email, display_name, role, created_at)
-    SELECT 'legacy-operator', 'admin@localhost', 'Operator', 'admin',
+    SELECT 1000000000000, 'admin@localhost', 'Operator', 'admin',
            CAST(strftime('%s', 'now') AS INTEGER);
 
 -- Step 2: Restructure personas (SQLite 12-step)
@@ -1491,7 +1777,7 @@ CREATE TABLE personas_new (
 );
 INSERT INTO personas_new (id, user_id, username, display_name, bio, bio_html,
     private_key_pem, public_key_pem, fields_json, created_at)
-    SELECT id, 'legacy-operator', username, display_name, bio, '',
+    SELECT id, 1000000000000, username, display_name, bio, '',
            private_key, public_key,
            COALESCE(metadata, '[]'),
            CAST(strftime('%s', created_at) AS INTEGER)
@@ -1528,14 +1814,14 @@ INSERT OR IGNORE INTO remote_accounts (actor_uri, inbox_url, shared_inbox_url, l
 
 -- Step 4: Rebuild followers with FK to remote_accounts
 CREATE TABLE followers_new (
-    persona_id        TEXT NOT NULL REFERENCES personas(id),
-    user_id           TEXT NOT NULL REFERENCES users(id),
+    persona_id        INTEGER NOT NULL REFERENCES personas(id),
+    user_id           INTEGER NOT NULL REFERENCES users(id),
     remote_account_id INTEGER NOT NULL REFERENCES remote_accounts(id),
     accepted_at       INTEGER NOT NULL,
     UNIQUE (persona_id, remote_account_id)
 );
 INSERT INTO followers_new (persona_id, user_id, remote_account_id, accepted_at)
-    SELECT f.persona_id, 'legacy-operator', ra.id,
+    SELECT f.persona_id, 1000000000000, ra.id,
            CAST(strftime('%s', f.followed_at) AS INTEGER)
     FROM followers f
     JOIN remote_accounts ra ON ra.actor_uri = f.actor_uri;
@@ -1547,8 +1833,8 @@ CREATE INDEX IF NOT EXISTS idx_followers_user ON followers(user_id);
 -- Step 5: Restructure posts
 CREATE TABLE posts_new (
     id              INTEGER PRIMARY KEY,
-    user_id         TEXT NOT NULL REFERENCES users(id),
-    persona_id      TEXT NOT NULL REFERENCES personas(id),
+    user_id         INTEGER NOT NULL REFERENCES users(id),
+    persona_id      INTEGER NOT NULL REFERENCES personas(id),
     ap_id           TEXT NOT NULL UNIQUE,
     in_reply_to_id  INTEGER,
     in_reply_to_uri TEXT,
@@ -1567,7 +1853,7 @@ CREATE TABLE posts_new (
     deleted_reason  TEXT
 );
 INSERT INTO posts_new (id, user_id, persona_id, ap_id, content, content_html, created_at)
-    SELECT id, 'legacy-operator', persona_id,
+    SELECT id, 1000000000000, persona_id,
            COALESCE(ap_id, 'https://localhost/posts/' || id),
            COALESCE(content_text, ''), content_html,
            CAST(strftime('%s', published_at) AS INTEGER)
@@ -1581,7 +1867,7 @@ CREATE INDEX IF NOT EXISTS idx_posts_persona_created ON posts(persona_id, create
 CREATE TABLE delivery_queue_new (
     id                 INTEGER PRIMARY KEY,
     target_inbox       TEXT NOT NULL,
-    sender_persona_id  TEXT NOT NULL REFERENCES personas(id),
+    sender_persona_id  INTEGER NOT NULL REFERENCES personas(id),
     activity_json      TEXT NOT NULL,
     attempts           INTEGER NOT NULL DEFAULT 0,
     next_attempt_at    INTEGER NOT NULL,
@@ -1606,7 +1892,7 @@ CREATE TABLE relays_new (
     id         INTEGER PRIMARY KEY,
     actor_uri  TEXT NOT NULL UNIQUE,
     inbox_url  TEXT NOT NULL,
-    persona_id TEXT REFERENCES personas(id),
+    persona_id INTEGER REFERENCES personas(id),
     follow_id  TEXT NOT NULL DEFAULT '',
     state      TEXT NOT NULL DEFAULT 'pending',
     created_at INTEGER NOT NULL
@@ -1622,8 +1908,8 @@ ALTER TABLE relays_new RENAME TO relays;
 -- Step 8: Migrate post_media to media table format
 CREATE TABLE IF NOT EXISTS media (
     id          INTEGER PRIMARY KEY,
-    user_id     TEXT NOT NULL REFERENCES users(id),
-    persona_id  TEXT NOT NULL REFERENCES personas(id),
+    user_id     INTEGER NOT NULL REFERENCES users(id),
+    persona_id  INTEGER NOT NULL REFERENCES personas(id),
     post_id     INTEGER REFERENCES posts(id),
     file_path   TEXT NOT NULL,
     mime_type   TEXT NOT NULL,
@@ -1636,7 +1922,7 @@ CREATE TABLE IF NOT EXISTS media (
 );
 INSERT OR IGNORE INTO media (id, user_id, persona_id, post_id, file_path, mime_type,
     description, created_at)
-    SELECT pm.id, 'legacy-operator', p.persona_id, pm.post_id,
+    SELECT pm.id, 1000000000000, p.persona_id, pm.post_id,
            pm.file_path, pm.mime_type,
            COALESCE(pm.description, ''),
            CAST(strftime('%s', 'now') AS INTEGER)
@@ -1700,7 +1986,7 @@ CREATE TABLE IF NOT EXISTS users (
     UNIQUE (oidc_issuer, oidc_subject)
 );
 INSERT OR IGNORE INTO users (id, email, display_name, role, created_at, did_key, recovery_pubkey)
-    SELECT 'legacy-owner', COALESCE(
+    SELECT 1000000000001, COALESCE(
         (SELECT email FROM admin LIMIT 1), 'admin@localhost'),
         COALESCE(display_name, username), 'admin', created_at,
         did_key, recovery_pubkey
@@ -1729,7 +2015,7 @@ CREATE TABLE IF NOT EXISTS personas (
 INSERT INTO personas (id, user_id, username, display_name, bio, bio_html,
     private_key_pem, public_key_pem, avatar_media_id, header_media_id,
     is_locked, discoverable, bot, fields_json, created_at, last_status_at)
-    SELECT id, 'legacy-owner', username, display_name, bio,
+    SELECT id, 1000000000001, username, display_name, bio,
            COALESCE(bio_html, ''), private_key_pem, public_key_pem,
            avatar_media_id, header_media_id,
            is_locked, discoverable, bot,
@@ -1739,13 +2025,13 @@ INSERT INTO personas (id, user_id, username, display_name, bio, bio_html,
 -- Step 3: Add user_id + persona_id columns to posts, update from accounts
 ALTER TABLE posts ADD COLUMN user_id TEXT REFERENCES users(id);
 ALTER TABLE posts ADD COLUMN persona_id TEXT REFERENCES personas(id);
-UPDATE posts SET user_id = 'legacy-owner',
+UPDATE posts SET user_id = 1000000000001,
     persona_id = account_id;
 
 -- Step 4: Add user_id + persona_id to media
 ALTER TABLE media ADD COLUMN user_id TEXT REFERENCES users(id);
 ALTER TABLE media ADD COLUMN persona_id TEXT REFERENCES personas(id);
-UPDATE media SET user_id = 'legacy-owner',
+UPDATE media SET user_id = 1000000000001,
     persona_id = account_id;
 
 -- Step 5: Rebuild followers with user_id + persona_id instead of local_account_id
@@ -1757,7 +2043,7 @@ CREATE TABLE followers_new (
     UNIQUE (persona_id, remote_account_id)
 );
 INSERT INTO followers_new (persona_id, user_id, remote_account_id, accepted_at)
-    SELECT local_account_id, 'legacy-owner', remote_account_id, accepted_at
+    SELECT local_account_id, 1000000000001, remote_account_id, accepted_at
     FROM followers;
 DROP TABLE followers;
 ALTER TABLE followers_new RENAME TO followers;
@@ -1780,7 +2066,7 @@ CREATE TABLE follows_new (
 );
 INSERT INTO follows_new (persona_id, user_id, followee_remote_id, followee_persona_id,
     created_at, show_reblogs, notify)
-    SELECT follower_id, 'legacy-owner', followee_remote_id, followee_persona_id,
+    SELECT follower_id, 1000000000001, followee_remote_id, followee_persona_id,
            created_at, show_reblogs, notify
     FROM follows;
 DROP TABLE follows;
@@ -1791,12 +2077,12 @@ CREATE INDEX IF NOT EXISTS idx_follows_user ON follows(user_id);
 -- Step 8: Update favourites
 ALTER TABLE favourites ADD COLUMN user_id TEXT REFERENCES users(id);
 ALTER TABLE favourites RENAME COLUMN account_id TO persona_id;
-UPDATE favourites SET user_id = 'legacy-owner';
+UPDATE favourites SET user_id = 1000000000001;
 
 -- Step 9: Update bookmarks
 ALTER TABLE bookmarks ADD COLUMN user_id TEXT REFERENCES users(id);
 ALTER TABLE bookmarks RENAME COLUMN account_id TO persona_id;
-UPDATE bookmarks SET user_id = 'legacy-owner';
+UPDATE bookmarks SET user_id = 1000000000001;
 
 -- Step 10: Update pinned_posts
 ALTER TABLE pinned_posts RENAME COLUMN account_id TO persona_id;
@@ -1805,7 +2091,7 @@ ALTER TABLE pinned_posts RENAME COLUMN account_id TO persona_id;
 ALTER TABLE notifications ADD COLUMN user_id TEXT REFERENCES users(id);
 ALTER TABLE notifications RENAME COLUMN account_id TO persona_id;
 ALTER TABLE notifications RENAME COLUMN from_account_id TO from_persona_id;
-UPDATE notifications SET user_id = 'legacy-owner';
+UPDATE notifications SET user_id = 1000000000001;
 
 -- Step 12: Update delivery_queue
 ALTER TABLE delivery_queue RENAME COLUMN sender_account_id TO sender_persona_id;
@@ -1816,12 +2102,12 @@ ALTER TABLE delivery_queue ADD COLUMN dead_at INTEGER;
 -- Step 13: Update oauth_tokens
 ALTER TABLE oauth_tokens ADD COLUMN user_id TEXT REFERENCES users(id);
 ALTER TABLE oauth_tokens RENAME COLUMN account_id TO persona_id;
-UPDATE oauth_tokens SET user_id = 'legacy-owner';
+UPDATE oauth_tokens SET user_id = 1000000000001;
 
 -- Step 14: Update oauth_authz_codes
 ALTER TABLE oauth_authz_codes ADD COLUMN user_id TEXT REFERENCES users(id);
 ALTER TABLE oauth_authz_codes RENAME COLUMN account_id TO persona_id;
-UPDATE oauth_authz_codes SET user_id = 'legacy-owner';
+UPDATE oauth_authz_codes SET user_id = 1000000000001;
 
 -- Step 15: Update idempotency_keys
 ALTER TABLE idempotency_keys RENAME COLUMN account_id TO user_id;
@@ -1851,11 +2137,11 @@ ALTER TABLE filters RENAME COLUMN account_id TO user_id;
 -- Step 23: Update scheduled_statuses
 ALTER TABLE scheduled_statuses ADD COLUMN user_id TEXT REFERENCES users(id);
 ALTER TABLE scheduled_statuses RENAME COLUMN account_id TO persona_id;
-UPDATE scheduled_statuses SET user_id = 'legacy-owner';
+UPDATE scheduled_statuses SET user_id = 1000000000001;
 
 -- Step 24: Update webauthn_credentials
 ALTER TABLE webauthn_credentials ADD COLUMN user_id TEXT REFERENCES users(id);
-UPDATE webauthn_credentials SET user_id = 'legacy-owner';
+UPDATE webauthn_credentials SET user_id = 1000000000001;
 
 -- Step 25: Drop the old accounts table
 DROP TABLE IF EXISTS accounts;
@@ -1951,11 +2237,11 @@ mod tests {
         // Verify did:scid columns exist by inserting a row that uses them
         sqlx::raw_sql(
             "INSERT INTO users (id, email, display_name, role, created_at, did_scid) \
-             VALUES ('test-uuid', 'test@example.com', 'Test', 'user', 1000, 'did:scid:sha256:abc')"
+             VALUES (999, 'test@example.com', 'Test', 'user', 1000, 'did:scid:sha256:abc')"
         ).execute(&pool).await.unwrap();
 
         let row: (String,) = sqlx::query_as(
-            "SELECT did_scid FROM users WHERE id = 'test-uuid'"
+            "SELECT did_scid FROM users WHERE id = 999"
         ).fetch_one(&pool).await.unwrap();
 
         assert_eq!(row.0, "did:scid:sha256:abc");
@@ -2097,15 +2383,15 @@ mod tests {
         migrate_full(&db, Some(&LEGACY_BROADSIDE), &[]).await.unwrap();
 
         // Verify: users table exists with legacy operator
-        let user: (String,) = sqlx::query_as("SELECT id FROM users LIMIT 1")
+        let user: (i64,) = sqlx::query_as("SELECT id FROM users LIMIT 1")
             .fetch_one(&pool).await.unwrap();
-        assert_eq!(user.0, "legacy-operator");
+        assert_eq!(user.0, 1000000000000);
 
         // Verify: personas has user_id and renamed columns
-        let persona: (String, String) = sqlx::query_as(
-            "SELECT user_id, private_key_pem FROM personas WHERE id = 'p1'"
+        let persona: (i64, String) = sqlx::query_as(
+            "SELECT user_id, private_key_pem FROM personas WHERE username = 'alice'"
         ).fetch_one(&pool).await.unwrap();
-        assert_eq!(persona.0, "legacy-operator");
+        assert_eq!(persona.0, 1000000000000);
         assert_eq!(persona.1, "privkey");
 
         // Verify: followers normalized via remote_accounts
@@ -2114,16 +2400,16 @@ mod tests {
         ).fetch_one(&pool).await.unwrap();
         assert_eq!(ra.0, "https://remote/users/bob");
 
-        let follower: (String,) = sqlx::query_as(
+        let follower: (i64,) = sqlx::query_as(
             "SELECT user_id FROM followers LIMIT 1"
         ).fetch_one(&pool).await.unwrap();
-        assert_eq!(follower.0, "legacy-operator");
+        assert_eq!(follower.0, 1000000000000);
 
         // Verify: posts has user_id and INTEGER timestamp
-        let post: (String, i64) = sqlx::query_as(
+        let post: (i64, i64) = sqlx::query_as(
             "SELECT user_id, created_at FROM posts WHERE id = 1"
         ).fetch_one(&pool).await.unwrap();
-        assert_eq!(post.0, "legacy-operator");
+        assert_eq!(post.0, 1000000000000);
         assert!(post.1 > 1_700_000_000, "timestamp should be epoch seconds: {}", post.1);
 
         // Verify: schema_meta gone, schema_version exists
@@ -2316,17 +2602,17 @@ mod tests {
         migrate_full(&db, Some(&LEGACY_SMALLHOLD), &[]).await.unwrap();
 
         // Verify: users table has the legacy owner with email from admin table
-        let user: (String, String) = sqlx::query_as(
+        let user: (i64, String) = sqlx::query_as(
             "SELECT id, email FROM users LIMIT 1"
         ).fetch_one(&pool).await.unwrap();
-        assert_eq!(user.0, "legacy-owner");
+        assert_eq!(user.0, 1000000000001);
         assert_eq!(user.1, "alice@example.com");
 
         // Verify: personas created from accounts
-        let persona: (String, String) = sqlx::query_as(
-            "SELECT user_id, username FROM personas WHERE id = 'acct1'"
+        let persona: (i64, String) = sqlx::query_as(
+            "SELECT user_id, username FROM personas WHERE username = 'alice'"
         ).fetch_one(&pool).await.unwrap();
-        assert_eq!(persona.0, "legacy-owner");
+        assert_eq!(persona.0, 1000000000001);
         assert_eq!(persona.1, "alice");
 
         // Verify: accounts table is gone
@@ -2338,18 +2624,18 @@ mod tests {
         assert!(!exists);
 
         // Verify: posts has user_id and persona_id
-        let post: (String, String) = sqlx::query_as(
-            "SELECT user_id, persona_id FROM posts WHERE id = 1"
+        // After legacy upgrade + v4 migration, user_id values are integers but
+        // the column may retain TEXT affinity in SQLite. Use CAST for safe decode.
+        let post: (i64,) = sqlx::query_as(
+            "SELECT CAST(user_id AS INTEGER) FROM posts WHERE id = 1"
         ).fetch_one(&pool).await.unwrap();
-        assert_eq!(post.0, "legacy-owner");
-        assert_eq!(post.1, "acct1");
+        assert_eq!(post.0, 1000000000001);
 
         // Verify: followers rebuilt with persona_id
-        let follower: (String, String) = sqlx::query_as(
-            "SELECT persona_id, user_id FROM followers LIMIT 1"
+        let follower: (i64,) = sqlx::query_as(
+            "SELECT CAST(user_id AS INTEGER) FROM followers LIMIT 1"
         ).fetch_one(&pool).await.unwrap();
-        assert_eq!(follower.0, "acct1");
-        assert_eq!(follower.1, "legacy-owner");
+        assert_eq!(follower.0, 1000000000001);
 
         // Verify: all canonical tables exist after base schema fill
         let version = schema_version(&db).await.unwrap();

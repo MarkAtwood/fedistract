@@ -116,8 +116,8 @@ pub async fn create_token(
     id: i64,
     token_hash: &str,
     app_id: i64,
-    user_id: &str,
-    persona_id: &str,
+    user_id: i64,
+    persona_id: i64,
     scopes: &str,
     now: i64,
 ) -> Result<(), sqlx::Error> {
@@ -127,7 +127,7 @@ pub async fn create_token(
             sqlx::query(
                 "INSERT INTO oauth_tokens \
                  (id, token_hash, app_id, user_id, persona_id, scopes, created_at) \
-                 VALUES ($1, $2, $3, $4::uuid, $5::uuid, $6, $7)",
+                 VALUES ($1, $2, $3, $4, $5, $6, $7)",
             )
             .bind(id)
             .bind(token_hash)
@@ -166,12 +166,12 @@ pub async fn create_token(
 pub async fn verify_token(
     pool: &Pool,
     token_hash: &str,
-) -> Result<Option<(String, String, String)>, sqlx::Error> {
+) -> Result<Option<(i64, String, String)>, sqlx::Error> {
     match pool {
         #[cfg(feature = "db-postgres")]
         Pool::Postgres(pg) => {
-            let row: Option<(String, String, String)> = sqlx::query_as(
-                "SELECT t.persona_id::text, p.username, t.scopes \
+            let row: Option<(i64, String, String)> = sqlx::query_as(
+                "SELECT t.persona_id, p.username, t.scopes \
                  FROM oauth_tokens t \
                  JOIN personas p ON p.id = t.persona_id \
                  WHERE t.token_hash = $1 AND t.revoked_at IS NULL",
@@ -183,7 +183,7 @@ pub async fn verify_token(
         }
         #[cfg(feature = "db-sqlite")]
         Pool::Sqlite(sq) => {
-            let row: Option<(String, String, String)> = sqlx::query_as(
+            let row: Option<(i64, String, String)> = sqlx::query_as(
                 "SELECT t.persona_id, p.username, t.scopes \
                  FROM oauth_tokens t \
                  JOIN personas p ON p.id = t.persona_id \
@@ -240,9 +240,9 @@ mod tests {
         db::migrate(&pool).await.unwrap();
         sqlx::raw_sql(
             "INSERT INTO users (id, email, display_name, role, created_at) \
-             VALUES ('u1', 'test@example.com', 'Test', 'user', 1000); \
+             VALUES (1, 'test@example.com', 'Test', 'user', 1000); \
              INSERT INTO personas (id, user_id, username, private_key_pem, public_key_pem, created_at) \
-             VALUES ('p1', 'u1', 'alice', 'pk', 'pub', 1000);",
+             VALUES (101, 1, 'alice', 'pk', 'pub', 1000);",
         )
         .execute(&sq)
         .await
@@ -290,13 +290,13 @@ mod tests {
     async fn create_and_verify_token() {
         let pool = setup().await;
         create_app(&pool, &sample_app()).await.unwrap();
-        create_token(&pool, 10, "hash-abc", 1, "u1", "p1", "read write", 2000)
+        create_token(&pool, 10, "hash-abc", 1, 1, 101, "read write", 2000)
             .await
             .unwrap();
 
         let result = verify_token(&pool, "hash-abc").await.unwrap();
         let (persona_id, username, scopes) = result.expect("token should be valid");
-        assert_eq!(persona_id, "p1");
+        assert_eq!(persona_id, 101);
         assert_eq!(username, "alice");
         assert_eq!(scopes, "read write");
     }
@@ -312,7 +312,7 @@ mod tests {
     async fn revoked_token_not_verified() {
         let pool = setup().await;
         create_app(&pool, &sample_app()).await.unwrap();
-        create_token(&pool, 10, "hash-abc", 1, "u1", "p1", "read", 2000)
+        create_token(&pool, 10, "hash-abc", 1, 1, 101, "read", 2000)
             .await
             .unwrap();
 

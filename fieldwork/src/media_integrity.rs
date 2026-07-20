@@ -104,8 +104,8 @@ mod tests {
     fn set_media_integrity_populates_field() {
         let mut row = super::super::media_db::MediaRow {
             id: 1,
-            user_id: "u1".into(),
-            persona_id: "p1".into(),
+            user_id: 1,
+            persona_id: 101,
             post_id: None,
             file_path: "test.png".into(),
             mime_type: "image/png".into(),

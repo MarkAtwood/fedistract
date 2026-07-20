@@ -428,11 +428,11 @@ mod tests {
         };
         sqlx::raw_sql(
             "INSERT INTO users (id, email, display_name, role, created_at) \
-             VALUES ('u1', 'a@b.com', 'A', 'user', 1000); \
+             VALUES (1, 'a@b.com', 'A', 'user', 1000); \
              INSERT INTO personas (id, user_id, username, private_key_pem, public_key_pem, created_at) \
-             VALUES ('p1', 'u1', 'alice', 'pk', 'pub', 1000); \
+             VALUES (101, 1, 'alice', 'pk', 'pub', 1000); \
              INSERT INTO posts (id, user_id, persona_id, ap_id, content, content_html, visibility, created_at) \
-             VALUES (42, 'u1', 'p1', 'https://x.com/posts/42', 'hi', '<p>hi</p>', 'public', 1000);",
+             VALUES (42, 1, 101, 'https://x.com/posts/42', 'hi', '<p>hi</p>', 'public', 1000);",
         )
         .execute(sq)
         .await
@@ -461,11 +461,11 @@ mod tests {
         };
         sqlx::raw_sql(
             "INSERT INTO users (id, email, display_name, role, created_at) \
-             VALUES ('u1', 'a@b.com', 'A', 'user', 1000); \
+             VALUES (1, 'a@b.com', 'A', 'user', 1000); \
              INSERT INTO personas (id, user_id, username, private_key_pem, public_key_pem, created_at) \
-             VALUES ('p1', 'u1', 'alice', 'pk', 'pub', 1000); \
+             VALUES (101, 1, 'alice', 'pk', 'pub', 1000); \
              INSERT INTO posts (id, user_id, persona_id, ap_id, content, content_html, visibility, created_at) \
-             VALUES (42, 'u1', 'p1', 'https://x.com/posts/42', 'hi', '<p>hi</p>', 'public', 1000);",
+             VALUES (42, 1, 101, 'https://x.com/posts/42', 'hi', '<p>hi</p>', 'public', 1000);",
         )
         .execute(sq)
         .await
@@ -492,11 +492,11 @@ mod tests {
         };
         sqlx::raw_sql(
             "INSERT INTO users (id, email, display_name, role, created_at) \
-             VALUES ('u1', 'a@b.com', 'A', 'user', 1000); \
+             VALUES (1, 'a@b.com', 'A', 'user', 1000); \
              INSERT INTO personas (id, user_id, username, private_key_pem, public_key_pem, created_at) \
-             VALUES ('p1', 'u1', 'alice', 'pk', 'pub', 1000); \
+             VALUES (101, 1, 'alice', 'pk', 'pub', 1000); \
              INSERT INTO posts (id, user_id, persona_id, ap_id, content, content_html, visibility, created_at) \
-             VALUES (42, 'u1', 'p1', 'https://x.com/posts/42', 'hi', '<p>hi</p>', 'public', 1000);",
+             VALUES (42, 1, 101, 'https://x.com/posts/42', 'hi', '<p>hi</p>', 'public', 1000);",
         )
         .execute(sq)
         .await
