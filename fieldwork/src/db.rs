@@ -18,6 +18,10 @@
 //! - **`db-postgres`** — PostgreSQL support via sqlx.
 //! - **`db-sqlite`** — SQLite support via sqlx.
 
+/// Re-export sqlx for use by server db_extras modules.
+/// Server business logic should NOT use this directly.
+pub use sqlx;
+
 #[cfg(not(any(feature = "db-postgres", feature = "db-sqlite")))]
 compile_error!("fieldwork::db requires at least one of `db-postgres` or `db-sqlite` features");
 

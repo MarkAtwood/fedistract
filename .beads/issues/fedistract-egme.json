@@ -1,0 +1,14 @@
+{
+  "id": "fedistract-egme",
+  "title": "Remove direct sqlx dependency from broadside, smallhold, and gaja",
+  "description": "Add pub use sqlx to fieldwork::db, then update all three servers to import sqlx through fieldwork::db::sqlx instead of depending on sqlx directly.",
+  "status": "closed",
+  "priority": 2,
+  "issue_type": "task",
+  "owner": "mark@wolfssl.com",
+  "created_at": "2026-07-20T19:59:57.727839002Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T20:13:04.654118092Z",
+  "closed_at": "2026-07-20T20:13:04.654118092Z",
+  "close_reason": "Completed: sqlx removed as direct dependency from all three servers (broadside, smallhold, gaja). All access sqlx through fieldwork::db::sqlx re-export. 95 tests pass across all three servers (21+40+34)."
+}
