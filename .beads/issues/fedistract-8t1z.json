@@ -1,0 +1,16 @@
+{
+  "id": "fedistract-8t1z",
+  "title": "Migrate smallhold persona IDs from i64 to String (TEXT UUID)",
+  "description": "The fieldwork canonical schema uses TEXT UUIDs for persona and user IDs. Smallhold's Rust code still uses i64 for account_id/persona_id everywhere (AuthenticatedAccount, PostRow, query return types). This causes runtime type mismatches. Need to change account_id: i64 → String throughout api.rs, posting.rs, interactions.rs, inbox.rs, and all other files that reference persona IDs.",
+  "status": "closed",
+  "priority": 0,
+  "issue_type": "bug",
+  "assignee": "Mark Atwood",
+  "owner": "mark@wolfssl.com",
+  "created_at": "2026-07-20T15:47:05.837257729Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T16:23:51.585680021Z",
+  "started_at": "2026-07-20T15:47:15.279608087Z",
+  "closed_at": "2026-07-20T16:23:51.585680021Z",
+  "close_reason": "All persona/user IDs migrated from i64 to String across 12 files. Live federation test passes: auth, search, follow, post, delivery all working with TEXT UUID IDs."
+}
