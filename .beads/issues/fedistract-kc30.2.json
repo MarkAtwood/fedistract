@@ -2,7 +2,7 @@
   "id": "fedistract-kc30.2",
   "title": "Extract ssrf-guard crate",
   "description": "Validate outbound URLs/IPs against private/internal/reserved ranges. Source: GJ federation.rs:30-68 (most complete, includes IPv4-mapped IPv6, CGNAT). Public API: is_private_host(), validate_url(), is_private_ip(). Blocked ranges: loopback, RFC1918, link-local, CGNAT, broadcast, unspecified, IPv6 ULA/link-local, IPv4-mapped IPv6. Deps: url only. Consider async DNS resolution for TOCTOU mitigation.",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 1,
   "issue_type": "feature",
   "assignee": "Mark Atwood",
@@ -10,10 +10,10 @@
   "estimated_minutes": 120,
   "created_at": "2026-07-20T01:32:27.114554781Z",
   "created_by": "Mark Atwood",
-  "updated_at": "2026-07-20T01:49:46.414911698Z",
+  "updated_at": "2026-07-20T01:52:33.034940342Z",
   "started_at": "2026-07-20T01:49:46.414911698Z",
-  "lease_expires_at": "2026-07-20T01:54:46.414911698Z",
-  "heartbeat_at": "2026-07-20T01:49:46.414911698Z",
+  "closed_at": "2026-07-20T01:52:33.034940342Z",
+  "close_reason": "Closed",
   "labels": [
     "extraction"
   ],
