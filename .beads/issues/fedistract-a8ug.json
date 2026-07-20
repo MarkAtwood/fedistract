@@ -1,0 +1,12 @@
+{
+  "id": "fedistract-a8ug",
+  "title": "[EPIC] Misskey API compatibility",
+  "description": "Add Misskey-specific features and API compatibility to all three servers. Misskey family (Misskey, Firefish, Sharkey, Calckey) has ~1M users, mostly in Japan. Key differentiators: emoji reactions (not just favourites), drive (file management), antennas (custom feeds), clips (categorized bookmarks). Federates with Misskey instances already (they speak AP) but Misskey-specific clients need the Misskey API.",
+  "status": "open",
+  "priority": 3,
+  "issue_type": "epic",
+  "owner": "mark@reviewcommit.com",
+  "created_at": "2026-07-20T23:58:14.910168274Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T23:58:14.910168274Z"
+}

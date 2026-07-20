@@ -1,0 +1,22 @@
+{
+  "id": "fedistract-vag6.2",
+  "title": "fieldwork-db::audio_db — tracks, albums, playlists, podcast episodes",
+  "description": "DB module for audio: tracks (title, artist, album, duration, file_path), albums (collection of tracks), playlists (user-curated), podcast_series, podcast_episodes (with RSS metadata). Schema migration.",
+  "status": "open",
+  "priority": 3,
+  "issue_type": "feature",
+  "owner": "mark@reviewcommit.com",
+  "created_at": "2026-07-20T23:58:15.365232825Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T23:58:15.365232825Z",
+  "dependencies": [
+    {
+      "issue_id": "fedistract-vag6.2",
+      "depends_on_id": "fedistract-vag6",
+      "type": "parent-child",
+      "created_at": "2026-07-20T23:58:15.375406344Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}

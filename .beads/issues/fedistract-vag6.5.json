@@ -1,0 +1,22 @@
+{
+  "id": "fedistract-vag6.5",
+  "title": "fieldwork::funkwhale_api — Funkwhale Client API route handlers",
+  "description": "Implement Funkwhale API endpoints. Key endpoints: /api/v1/tracks, /api/v1/albums, /api/v1/artists, /api/v1/playlists, /api/v1/listen, /api/v1/channels, /api/v1/subscriptions. Subsonic API compatibility would also unlock many existing music player apps.",
+  "status": "open",
+  "priority": 3,
+  "issue_type": "feature",
+  "owner": "mark@reviewcommit.com",
+  "created_at": "2026-07-20T23:58:15.538930389Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T23:58:15.538930389Z",
+  "dependencies": [
+    {
+      "issue_id": "fedistract-vag6.5",
+      "depends_on_id": "fedistract-vag6",
+      "type": "parent-child",
+      "created_at": "2026-07-20T23:58:15.549220042Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}

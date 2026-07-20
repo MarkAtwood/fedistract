@@ -1,0 +1,22 @@
+{
+  "id": "fedistract-a8ug.3",
+  "title": "Antennas (custom feeds)",
+  "description": "Misskey antennas are server-side custom feeds based on rules (keywords, users, hashtags). Like Mastodon lists but more flexible — they can match by content, not just by who posted. Endpoints: /api/antennas (CRUD), /api/antennas/notes. fieldwork-db::antennas_db module.",
+  "status": "open",
+  "priority": 3,
+  "issue_type": "feature",
+  "owner": "mark@reviewcommit.com",
+  "created_at": "2026-07-20T23:58:15.104409468Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T23:58:15.104409468Z",
+  "dependencies": [
+    {
+      "issue_id": "fedistract-a8ug.3",
+      "depends_on_id": "fedistract-a8ug",
+      "type": "parent-child",
+      "created_at": "2026-07-20T23:58:15.115761964Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}

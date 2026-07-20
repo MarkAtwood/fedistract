@@ -1,0 +1,22 @@
+{
+  "id": "fedistract-a8ug.2",
+  "title": "Drive (file management API)",
+  "description": "Misskey has a 'drive' — a persistent file store per user. Users upload files to their drive, then attach them to posts. Different from Mastodon's ephemeral upload-then-attach model. Endpoints: /api/drive/files (list/upload/update/delete), /api/drive/folders. Maps to existing media_db with folder support.",
+  "status": "open",
+  "priority": 3,
+  "issue_type": "feature",
+  "owner": "mark@reviewcommit.com",
+  "created_at": "2026-07-20T23:58:15.049511977Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T23:58:15.049511977Z",
+  "dependencies": [
+    {
+      "issue_id": "fedistract-a8ug.2",
+      "depends_on_id": "fedistract-a8ug",
+      "type": "parent-child",
+      "created_at": "2026-07-20T23:58:15.060797073Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}

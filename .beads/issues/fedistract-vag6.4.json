@@ -1,0 +1,22 @@
+{
+  "id": "fedistract-vag6.4",
+  "title": "Web audio player",
+  "description": "Embeddable web audio player with waveform visualization, playlist support, continuous playback across pages. Queue management. Scrobbling support (Last.fm/ListenBrainz integration point).",
+  "status": "open",
+  "priority": 3,
+  "issue_type": "feature",
+  "owner": "mark@reviewcommit.com",
+  "created_at": "2026-07-20T23:58:15.47885704Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T23:58:15.47885704Z",
+  "dependencies": [
+    {
+      "issue_id": "fedistract-vag6.4",
+      "depends_on_id": "fedistract-vag6",
+      "type": "parent-child",
+      "created_at": "2026-07-20T23:58:15.492135976Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}

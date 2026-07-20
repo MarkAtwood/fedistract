@@ -1,0 +1,12 @@
+{
+  "id": "fedistract-vag6",
+  "title": "[EPIC] Audio/podcast mode — Funkwhale replacement",
+  "description": "Add music and podcast hosting to all three servers as a fieldwork capability. Audio upload, streaming, playlists, podcast RSS feed generation. Federates with existing Funkwhale instances. Broadside: org podcast publishing. Smallhold: personal music/podcast hosting. Gaja: multi-tenant audio platform.",
+  "status": "open",
+  "priority": 3,
+  "issue_type": "epic",
+  "owner": "mark@reviewcommit.com",
+  "created_at": "2026-07-20T23:58:15.211793568Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T23:58:15.211793568Z"
+}

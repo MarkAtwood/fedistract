@@ -1,0 +1,12 @@
+{
+  "id": "fedistract-kc0c",
+  "title": "[EPIC] Community mode — Lemmy replacement",
+  "description": "Add Reddit-style communities to all three servers as a fieldwork capability. Communities are AP Group actors. Threaded comments, upvotes/downvotes, per-community moderation. Federates with existing Lemmy instances. Broadside: org-hosted community forums. Smallhold: personal community hosting. Gaja: multi-tenant Reddit.",
+  "status": "open",
+  "priority": 2,
+  "issue_type": "epic",
+  "owner": "mark@reviewcommit.com",
+  "created_at": "2026-07-20T23:58:14.537234613Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T23:58:14.537234613Z"
+}

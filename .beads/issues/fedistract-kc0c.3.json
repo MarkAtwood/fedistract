@@ -1,0 +1,22 @@
+{
+  "id": "fedistract-kc0c.3",
+  "title": "Threaded comments with vote counts",
+  "description": "Reddit-style threaded comments. Each comment is an AP Note with inReplyTo. Vote counts (upvotes - downvotes) determine sort order. Score-based sorting (hot, top, new, controversial). Different from Mastodon's flat reply model.",
+  "status": "open",
+  "priority": 2,
+  "issue_type": "feature",
+  "owner": "mark@reviewcommit.com",
+  "created_at": "2026-07-20T23:58:14.7456896Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T23:58:14.7456896Z",
+  "dependencies": [
+    {
+      "issue_id": "fedistract-kc0c.3",
+      "depends_on_id": "fedistract-kc0c",
+      "type": "parent-child",
+      "created_at": "2026-07-20T23:58:14.756058724Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}

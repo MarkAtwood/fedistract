@@ -1,0 +1,22 @@
+{
+  "id": "fedistract-kc0c.1",
+  "title": "fieldwork::communities — AP Group actors for communities",
+  "description": "Community model: Group actor type with name, description, rules, moderators. Communities own posts (attributedTo the Group). Members follow the Group to see posts. Moderators can pin/remove/lock posts. Maps to Lemmy's community model. Uses persona_db (a community IS a persona with type=Group).",
+  "status": "open",
+  "priority": 2,
+  "issue_type": "feature",
+  "owner": "mark@reviewcommit.com",
+  "created_at": "2026-07-20T23:58:14.635142209Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T23:58:14.635142209Z",
+  "dependencies": [
+    {
+      "issue_id": "fedistract-kc0c.1",
+      "depends_on_id": "fedistract-kc0c",
+      "type": "parent-child",
+      "created_at": "2026-07-20T23:58:14.646119919Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}
