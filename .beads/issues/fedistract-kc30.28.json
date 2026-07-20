@@ -2,13 +2,15 @@
   "id": "fedistract-kc30.28",
   "title": "Migrate gaja to fieldwork::db schema",
   "description": "Replace gaja's inline schema (db.rs) with fieldwork::db::migrate(). Changes needed:\n- Add fieldwork dependency with db-postgres and db-sqlite features\n- Replace Pool enum with fieldwork::db::Pool\n- Replace initialize_postgres() and initialize_sqlite() with fieldwork::db::migrate()\n- Update all sqlx queries to match canonical column names/types where they differ:\n  - Timestamps: TIMESTAMPTZ -\u003e INTEGER (Unix seconds) in Postgres schema\n  - gaja already uses users+personas so model is the same\n  - Verify all 26 gaja tables exist in canonical schema\n- Remove gaja's inline schema constants\n- Run full test suite to verify nothing breaks",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "issue_type": "task",
   "owner": "mark@wolfssl.com",
   "created_at": "2026-07-20T02:28:47.783645511Z",
   "created_by": "Mark Atwood",
-  "updated_at": "2026-07-20T02:28:47.783645511Z",
+  "updated_at": "2026-07-20T02:31:22.842583425Z",
+  "closed_at": "2026-07-20T02:31:22.842583425Z",
+  "close_reason": "No running gaja instances, fresh install uses canonical schema directly",
   "labels": [
     "extraction"
   ],
