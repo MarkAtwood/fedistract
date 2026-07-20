@@ -52,9 +52,10 @@ theme = ["dep:serde_json", "dep:regex", "dep:tracing"]
 fetch = ["dep:reqwest", "dep:serde_json", "dep:url", "dep:bytes", "dep:cavage-httpsig", "dep:ssrf-guard"]
 nodeinfo = ["dep:serde", "dep:serde_json"]
 webfinger = ["dep:serde", "dep:serde_json"]
+profile = ["dep:serde", "dep:serde_json"]
 db-postgres = ["dep:sqlx", "sqlx/runtime-tokio", "sqlx/postgres", "dep:tracing"]
 db-sqlite = ["dep:sqlx", "sqlx/runtime-tokio", "sqlx/sqlite", "dep:tracing"]
-full = ["activities", "actor", "collections", "error", "auth", "inbox", "sanitize", "content", "theme", "nodeinfo", "webfinger", "fetch"]
+full = ["activities", "actor", "collections", "error", "auth", "inbox", "sanitize", "content", "theme", "nodeinfo", "webfinger", "fetch", "profile"]
 
 [dev-dependencies]
 tokio = { version = "1", features = ["rt", "macros"] }
