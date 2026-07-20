@@ -1,0 +1,14 @@
+{
+  "id": "fedistract-hgp9",
+  "title": "Extract collections module for fieldwork",
+  "description": "Create OrderedCollection and OrderedCollectionPage structs with builders and pagination helper",
+  "status": "closed",
+  "priority": 2,
+  "issue_type": "task",
+  "owner": "mark@wolfssl.com",
+  "created_at": "2026-07-20T06:17:38.523820138Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T06:19:37.174103461Z",
+  "closed_at": "2026-07-20T06:19:37.174103461Z",
+  "close_reason": "Closed"
+}

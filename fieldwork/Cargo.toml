@@ -23,20 +23,38 @@ regex = { version = "1", optional = true }
 serde = { version = "1", features = ["derive"], optional = true }
 serde_json = { version = "1", optional = true }
 sha2 = { version = "0.10", optional = true }
+subtle = { version = "2", optional = true }
+base64 = { version = "0.22", optional = true }
 sqlx = { version = "0.8", optional = true }
 tracing = { version = "0.1", optional = true }
+url = { version = "2", optional = true }
 whatlang = { version = "0.16", optional = true }
+
+# Workspace path dependencies (feature-gated)
+cavage-httpsig = { path = "../cavage-httpsig", optional = true }
+ssrf-guard = { path = "../ssrf-guard", features = ["reqwest"], optional = true }
+
+# External dependencies (feature-gated)
+bytes = { version = "1", optional = true }
+reqwest = { version = "0.12", features = ["json"], optional = true }
 
 [features]
 default = []
+activities = ["dep:serde", "dep:serde_json"]
+actor = ["dep:serde", "dep:serde_json"]
+collections = ["dep:serde", "dep:serde_json"]
 error = ["dep:axum", "dep:serde_json", "dep:tracing"]
 auth = ["dep:argon2", "dep:hex", "dep:sha2", "dep:rand"]
 sanitize = ["dep:ammonia", "dep:pulldown-cmark"]
 content = ["dep:regex", "dep:serde", "dep:serde_json", "dep:whatlang"]
+inbox = ["dep:sha2", "dep:subtle", "dep:base64"]
 theme = ["dep:serde_json", "dep:regex", "dep:tracing"]
+fetch = ["dep:reqwest", "dep:serde_json", "dep:url", "dep:bytes", "dep:cavage-httpsig", "dep:ssrf-guard"]
+nodeinfo = ["dep:serde", "dep:serde_json"]
+webfinger = ["dep:serde", "dep:serde_json"]
 db-postgres = ["dep:sqlx", "sqlx/runtime-tokio", "sqlx/postgres", "dep:tracing"]
 db-sqlite = ["dep:sqlx", "sqlx/runtime-tokio", "sqlx/sqlite", "dep:tracing"]
-full = ["error", "auth", "sanitize", "content", "theme"]
+full = ["activities", "actor", "collections", "error", "auth", "inbox", "sanitize", "content", "theme", "nodeinfo", "webfinger", "fetch"]
 
 [dev-dependencies]
 tokio = { version = "1", features = ["rt", "macros"] }
