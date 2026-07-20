@@ -21,14 +21,101 @@
 #[cfg(not(any(feature = "db-postgres", feature = "db-sqlite")))]
 compile_error!("fieldwork::db requires at least one of `db-postgres` or `db-sqlite` features");
 
-/// Database pool abstraction. Projects using a single backend can match
-/// on the one variant they need; projects supporting both dispatch here.
+/// Database pool abstraction. Servers should use [`connect_sqlite`] or
+/// [`connect_postgres`] to create a Pool — never construct the enum directly.
 #[derive(Clone)]
 pub enum Pool {
     #[cfg(feature = "db-postgres")]
+    #[doc(hidden)]
     Postgres(sqlx::PgPool),
     #[cfg(feature = "db-sqlite")]
+    #[doc(hidden)]
     Sqlite(sqlx::SqlitePool),
+}
+
+/// Connect to a SQLite database. Creates the file if it doesn't exist.
+/// Sets WAL journal mode and normal synchronous for performance.
+#[cfg(feature = "db-sqlite")]
+pub async fn connect_sqlite(path: &str) -> Result<Pool, DbError> {
+    use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteSynchronous};
+    use std::str::FromStr;
+
+    let options = SqliteConnectOptions::from_str(path)
+        .map_err(|e| DbError::Connect(e.to_string()))?
+        .create_if_missing(true)
+        .journal_mode(SqliteJournalMode::Wal)
+        .synchronous(SqliteSynchronous::Normal);
+
+    let pool = SqlitePoolOptions::new()
+        .max_connections(5)
+        .connect_with(options)
+        .await
+        .map_err(|e| DbError::Connect(e.to_string()))?;
+
+    Ok(Pool::Sqlite(pool))
+}
+
+/// Connect to a SQLite database with custom max connections.
+#[cfg(feature = "db-sqlite")]
+pub async fn connect_sqlite_with(path: &str, max_connections: u32) -> Result<Pool, DbError> {
+    use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteSynchronous};
+    use std::str::FromStr;
+
+    let options = SqliteConnectOptions::from_str(path)
+        .map_err(|e| DbError::Connect(e.to_string()))?
+        .create_if_missing(true)
+        .journal_mode(SqliteJournalMode::Wal)
+        .synchronous(SqliteSynchronous::Normal);
+
+    let pool = SqlitePoolOptions::new()
+        .max_connections(max_connections)
+        .connect_with(options)
+        .await
+        .map_err(|e| DbError::Connect(e.to_string()))?;
+
+    Ok(Pool::Sqlite(pool))
+}
+
+/// Connect to a PostgreSQL database.
+#[cfg(feature = "db-postgres")]
+pub async fn connect_postgres(url: &str) -> Result<Pool, DbError> {
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(20)
+        .connect(url)
+        .await
+        .map_err(|e| DbError::Connect(e.to_string()))?;
+
+    Ok(Pool::Postgres(pool))
+}
+
+/// Connect to a PostgreSQL database with custom max connections.
+#[cfg(feature = "db-postgres")]
+pub async fn connect_postgres_with(url: &str, max_connections: u32) -> Result<Pool, DbError> {
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(max_connections)
+        .connect(url)
+        .await
+        .map_err(|e| DbError::Connect(e.to_string()))?;
+
+    Ok(Pool::Postgres(pool))
+}
+
+/// Database error type that doesn't leak sqlx types.
+/// Servers should use this instead of sqlx::Error directly.
+#[derive(Debug, thiserror::Error)]
+pub enum DbError {
+    #[error("database error: {0}")]
+    Query(String),
+    #[error("connection error: {0}")]
+    Connect(String),
+    #[error("not found")]
+    NotFound,
+}
+
+impl From<sqlx::Error> for DbError {
+    fn from(e: sqlx::Error) -> Self {
+        DbError::Query(e.to_string())
+    }
 }
 
 #[derive(Debug, thiserror::Error)]
