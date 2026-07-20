@@ -1,0 +1,12 @@
+{
+  "id": "fedistract-aa6g",
+  "title": "Identify common query patterns across db_extras.rs files",
+  "description": "Once all SQL is centralized in db_extras.rs for each server, diff the three files. Catalog which functions appear in 2+ servers (same query shape, same tables, same parameters). These are the extraction candidates for fieldwork. Expected categories: timeline pagination, status loading with JOINs, relationship composition, inbox processing orchestration.",
+  "status": "open",
+  "priority": 1,
+  "issue_type": "task",
+  "owner": "mark@wolfssl.com",
+  "created_at": "2026-07-20T19:35:26.780721099Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T19:35:26.780721099Z"
+}
