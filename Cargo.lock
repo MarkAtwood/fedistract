@@ -566,7 +566,9 @@ name = "fedi-did"
 version = "0.1.0"
 dependencies = [
  "bip39",
+ "data-encoding",
  "ed25519-dalek",
+ "hex",
  "multibase",
  "rand",
  "serde_json",
@@ -588,6 +590,7 @@ dependencies = [
  "ammonia",
  "argon2",
  "axum",
+ "hex",
  "pulldown-cmark",
  "rand",
  "regex",

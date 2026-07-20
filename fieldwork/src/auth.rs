@@ -12,7 +12,7 @@ pub enum AuthError {
 pub fn hash_token(token: &str) -> String {
     use sha2::{Digest, Sha256};
     let hash = Sha256::digest(token.as_bytes());
-    hash.iter().map(|b| format!("{b:02x}")).collect()
+    hex::encode(hash)
 }
 
 /// Verify a password against an argon2id hash.

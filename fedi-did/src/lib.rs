@@ -184,44 +184,17 @@ pub fn generate_did_plc(
 
 /// Hex-encode bytes for storage.
 pub fn hex_encode(bytes: &[u8]) -> String {
-    bytes.iter().map(|b| format!("{b:02x}")).collect()
+    hex::encode(bytes)
 }
 
 /// Hex-decode a string back to bytes.
 pub fn hex_decode(s: &str) -> Result<Vec<u8>, DidError> {
-    if s.len() % 2 != 0 {
-        return Err(DidError::InvalidHex("odd-length string".into()));
-    }
-    (0..s.len())
-        .step_by(2)
-        .map(|i| {
-            u8::from_str_radix(&s[i..i + 2], 16)
-                .map_err(|_| DidError::InvalidHex(format!("invalid byte at position {i}")))
-        })
-        .collect()
+    hex::decode(s).map_err(|e| DidError::InvalidHex(e.to_string()))
 }
 
 /// Base32 lowercase encoding without padding (RFC 4648 variant).
 fn base32_encode_lower(data: &[u8]) -> String {
-    const ALPHABET: &[u8] = b"abcdefghijklmnopqrstuvwxyz234567";
-    let mut result = String::with_capacity((data.len() * 8).div_ceil(5));
-    let mut buffer: u64 = 0;
-    let mut bits = 0;
-
-    for &byte in data {
-        buffer = (buffer << 8) | u64::from(byte);
-        bits += 8;
-        while bits >= 5 {
-            bits -= 5;
-            let idx = ((buffer >> bits) & 0x1f) as usize;
-            result.push(ALPHABET[idx] as char);
-        }
-    }
-    if bits > 0 {
-        let idx = ((buffer << (5 - bits)) & 0x1f) as usize;
-        result.push(ALPHABET[idx] as char);
-    }
-    result
+    data_encoding::BASE32_NOPAD.encode(data).to_lowercase()
 }
 
 #[cfg(test)]
