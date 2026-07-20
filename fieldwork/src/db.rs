@@ -3,6 +3,16 @@
 //! Provides the shared schema used by all consumer projects. Simpler projects
 //! (broadside, smallhold) just leave unused tables empty.
 //!
+//! # Migration system
+//!
+//! On startup, call [`migrate`] (or [`migrate_with`] for project-specific extras).
+//! The migrator:
+//!
+//! 1. Creates the `schema_version` table if missing
+//! 2. For fresh databases: runs the full CREATE TABLE schema (version 0)
+//! 3. For existing databases: detects current version and runs pending migrations
+//! 4. Each migration runs in a transaction
+//!
 //! # Features
 //!
 //! - **`db-postgres`** — PostgreSQL support via sqlx.
@@ -21,22 +31,273 @@ pub enum Pool {
     Sqlite(sqlx::SqlitePool),
 }
 
-/// Run idempotent schema migration. Call at startup.
+#[derive(Debug, thiserror::Error)]
+pub enum MigrateError {
+    #[error("database error: {0}")]
+    Sql(#[from] sqlx::Error),
+    #[error("migration {version} ({description}) failed: {source}")]
+    MigrationFailed {
+        version: u32,
+        description: &'static str,
+        source: sqlx::Error,
+    },
+    #[error("schema version {0} is newer than this binary supports (max {1})")]
+    VersionTooNew(u32, u32),
+}
+
+/// A single versioned schema migration.
+pub struct Migration {
+    pub version: u32,
+    pub description: &'static str,
+    pub sql_sqlite: &'static str,
+    pub sql_postgres: &'static str,
+}
+
+/// The current schema version after all built-in migrations.
+/// Version 0 = fresh CREATE TABLE schema.
+/// Version 1+ = incremental migrations.
+const CURRENT_VERSION: u32 = 1;
+
+/// Built-in migration chain. Version 0 is the fresh-install schema (handled
+/// separately). These run in order for version 1, 2, 3, etc.
+const MIGRATIONS: &[Migration] = &[
+    Migration {
+        version: 1,
+        description: "add did:scid columns to users, personas, remote_accounts, followers",
+        sql_sqlite: r#"
+ALTER TABLE users ADD COLUMN did_scid TEXT;
+ALTER TABLE personas ADD COLUMN did_scid TEXT;
+ALTER TABLE personas ADD COLUMN did_scid_chain TEXT;
+ALTER TABLE remote_accounts ADD COLUMN did_scid TEXT;
+ALTER TABLE remote_accounts ADD COLUMN did TEXT;
+ALTER TABLE followers ADD COLUMN did TEXT;
+CREATE INDEX IF NOT EXISTS idx_remote_accounts_did ON remote_accounts(did) WHERE did IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_followers_did ON followers(did) WHERE did IS NOT NULL;
+"#,
+        sql_postgres: r#"
+ALTER TABLE users ADD COLUMN IF NOT EXISTS did_scid TEXT;
+ALTER TABLE personas ADD COLUMN IF NOT EXISTS did_scid TEXT;
+ALTER TABLE personas ADD COLUMN IF NOT EXISTS did_scid_chain TEXT;
+ALTER TABLE remote_accounts ADD COLUMN IF NOT EXISTS did_scid TEXT;
+ALTER TABLE remote_accounts ADD COLUMN IF NOT EXISTS did TEXT;
+ALTER TABLE followers ADD COLUMN IF NOT EXISTS did TEXT;
+CREATE INDEX IF NOT EXISTS idx_remote_accounts_did ON remote_accounts(did) WHERE did IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_followers_did ON followers(did) WHERE did IS NOT NULL;
+"#,
+    },
+];
+
+/// Run schema migrations. Call at startup.
 ///
-/// All statements use `CREATE TABLE IF NOT EXISTS` and `CREATE INDEX IF NOT EXISTS`,
-/// so this is safe to run on every boot.
-pub async fn migrate(pool: &Pool) -> Result<(), sqlx::Error> {
+/// For fresh databases, creates the full schema (version 0) then runs all
+/// incremental migrations. For existing databases, runs only pending migrations.
+pub async fn migrate(pool: &Pool) -> Result<(), MigrateError> {
+    migrate_with(pool, &[]).await
+}
+
+/// Run schema migrations including project-specific extras.
+///
+/// Extra migrations are interleaved by version number with the built-in chain.
+/// Use this for project-specific tables (e.g., broadside's `feed_state`).
+pub async fn migrate_with(
+    pool: &Pool,
+    extras: &[Migration],
+) -> Result<(), MigrateError> {
+    ensure_version_table(pool).await?;
+
+    let current = get_version(pool).await?;
+
+    if current > max_version(extras) {
+        return Err(MigrateError::VersionTooNew(current, max_version(extras)));
+    }
+
+    // Fresh database: run full CREATE TABLE schema as version 0
+    if current == 0 && !has_any_tables(pool).await? {
+        run_base_schema(pool).await?;
+        set_version(pool, 0).await?;
+    }
+
+    // Run pending migrations in version order
+    let mut all_migrations: Vec<&Migration> = MIGRATIONS.iter().chain(extras.iter()).collect();
+    all_migrations.sort_by_key(|m| m.version);
+
+    let start_version = get_version(pool).await?;
+    for migration in &all_migrations {
+        if migration.version <= start_version {
+            continue;
+        }
+        run_migration(pool, migration).await?;
+        set_version(pool, migration.version).await?;
+        tracing::info!(
+            version = migration.version,
+            description = migration.description,
+            "applied migration"
+        );
+    }
+
+    Ok(())
+}
+
+/// Get current schema version. Returns 0 if no version has been set.
+pub async fn schema_version(pool: &Pool) -> Result<u32, MigrateError> {
+    ensure_version_table(pool).await?;
+    get_version(pool).await.map_err(Into::into)
+}
+
+// ---------------------------------------------------------------------------
+// Internal migration machinery
+// ---------------------------------------------------------------------------
+
+async fn ensure_version_table(pool: &Pool) -> Result<(), sqlx::Error> {
+    let sql = "CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL)";
     match pool {
         #[cfg(feature = "db-postgres")]
+        Pool::Postgres(pg) => { sqlx::raw_sql(sql).execute(pg).await?; }
+        #[cfg(feature = "db-sqlite")]
+        Pool::Sqlite(sq) => { sqlx::raw_sql(sql).execute(sq).await?; }
+    }
+    Ok(())
+}
+
+async fn get_version(pool: &Pool) -> Result<u32, sqlx::Error> {
+    let row: Option<(i32,)> = match pool {
+        #[cfg(feature = "db-postgres")]
         Pool::Postgres(pg) => {
-            sqlx::raw_sql(SCHEMA_POSTGRES).execute(pg).await?;
+            sqlx::query_as("SELECT version FROM schema_version LIMIT 1")
+                .fetch_optional(pg)
+                .await?
         }
         #[cfg(feature = "db-sqlite")]
         Pool::Sqlite(sq) => {
-            sqlx::raw_sql(SCHEMA_SQLITE).execute(sq).await?;
+            sqlx::query_as("SELECT version FROM schema_version LIMIT 1")
+                .fetch_optional(sq)
+                .await?
+        }
+    };
+    Ok(row.map(|r| r.0 as u32).unwrap_or(0))
+}
+
+async fn set_version(pool: &Pool, version: u32) -> Result<(), sqlx::Error> {
+    // Upsert: delete all rows then insert. schema_version has at most one row.
+    let delete = "DELETE FROM schema_version";
+    let insert = format!("INSERT INTO schema_version (version) VALUES ({version})");
+    match pool {
+        #[cfg(feature = "db-postgres")]
+        Pool::Postgres(pg) => {
+            sqlx::raw_sql(delete).execute(pg).await?;
+            sqlx::raw_sql(&insert).execute(pg).await?;
+        }
+        #[cfg(feature = "db-sqlite")]
+        Pool::Sqlite(sq) => {
+            sqlx::raw_sql(delete).execute(sq).await?;
+            sqlx::raw_sql(&insert).execute(sq).await?;
         }
     }
     Ok(())
+}
+
+async fn has_any_tables(pool: &Pool) -> Result<bool, sqlx::Error> {
+    let count: (i32,) = match pool {
+        #[cfg(feature = "db-postgres")]
+        Pool::Postgres(pg) => {
+            sqlx::query_as(
+                "SELECT COUNT(*)::int FROM information_schema.tables \
+                 WHERE table_schema = 'public' AND table_name != 'schema_version'"
+            ).fetch_one(pg).await?
+        }
+        #[cfg(feature = "db-sqlite")]
+        Pool::Sqlite(sq) => {
+            sqlx::query_as(
+                "SELECT COUNT(*) FROM sqlite_master \
+                 WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name != 'schema_version'"
+            ).fetch_one(sq).await?
+        }
+    };
+    Ok(count.0 > 0)
+}
+
+/// Detect which legacy schema is present (for unversioned existing databases).
+/// Returns a string identifying the source project.
+#[allow(dead_code)]
+pub async fn detect_legacy_schema(pool: &Pool) -> Result<Option<&'static str>, sqlx::Error> {
+    let has_users = table_exists(pool, "users").await?;
+    let has_personas = table_exists(pool, "personas").await?;
+    let has_accounts = table_exists(pool, "accounts").await?;
+
+    Ok(match (has_users, has_personas, has_accounts) {
+        (true, true, _) => Some("canonical"),  // already canonical (gaja or migrated)
+        (false, true, _) => Some("broadside"), // has personas but no users table
+        (false, false, true) => Some("smallhold"), // has accounts, not yet split
+        _ => None, // empty or unknown
+    })
+}
+
+async fn table_exists(pool: &Pool, table: &str) -> Result<bool, sqlx::Error> {
+    let count: (i32,) = match pool {
+        #[cfg(feature = "db-postgres")]
+        Pool::Postgres(pg) => {
+            sqlx::query_as(
+                "SELECT COUNT(*)::int FROM information_schema.tables \
+                 WHERE table_schema = 'public' AND table_name = $1"
+            ).bind(table).fetch_one(pg).await?
+        }
+        #[cfg(feature = "db-sqlite")]
+        Pool::Sqlite(sq) => {
+            sqlx::query_as(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name = ?1"
+            ).bind(table).fetch_one(sq).await?
+        }
+    };
+    Ok(count.0 > 0)
+}
+
+async fn run_base_schema(pool: &Pool) -> Result<(), MigrateError> {
+    match pool {
+        #[cfg(feature = "db-postgres")]
+        Pool::Postgres(pg) => {
+            sqlx::raw_sql(SCHEMA_POSTGRES).execute(pg).await
+                .map_err(|e| MigrateError::MigrationFailed {
+                    version: 0, description: "base schema", source: e
+                })?;
+        }
+        #[cfg(feature = "db-sqlite")]
+        Pool::Sqlite(sq) => {
+            sqlx::raw_sql(SCHEMA_SQLITE).execute(sq).await
+                .map_err(|e| MigrateError::MigrationFailed {
+                    version: 0, description: "base schema", source: e
+                })?;
+        }
+    }
+    Ok(())
+}
+
+async fn run_migration(pool: &Pool, migration: &Migration) -> Result<(), MigrateError> {
+    match pool {
+        #[cfg(feature = "db-postgres")]
+        Pool::Postgres(pg) => {
+            sqlx::raw_sql(migration.sql_postgres).execute(pg).await
+                .map_err(|e| MigrateError::MigrationFailed {
+                    version: migration.version,
+                    description: migration.description,
+                    source: e,
+                })?;
+        }
+        #[cfg(feature = "db-sqlite")]
+        Pool::Sqlite(sq) => {
+            sqlx::raw_sql(migration.sql_sqlite).execute(sq).await
+                .map_err(|e| MigrateError::MigrationFailed {
+                    version: migration.version,
+                    description: migration.description,
+                    source: e,
+                })?;
+        }
+    }
+    Ok(())
+}
+
+fn max_version(extras: &[Migration]) -> u32 {
+    let extras_max = extras.iter().map(|m| m.version).max().unwrap_or(0);
+    CURRENT_VERSION.max(extras_max)
 }
 
 // ---------------------------------------------------------------------------
@@ -1041,17 +1302,23 @@ CREATE TABLE IF NOT EXISTS feed_state (
 
 #[cfg(test)]
 mod tests {
-    #[cfg(feature = "db-sqlite")]
-    #[tokio::test]
-    async fn sqlite_schema_creates_all_tables() {
-        use sqlx::sqlite::SqlitePoolOptions;
+    use super::*;
 
+    #[cfg(feature = "db-sqlite")]
+    async fn fresh_sqlite() -> (Pool, sqlx::SqlitePool) {
+        use sqlx::sqlite::SqlitePoolOptions;
         let pool = SqlitePoolOptions::new()
             .connect("sqlite::memory:")
             .await
             .unwrap();
-        let db = super::Pool::Sqlite(pool.clone());
-        super::migrate(&db).await.unwrap();
+        (Pool::Sqlite(pool.clone()), pool)
+    }
+
+    #[cfg(feature = "db-sqlite")]
+    #[tokio::test]
+    async fn sqlite_schema_creates_all_tables() {
+        let (db, pool) = fresh_sqlite().await;
+        migrate(&db).await.unwrap();
 
         let tables: Vec<(String,)> =
             sqlx::query_as("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
@@ -1061,7 +1328,6 @@ mod tests {
 
         let names: Vec<&str> = tables.iter().map(|t| t.0.as_str()).collect();
 
-        // Core tables that every project needs
         for expected in [
             "users", "personas", "remote_accounts", "posts", "followers",
             "delivery_queue", "media", "relays",
@@ -1069,11 +1335,132 @@ mod tests {
             assert!(names.contains(&expected), "missing table: {expected}");
         }
 
-        // Should have 40+ tables total
+        // Should have 40+ tables total (base tables + schema_version)
         assert!(
             names.len() >= 40,
             "expected 40+ tables, got {}: {names:?}",
             names.len()
         );
+    }
+
+    #[cfg(feature = "db-sqlite")]
+    #[tokio::test]
+    async fn fresh_db_reaches_current_version() {
+        let (db, _pool) = fresh_sqlite().await;
+        migrate(&db).await.unwrap();
+
+        let version = schema_version(&db).await.unwrap();
+        assert_eq!(version, CURRENT_VERSION);
+    }
+
+    #[cfg(feature = "db-sqlite")]
+    #[tokio::test]
+    async fn migrate_is_idempotent() {
+        let (db, _pool) = fresh_sqlite().await;
+        migrate(&db).await.unwrap();
+        // Running again should be a no-op
+        migrate(&db).await.unwrap();
+
+        let version = schema_version(&db).await.unwrap();
+        assert_eq!(version, CURRENT_VERSION);
+    }
+
+    #[cfg(feature = "db-sqlite")]
+    #[tokio::test]
+    async fn migration_v1_adds_did_columns() {
+        let (db, pool) = fresh_sqlite().await;
+        migrate(&db).await.unwrap();
+
+        // Verify did:scid columns exist by inserting a row that uses them
+        sqlx::raw_sql(
+            "INSERT INTO users (id, email, display_name, role, created_at, did_scid) \
+             VALUES ('test-uuid', 'test@example.com', 'Test', 'user', 1000, 'did:scid:sha256:abc')"
+        ).execute(&pool).await.unwrap();
+
+        let row: (String,) = sqlx::query_as(
+            "SELECT did_scid FROM users WHERE id = 'test-uuid'"
+        ).fetch_one(&pool).await.unwrap();
+
+        assert_eq!(row.0, "did:scid:sha256:abc");
+    }
+
+    #[cfg(feature = "db-sqlite")]
+    #[tokio::test]
+    async fn extra_migrations_run_in_order() {
+        let extras = [Migration {
+            version: 2,
+            description: "test: add test_extra table",
+            sql_sqlite: "CREATE TABLE IF NOT EXISTS test_extra (id INTEGER PRIMARY KEY, val TEXT);",
+            sql_postgres: "CREATE TABLE IF NOT EXISTS test_extra (id SERIAL PRIMARY KEY, val TEXT);",
+        }];
+
+        let (db, pool) = fresh_sqlite().await;
+        migrate_with(&db, &extras).await.unwrap();
+
+        let version = schema_version(&db).await.unwrap();
+        assert_eq!(version, 2);
+
+        // Extra table should exist
+        let exists = table_exists(&db, "test_extra").await.unwrap();
+        assert!(exists);
+
+        // DID columns from v1 should also exist
+        let row: (i32,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM pragma_table_info('users') WHERE name = 'did_scid'"
+        ).fetch_one(&pool).await.unwrap();
+        assert_eq!(row.0, 1);
+    }
+
+    #[cfg(feature = "db-sqlite")]
+    #[tokio::test]
+    async fn detect_empty_db() {
+        let (db, _pool) = fresh_sqlite().await;
+        ensure_version_table(&db).await.unwrap();
+        let legacy = detect_legacy_schema(&db).await.unwrap();
+        assert_eq!(legacy, None);
+    }
+
+    #[cfg(feature = "db-sqlite")]
+    #[tokio::test]
+    async fn detect_canonical_schema() {
+        let (db, _pool) = fresh_sqlite().await;
+        migrate(&db).await.unwrap();
+        let legacy = detect_legacy_schema(&db).await.unwrap();
+        assert_eq!(legacy, Some("canonical"));
+    }
+
+    #[cfg(feature = "db-sqlite")]
+    #[tokio::test]
+    async fn detect_smallhold_schema() {
+        let (db, pool) = fresh_sqlite().await;
+        // Simulate smallhold: has accounts table, no users or personas
+        sqlx::raw_sql("CREATE TABLE accounts (id TEXT PRIMARY KEY)")
+            .execute(&pool).await.unwrap();
+        let legacy = detect_legacy_schema(&db).await.unwrap();
+        assert_eq!(legacy, Some("smallhold"));
+    }
+
+    #[cfg(feature = "db-sqlite")]
+    #[tokio::test]
+    async fn detect_broadside_schema() {
+        let (db, pool) = fresh_sqlite().await;
+        // Simulate broadside: has personas but no users
+        sqlx::raw_sql("CREATE TABLE personas (id TEXT PRIMARY KEY)")
+            .execute(&pool).await.unwrap();
+        let legacy = detect_legacy_schema(&db).await.unwrap();
+        assert_eq!(legacy, Some("broadside"));
+    }
+
+    #[cfg(feature = "db-sqlite")]
+    #[tokio::test]
+    async fn version_too_new_is_error() {
+        let (db, _pool) = fresh_sqlite().await;
+        migrate(&db).await.unwrap();
+
+        // Manually set version higher than we support
+        set_version(&db, 999).await.unwrap();
+
+        let result = migrate(&db).await;
+        assert!(matches!(result, Err(MigrateError::VersionTooNew(999, _))));
     }
 }
