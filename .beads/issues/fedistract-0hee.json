@@ -2,11 +2,13 @@
   "id": "fedistract-0hee",
   "title": "Missing AP endpoint for individual status: /users/{username}/statuses/{id}",
   "description": "Smallhold has no route for GET /users/{username}/statuses/{id} with Accept: application/activity+json. This endpoint is required for federation — other servers fetch individual posts by AP ID during inbox processing. The AP ID is generated (e.g., https://example.com/users/alice/statuses/123) but the endpoint to serve it doesn't exist. Only the /context sub-endpoint is registered. This means: (1) other servers can't verify posts, (2) conversation backfill fails, (3) the AP attachment[].name field (alt text) can't be verified via federation.",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "issue_type": "bug",
   "owner": "mark@wolfssl.com",
   "created_at": "2026-07-20T22:57:41.217183864Z",
   "created_by": "Mark Atwood",
-  "updated_at": "2026-07-20T22:57:41.217183864Z"
+  "updated_at": "2026-07-20T23:03:47.571663861Z",
+  "closed_at": "2026-07-20T23:03:47.571663861Z",
+  "close_reason": "Added /users/{username}/statuses/{id} AP endpoint. Returns full Note with attachments (alt text in name field), tags, visibility addressing, content warnings. HTML requests redirect to profile page. Deleted posts return Tombstone."
 }
