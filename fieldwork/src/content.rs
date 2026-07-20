@@ -56,6 +56,18 @@ pub fn process_content(html: &str, domain: &str) -> (String, Vec<Tag>) {
         idx > 0 && pos < skip_ranges[idx - 1].1
     };
 
+    // Collect bare URL spans so hashtags inside URLs (e.g. #fragment) are not linkified.
+    let url_spans: Vec<(usize, usize)> = URL_RE
+        .find_iter(html)
+        .filter(|m| !in_link(m.start()))
+        .map(|m| (m.start(), m.end()))
+        .collect();
+
+    let in_url = |pos: usize| -> bool {
+        let idx = url_spans.partition_point(|(start, _)| *start <= pos);
+        idx > 0 && pos < url_spans[idx - 1].1
+    };
+
     let mut replacements: Vec<(usize, usize, String)> = Vec::new();
 
     // Bare URLs
@@ -64,8 +76,9 @@ pub fn process_content(html: &str, domain: &str) -> (String, Vec<Tag>) {
             continue;
         }
         let url = m.as_str();
+        let escaped = escape_html_attr(url);
         let linked = format!(
-            r#"<a href="{url}" rel="nofollow noopener noreferrer" target="_blank">{url}</a>"#
+            r#"<a href="{escaped}" rel="nofollow noopener noreferrer" target="_blank">{escaped}</a>"#
         );
         replacements.push((m.start(), m.end(), linked));
     }
@@ -74,7 +87,7 @@ pub fn process_content(html: &str, domain: &str) -> (String, Vec<Tag>) {
     for cap in HASHTAG_RE.captures_iter(html) {
         let name_match = cap.get(1).unwrap();
         let hash_pos = name_match.start() - 1;
-        if in_link(hash_pos) {
+        if in_link(hash_pos) || in_url(hash_pos) {
             continue;
         }
         let name = name_match.as_str();
@@ -83,11 +96,12 @@ pub fn process_content(html: &str, domain: &str) -> (String, Vec<Tag>) {
         let linked = format!(r#"<a href="{href}" class="mention hashtag" rel="tag">#{name}</a>"#);
         replacements.push((hash_pos, name_match.end(), linked));
 
-        if !tags.iter().any(|t: &Tag| t.name == format!("#{lower}")) {
+        let tag_name = format!("#{lower}");
+        if !tags.iter().any(|t: &Tag| t.name == tag_name) {
             tags.push(Tag {
                 tag_type: TagType::Hashtag,
                 href,
-                name: format!("#{lower}"),
+                name: tag_name,
             });
         }
     }
@@ -158,13 +172,13 @@ pub fn detect_quote_links(html: &str) -> Vec<serde_json::Value> {
     };
 
     let mut links = Vec::new();
-    let mut seen = std::collections::HashSet::new();
+    let mut seen: std::collections::HashSet<&str> = std::collections::HashSet::new();
     for m in QUOTE_RE.find_iter(html) {
         if in_link(m.start()) {
             continue;
         }
         let url = m.as_str();
-        if seen.insert(url.to_string()) {
+        if seen.insert(url) {
             links.push(serde_json::json!({
                 "type": "Link",
                 "href": url,
@@ -173,6 +187,14 @@ pub fn detect_quote_links(html: &str) -> Vec<serde_json::Value> {
         }
     }
     links
+}
+
+/// Escape a string for safe interpolation in double-quoted HTML attributes.
+fn escape_html_attr(s: &str) -> String {
+    s.replace('&', "&amp;")
+        .replace('"', "&quot;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
 }
 
 /// Detect the language of plain text content.
@@ -231,6 +253,21 @@ mod tests {
         let (_, tags) = process_content("#Rust and #rust again", "example.com");
         let hashtags: Vec<_> = tags.iter().filter(|t| t.name == "#rust").collect();
         assert_eq!(hashtags.len(), 1);
+    }
+
+    #[test]
+    fn does_not_linkify_url_fragments() {
+        let (html, tags) = process_content("See https://example.com/page#section", "example.com");
+        // The #section should NOT be linkified as a hashtag
+        assert!(tags.is_empty(), "URL fragment should not produce hashtag: {tags:?}");
+        assert!(!html.contains("class=\"mention hashtag\""));
+    }
+
+    #[test]
+    fn escapes_url_attributes() {
+        let input = r#"Check https://example.com/q?a=1&b=2"#;
+        let (html, _) = process_content(input, "example.com");
+        assert!(html.contains("&amp;"), "URL ampersand must be escaped in href: {html}");
     }
 
     #[test]
