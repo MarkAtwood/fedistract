@@ -24,6 +24,8 @@ pub mod auth;
 pub mod content;
 #[cfg(feature = "error")]
 pub mod error;
+#[cfg(any(feature = "db-postgres", feature = "db-sqlite"))]
+pub mod db;
 #[cfg(feature = "sanitize")]
 pub mod sanitize;
 #[cfg(feature = "theme")]

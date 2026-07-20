@@ -22,6 +22,7 @@ regex = { version = "1", optional = true }
 serde = { version = "1", features = ["derive"], optional = true }
 serde_json = { version = "1", optional = true }
 sha2 = { version = "0.10", optional = true }
+sqlx = { version = "0.8", optional = true }
 tracing = { version = "0.1", optional = true }
 whatlang = { version = "0.16", optional = true }
 
@@ -32,4 +33,9 @@ auth = ["dep:argon2", "dep:sha2", "dep:rand"]
 sanitize = ["dep:ammonia", "dep:pulldown-cmark"]
 content = ["dep:regex", "dep:serde", "dep:serde_json", "dep:whatlang"]
 theme = ["dep:serde_json", "dep:regex", "dep:tracing"]
+db-postgres = ["dep:sqlx", "sqlx/runtime-tokio", "sqlx/postgres", "dep:tracing"]
+db-sqlite = ["dep:sqlx", "sqlx/runtime-tokio", "sqlx/sqlite", "dep:tracing"]
 full = ["error", "auth", "sanitize", "content", "theme"]
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt", "macros"] }
