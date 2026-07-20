@@ -1,0 +1,12 @@
+{
+  "id": "fedistract-qadq",
+  "title": "Token mint scope format regression — comma vs space",
+  "description": "The token mint CLI command keeps reverting to comma-separated scopes (read,write,follow) despite being fixed to space-separated earlier. The scope checker splits on whitespace OR comma (fixed), but the default_value in cli.rs may have been overwritten during a refactoring round. Check all three servers.",
+  "status": "open",
+  "priority": 1,
+  "issue_type": "bug",
+  "owner": "mark@wolfssl.com",
+  "created_at": "2026-07-20T22:53:44.49624414Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T22:53:44.49624414Z"
+}

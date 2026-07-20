@@ -1,0 +1,12 @@
+{
+  "id": "fedistract-chox",
+  "title": "Alt text not returned in media upload API response",
+  "description": "When uploading media with description (alt text), the value is stored correctly in the DB but the API response returns description: null. The media_attachments array in status responses may also be missing the description. Need to verify: (1) upload response includes description, (2) status response includes description in media_attachments, (3) AP Note attachment[].name carries the alt text for federation.",
+  "status": "open",
+  "priority": 1,
+  "issue_type": "bug",
+  "owner": "mark@wolfssl.com",
+  "created_at": "2026-07-20T22:53:44.446816003Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T22:53:44.446816003Z"
+}
