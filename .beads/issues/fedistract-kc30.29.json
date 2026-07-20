@@ -1,0 +1,25 @@
+{
+  "id": "fedistract-kc30.29",
+  "title": "Migrate smallhold to fieldwork::db schema",
+  "description": "Replace smallhold's inline schema (db.rs) with fieldwork::db::migrate(). Major refactor:\n- Add fieldwork dependency with db-sqlite feature\n- Replace SqlitePool with fieldwork::db::Pool\n- Split 'accounts' table into users+personas:\n  - Create a single user row per smallhold instance\n  - Map each account to a persona under that user\n  - Update all queries: account_id -\u003e persona_id, add user_id where needed\n- Update timestamp handling: already INTEGER but verify units are seconds not ms\n- Replace run_migrations() with fieldwork::db::migrate()\n- Remove inline schema constants and ALTER TABLE migrations\n- Update all 39 tables worth of queries to match canonical column names\n- Run full test suite",
+  "status": "open",
+  "priority": 1,
+  "issue_type": "task",
+  "owner": "mark@wolfssl.com",
+  "created_at": "2026-07-20T02:28:47.853955129Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T02:28:47.853955129Z",
+  "labels": [
+    "extraction"
+  ],
+  "dependencies": [
+    {
+      "issue_id": "fedistract-kc30.29",
+      "depends_on_id": "fedistract-kc30",
+      "type": "parent-child",
+      "created_at": "2026-07-20T02:28:47.868736725Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}

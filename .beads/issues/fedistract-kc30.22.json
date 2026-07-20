@@ -2,13 +2,14 @@
   "id": "fedistract-kc30.22",
   "title": "Extract fieldwork::inbox_verify module",
   "description": "Inbox signature and digest verification. ~100 lines of SECURITY-CRITICAL code duplicated across all three projects. Bugs here must be fixed everywhere simultaneously — this is the strongest argument for extraction.\n\nSource: BS server.rs:755-870 (inbox handler verification section), GJ inbox.rs, SH inbox.rs.\n\nPublic API:\n- verify_digest(body: \u0026[u8], digest_header: \u0026str) -\u003e Result\u003c(), VerifyError\u003e — SHA-256 digest verification with constant-time comparison. Supports Digest: SHA-256=base64 format.\n- verify_date_freshness(date_header: \u0026str, max_skew: Duration) -\u003e Result\u003c(), VerifyError\u003e — parse HTTP-date, reject if \u003emax_skew from now. Default 5 minutes.\n- verify_inbox_request(method: \u0026str, path: \u0026str, headers: \u0026HeaderMap, body: \u0026[u8], key_resolver: impl Fn(\u0026str) -\u003e Future\u003cResult\u003cString\u003e\u003e) -\u003e Result\u003cString, VerifyError\u003e — full verification pipeline: check required headers (request-target, host, digest, date), verify digest, verify date, extract keyId, resolve public key, verify signature via cavage-httpsig. Returns verified actor URI.\n- VerifyError enum: MissingHeader, InvalidDigest, StaleDate, InvalidSignature, KeyResolutionFailed\n\nWhat stays in consumers: Key resolution callback (DB cache lookup or HTTP fetch), rate limiting, activity dispatch after verification.\n\nDeps: cavage-httpsig, sha2, base64, http, subtle (for constant-time compare).\n\nSecurity notes:\n- Digest MUST be verified before signature (signature covers digest header, not body directly)\n- Date check prevents replay attacks\n- keyId fragment stripping before actor fetch\n- Constant-time digest comparison prevents timing attacks",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "issue_type": "feature",
   "owner": "mark@wolfssl.com",
   "created_at": "2026-07-20T02:18:25.695655707Z",
   "created_by": "Mark Atwood",
-  "updated_at": "2026-07-20T02:18:25.695655707Z",
+  "updated_at": "2026-07-20T02:29:44.69388394Z",
+  "closed_at": "2026-07-20T02:29:44.6938835Z",
   "labels": [
     "extraction"
   ],
@@ -26,6 +27,14 @@
       "depends_on_id": "fedistract-kc30.19",
       "type": "blocks",
       "created_at": "2026-07-20T02:19:17.381941643Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    },
+    {
+      "issue_id": "fedistract-kc30.22",
+      "depends_on_id": "fedistract-kc30.34",
+      "type": "supersedes",
+      "created_at": "2026-07-20T02:29:44.68913463Z",
       "created_by": "Mark Atwood",
       "metadata": "{}"
     }

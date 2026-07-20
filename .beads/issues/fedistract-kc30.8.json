@@ -2,14 +2,15 @@
   "id": "fedistract-kc30.8",
   "title": "Extract fieldwork::media module",
   "description": "Image processing: resize, blurhash, sharding. Source: GJ media.rs (has GIF frame bomb 500-frame limit). Parameterize sharding strategy. Fixes SH missing frame bomb protection.",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "issue_type": "feature",
   "owner": "mark@wolfssl.com",
   "estimated_minutes": 120,
   "created_at": "2026-07-20T01:32:44.728992845Z",
   "created_by": "Mark Atwood",
-  "updated_at": "2026-07-20T01:32:44.728992845Z",
+  "updated_at": "2026-07-20T02:29:44.741012851Z",
+  "closed_at": "2026-07-20T02:29:44.741012334Z",
   "labels": [
     "extraction"
   ],
@@ -27,6 +28,14 @@
       "depends_on_id": "fedistract-kc30.1",
       "type": "blocks",
       "created_at": "2026-07-20T01:32:44.750389536Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    },
+    {
+      "issue_id": "fedistract-kc30.8",
+      "depends_on_id": "fedistract-kc30.31",
+      "type": "supersedes",
+      "created_at": "2026-07-20T02:29:44.73647622Z",
       "created_by": "Mark Atwood",
       "metadata": "{}"
     }

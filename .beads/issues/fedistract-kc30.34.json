@@ -1,0 +1,65 @@
+{
+  "id": "fedistract-kc30.34",
+  "title": "Extract fieldwork::inbox module with DB queries",
+  "description": "Now that fieldwork owns the schema, extract inbox handling WITH persistence into fieldwork. Combines inbox_verify (kc30.22) with the Follow/Accept/Undo dispatch logic that was previously too DB-coupled.\n\nSource: BS server.rs:755-1100 (inbox handler), GJ inbox.rs, SH inbox.rs.\n\nModule split:\n1. Verification (pure logic, no DB — from kc30.22):\n   - verify_digest(body, digest_header) -\u003e Result\u003c()\u003e\n   - verify_date_freshness(date_header, max_skew) -\u003e Result\u003c()\u003e\n   - Already designed in kc30.22, implement here\n\n2. Follow handling (uses fieldwork::db::Pool):\n   - handle_follow(pool, client, follower_actor_uri: \u0026str, target_persona_id: \u0026str) -\u003e Result\u003c()\u003e:\n     - SSRF validate follower actor URI and derived inbox\n     - Fetch follower actor document (fieldwork::fetch_remote)\n     - Upsert into remote_accounts\n     - Insert into followers (dedup via UNIQUE constraint)\n     - Build and send Accept activity (fieldwork::activities)\n   - handle_undo_follow(pool, actor_uri: \u0026str, target_persona_id: \u0026str) -\u003e Result\u003c()\u003e:\n     - Look up remote_account by actor_uri\n     - DELETE from followers\n\n3. Dispatch:\n   - InboxActivity enum { Follow, Accept, Undo, Delete, Other }\n   - parse_inbox_activity(body: \u0026Value) -\u003e InboxActivity\n   - process_inbox(pool, client, activity: \u0026Value, verified_actor: \u0026str) -\u003e Result\u003cInboxResult\u003e\n\nDeps: cavage-httpsig, ssrf-guard, reqwest, serde_json, sqlx via db features, sha2, base64, subtle (constant-time compare).\n\nSecurity: This is the most security-critical module. Digest verification, signature verification, date freshness, SSRF checks, and body size limits must all be correct and consistent.\n\nSupersedes: fedistract-kc30.22 (inbox_verify). The verification logic is incorporated here rather than as a separate module, since it's always used together with the dispatch.",
+  "status": "open",
+  "priority": 1,
+  "issue_type": "feature",
+  "owner": "mark@wolfssl.com",
+  "created_at": "2026-07-20T02:29:33.797238806Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T02:29:33.797238806Z",
+  "labels": [
+    "extraction"
+  ],
+  "dependencies": [
+    {
+      "issue_id": "fedistract-kc30.34",
+      "depends_on_id": "fedistract-kc30",
+      "type": "parent-child",
+      "created_at": "2026-07-20T02:29:33.810244154Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    },
+    {
+      "issue_id": "fedistract-kc30.34",
+      "depends_on_id": "fedistract-kc30.28",
+      "type": "blocks",
+      "created_at": "2026-07-20T02:29:44.486633927Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    },
+    {
+      "issue_id": "fedistract-kc30.34",
+      "depends_on_id": "fedistract-kc30.29",
+      "type": "blocks",
+      "created_at": "2026-07-20T02:29:44.52303005Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    },
+    {
+      "issue_id": "fedistract-kc30.34",
+      "depends_on_id": "fedistract-kc30.30",
+      "type": "blocks",
+      "created_at": "2026-07-20T02:29:44.563702186Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    },
+    {
+      "issue_id": "fedistract-kc30.34",
+      "depends_on_id": "fedistract-kc30.19",
+      "type": "blocks",
+      "created_at": "2026-07-20T02:29:44.605794397Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    },
+    {
+      "issue_id": "fedistract-kc30.34",
+      "depends_on_id": "fedistract-kc30.21",
+      "type": "blocks",
+      "created_at": "2026-07-20T02:29:44.647594762Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}

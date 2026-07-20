@@ -1,0 +1,49 @@
+{
+  "id": "fedistract-kc30.31",
+  "title": "Extract fieldwork::media module with DB queries",
+  "description": "Now that fieldwork owns the schema, extract media processing WITH persistence into fieldwork.\n\nSource: GJ media.rs (482 lines, has GIF frame bomb check).\n\nModule split:\n1. Pure logic (no DB):\n   - sniff_mime(bytes: \u0026[u8]) -\u003e Option\u003c\u0026str\u003e — magic byte MIME detection (PNG, JPEG, GIF, WebP)\n   - validate_image(bytes: \u0026[u8]) -\u003e Result\u003cImageInfo\u003e — dimensions, GIF frame count (500 max), file size\n   - process_image(bytes: \u0026[u8], max_dim: u32) -\u003e Result\u003cProcessedImage\u003e — resize, strip EXIF, generate blurhash\n   - ImageInfo, ProcessedImage structs\n\n2. Persistence (uses fieldwork::db::Pool):\n   - insert_media(pool, media: \u0026MediaRow) -\u003e Result\u003ci64\u003e\n   - get_media(pool, id: i64) -\u003e Result\u003cOption\u003cMediaRow\u003e\u003e\n   - attachments_for_post(pool, post_id: i64) -\u003e Result\u003cVec\u003cMediaRow\u003e\u003e\n   - MediaRow struct matching canonical media table\n\nDeps: image, blurhash (optional, behind 'media' feature), sqlx via db-postgres/db-sqlite.\n\nFixes: Adds GIF frame bomb protection to smallhold (was missing). All three projects get identical media handling.",
+  "status": "open",
+  "priority": 2,
+  "issue_type": "feature",
+  "owner": "mark@wolfssl.com",
+  "created_at": "2026-07-20T02:29:33.604977443Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T02:29:33.604977443Z",
+  "labels": [
+    "extraction"
+  ],
+  "dependencies": [
+    {
+      "issue_id": "fedistract-kc30.31",
+      "depends_on_id": "fedistract-kc30",
+      "type": "parent-child",
+      "created_at": "2026-07-20T02:29:33.621852866Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    },
+    {
+      "issue_id": "fedistract-kc30.31",
+      "depends_on_id": "fedistract-kc30.28",
+      "type": "blocks",
+      "created_at": "2026-07-20T02:29:44.09031526Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    },
+    {
+      "issue_id": "fedistract-kc30.31",
+      "depends_on_id": "fedistract-kc30.29",
+      "type": "blocks",
+      "created_at": "2026-07-20T02:29:44.171982472Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    },
+    {
+      "issue_id": "fedistract-kc30.31",
+      "depends_on_id": "fedistract-kc30.30",
+      "type": "blocks",
+      "created_at": "2026-07-20T02:29:44.214455546Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}

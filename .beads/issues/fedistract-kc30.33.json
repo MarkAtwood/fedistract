@@ -1,0 +1,49 @@
+{
+  "id": "fedistract-kc30.33",
+  "title": "Extract fieldwork::delivery module with DB queries",
+  "description": "Now that fieldwork owns the schema, extract the delivery queue worker WITH persistence into fieldwork. The retry schedule and circuit breaker are already extracted (fieldwork::retry, fieldwork::circuit_breaker). This adds the queue worker and DB operations.\n\nSource: GJ delivery.rs (full file minus retry/circuit_breaker already extracted), BS delivery.rs.\n\nPublic API:\n1. Queue operations (uses fieldwork::db::Pool):\n   - enqueue_delivery(pool, target_inbox: \u0026str, sender_persona_id: \u0026str, activity_json: \u0026Value) -\u003e Result\u003ci64\u003e — INSERT into delivery_queue\n   - fetch_pending_batch(pool, limit: i32) -\u003e Result\u003cVec\u003cDeliveryJob\u003e\u003e — SELECT WHERE delivered_at IS NULL AND dead_at IS NULL AND next_attempt_at \u003c= now\n   - mark_delivered(pool, id: i64) -\u003e Result\u003c()\u003e\n   - mark_dead(pool, id: i64) -\u003e Result\u003c()\u003e\n   - schedule_retry(pool, id: i64, attempt: i32, error: \u0026str) -\u003e Result\u003c()\u003e — uses fieldwork::retry::delay_ms()\n   - DeliveryJob struct matching canonical delivery_queue table\n\n2. Worker (async, uses above + circuit breaker):\n   - deliver_one(client: \u0026reqwest::Client, job: \u0026DeliveryJob, sign_fn: impl Fn) -\u003e Result\u003c()\u003e — POST to inbox with HTTP signature, handle 410 Gone\n   - run_delivery_loop(pool, client, sign_fn, circuit_breaker) — poll-based worker loop with semaphore concurrency control\n\nDeps: reqwest, cavage-httpsig, sqlx via db features, tokio.\n\nDesign: sign_fn callback lets each project provide its own key lookup (persona private key from DB). The worker doesn't need to know about persona/user models beyond sender_persona_id.\n\nNote: 410 Gone handling differs between BS and GJ/SH. BS removes the follower immediately. GJ/SH mark delivery dead but don't remove followers. Make Gone handling configurable via callback or enum.",
+  "status": "open",
+  "priority": 2,
+  "issue_type": "feature",
+  "owner": "mark@wolfssl.com",
+  "created_at": "2026-07-20T02:29:33.734103796Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T02:29:33.734103796Z",
+  "labels": [
+    "extraction"
+  ],
+  "dependencies": [
+    {
+      "issue_id": "fedistract-kc30.33",
+      "depends_on_id": "fedistract-kc30",
+      "type": "parent-child",
+      "created_at": "2026-07-20T02:29:33.74890476Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    },
+    {
+      "issue_id": "fedistract-kc30.33",
+      "depends_on_id": "fedistract-kc30.28",
+      "type": "blocks",
+      "created_at": "2026-07-20T02:29:44.371937452Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    },
+    {
+      "issue_id": "fedistract-kc30.33",
+      "depends_on_id": "fedistract-kc30.29",
+      "type": "blocks",
+      "created_at": "2026-07-20T02:29:44.409985673Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    },
+    {
+      "issue_id": "fedistract-kc30.33",
+      "depends_on_id": "fedistract-kc30.30",
+      "type": "blocks",
+      "created_at": "2026-07-20T02:29:44.451000304Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}

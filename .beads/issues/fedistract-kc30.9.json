@@ -2,14 +2,15 @@
   "id": "fedistract-kc30.9",
   "title": "Extract fieldwork::cards module",
   "description": "Link preview / OpenGraph card fetching and caching. Source: GJ cards.rs (has Postgres+SQLite support, most complete). Needs DB abstraction cleanup.",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "issue_type": "feature",
   "owner": "mark@wolfssl.com",
   "estimated_minutes": 180,
   "created_at": "2026-07-20T01:32:46.690056925Z",
   "created_by": "Mark Atwood",
-  "updated_at": "2026-07-20T01:32:46.690056925Z",
+  "updated_at": "2026-07-20T02:29:44.788870529Z",
+  "closed_at": "2026-07-20T02:29:44.7888701Z",
   "labels": [
     "extraction"
   ],
@@ -35,6 +36,14 @@
       "depends_on_id": "fedistract-kc30.2",
       "type": "blocks",
       "created_at": "2026-07-20T01:32:46.717428029Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    },
+    {
+      "issue_id": "fedistract-kc30.9",
+      "depends_on_id": "fedistract-kc30.32",
+      "type": "supersedes",
+      "created_at": "2026-07-20T02:29:44.784525442Z",
       "created_by": "Mark Atwood",
       "metadata": "{}"
     }
