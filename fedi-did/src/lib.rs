@@ -8,7 +8,7 @@
 //! ```
 //! use fedi_did::{generate_recovery_keypair, ed25519_to_did_key, did_web};
 //!
-//! let (private_key, public_key) = generate_recovery_keypair();
+//! let (_private_key, public_key) = generate_recovery_keypair();
 //! let did_key = ed25519_to_did_key(&public_key);
 //! assert!(did_key.starts_with("did:key:z6Mk"));
 //!
@@ -24,14 +24,17 @@ pub enum DidError {
     InvalidHex(String),
 }
 
-/// Generate an Ed25519 recovery keypair. Returns (private_key_bytes, public_key_bytes).
-pub fn generate_recovery_keypair() -> ([u8; 32], [u8; 32]) {
+/// Generate an Ed25519 recovery keypair.
+///
+/// Returns `(private_key, public_key)`. The private key is wrapped in
+/// [`zeroize::Zeroizing`] so it is zeroed from memory on drop.
+pub fn generate_recovery_keypair() -> (zeroize::Zeroizing<[u8; 32]>, [u8; 32]) {
     use ed25519_dalek::SigningKey;
     use rand::rngs::OsRng;
 
     let signing_key = SigningKey::generate(&mut OsRng);
     let verifying_key = signing_key.verifying_key();
-    (signing_key.to_bytes(), verifying_key.to_bytes())
+    (zeroize::Zeroizing::new(signing_key.to_bytes()), verifying_key.to_bytes())
 }
 
 /// Encode an Ed25519 public key as `did:key` (multicodec 0xed01 + multibase base58btc).
@@ -63,18 +66,25 @@ pub fn private_key_to_mnemonic(private_key: &[u8; 32]) -> String {
 }
 
 /// Decode BIP-39 mnemonic back to private key bytes.
-pub fn mnemonic_to_private_key(phrase: &str) -> Result<[u8; 32], DidError> {
+///
+/// The returned key is wrapped in [`zeroize::Zeroizing`] so it is zeroed
+/// from memory on drop.
+pub fn mnemonic_to_private_key(phrase: &str) -> Result<zeroize::Zeroizing<[u8; 32]>, DidError> {
+    use zeroize::Zeroize;
+
     let mnemonic = bip39::Mnemonic::parse(phrase)
         .map_err(|e| DidError::InvalidMnemonic(e.to_string()))?;
-    let entropy = mnemonic.to_entropy();
+    let mut entropy = mnemonic.to_entropy();
     if entropy.len() != 32 {
+        entropy.zeroize();
         return Err(DidError::InvalidMnemonic(
             "recovery phrase must encode exactly 32 bytes (24 words)".into(),
         ));
     }
     let mut key = [0u8; 32];
     key.copy_from_slice(&entropy);
-    Ok(key)
+    entropy.zeroize();
+    Ok(zeroize::Zeroizing::new(key))
 }
 
 /// Derive the Ed25519 public key from a private key.
@@ -226,7 +236,7 @@ mod tests {
         assert_eq!(words.len(), 24, "BIP-39 256-bit entropy produces 24 words");
 
         let recovered = mnemonic_to_private_key(&mnemonic).unwrap();
-        assert_eq!(recovered, private_key);
+        assert_eq!(*recovered, *private_key);
 
         let recovered_pub = ed25519_public_from_private(&recovered);
         assert_eq!(recovered_pub, public_key);
