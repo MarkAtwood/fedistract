@@ -1,0 +1,22 @@
+{
+  "id": "fedistract-h7u1.2",
+  "title": "HLS transcoding pipeline (FFmpeg)",
+  "description": "Transcode uploaded videos to HLS (HTTP Live Streaming) at multiple resolutions (240p, 480p, 720p, 1080p). Use FFmpeg as subprocess. Queue-based transcoding with progress tracking. Generate .m3u8 playlists. Store segments in S3/R2.",
+  "status": "open",
+  "priority": 1,
+  "issue_type": "feature",
+  "owner": "mark@reviewcommit.com",
+  "created_at": "2026-07-20T23:55:16.846719113Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T23:55:16.846719113Z",
+  "dependencies": [
+    {
+      "issue_id": "fedistract-h7u1.2",
+      "depends_on_id": "fedistract-h7u1",
+      "type": "parent-child",
+      "created_at": "2026-07-20T23:55:16.858541648Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}

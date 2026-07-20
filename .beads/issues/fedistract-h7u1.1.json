@@ -1,0 +1,22 @@
+{
+  "id": "fedistract-h7u1.1",
+  "title": "Video upload + chunked upload API",
+  "description": "Accept large video uploads (up to configurable limit, default 2GB). Support chunked/resumable upload (tus protocol or custom). Store originals in S3/R2. Generate upload tokens, track upload progress.",
+  "status": "open",
+  "priority": 2,
+  "issue_type": "feature",
+  "owner": "mark@reviewcommit.com",
+  "created_at": "2026-07-20T23:55:16.78667794Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T23:55:16.78667794Z",
+  "dependencies": [
+    {
+      "issue_id": "fedistract-h7u1.1",
+      "depends_on_id": "fedistract-h7u1",
+      "type": "parent-child",
+      "created_at": "2026-07-20T23:55:16.798970477Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}

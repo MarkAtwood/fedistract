@@ -1,0 +1,22 @@
+{
+  "id": "fedistract-qqq6.1",
+  "title": "Photo processing pipeline: resize, crop, EXIF strip, thumbnails",
+  "description": "Image processing using the image crate (already in deps). Generate multiple sizes (thumbnail, small, medium, original). Strip EXIF metadata for privacy. Generate blurhash (already done). Output to S3/R2.",
+  "status": "open",
+  "priority": 2,
+  "issue_type": "feature",
+  "owner": "mark@reviewcommit.com",
+  "created_at": "2026-07-20T23:55:16.357408219Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T23:55:16.357408219Z",
+  "dependencies": [
+    {
+      "issue_id": "fedistract-qqq6.1",
+      "depends_on_id": "fedistract-qqq6",
+      "type": "parent-child",
+      "created_at": "2026-07-20T23:55:16.367003202Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}
