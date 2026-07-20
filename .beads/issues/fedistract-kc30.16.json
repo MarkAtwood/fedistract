@@ -1,0 +1,29 @@
+{
+  "id": "fedistract-kc30.16",
+  "title": "Extract fedi-did crate",
+  "description": "DID handling extracted from gaja/broadside/smallhold. did:key (Ed25519 multicodec), did:web, did:plc, BIP-39 mnemonic recovery, DID document generation. Source: broadside did.rs (most complete did:web_document) + gaja did.rs (did:plc). Deps: ed25519-dalek, bip39, multibase, sha2, serde_json, thiserror.",
+  "status": "closed",
+  "priority": 1,
+  "issue_type": "feature",
+  "assignee": "Mark Atwood",
+  "owner": "mark@wolfssl.com",
+  "created_at": "2026-07-20T01:58:21.937649874Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T02:00:13.112401077Z",
+  "started_at": "2026-07-20T01:58:26.071199367Z",
+  "closed_at": "2026-07-20T02:00:13.112401077Z",
+  "close_reason": "Closed",
+  "labels": [
+    "extraction"
+  ],
+  "dependencies": [
+    {
+      "issue_id": "fedistract-kc30.16",
+      "depends_on_id": "fedistract-kc30",
+      "type": "parent-child",
+      "created_at": "2026-07-20T01:58:21.952042311Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}
