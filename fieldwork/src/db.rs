@@ -56,7 +56,7 @@ pub struct Migration {
 /// The current schema version after all built-in migrations.
 /// Version 0 = fresh CREATE TABLE schema.
 /// Version 1+ = incremental migrations.
-const CURRENT_VERSION: u32 = 1;
+const CURRENT_VERSION: u32 = 2;
 
 /// Built-in migration chain. Version 0 is the fresh-install schema (handled
 /// separately). These run in order for version 1, 2, 3, etc.
@@ -84,6 +84,12 @@ ALTER TABLE followers ADD COLUMN IF NOT EXISTS did TEXT;
 CREATE INDEX IF NOT EXISTS idx_remote_accounts_did ON remote_accounts(did) WHERE did IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_followers_did ON followers(did) WHERE did IS NOT NULL;
 "#,
+    },
+    Migration {
+        version: 2,
+        description: "add integrity column to media table for content-addressed verification",
+        sql_sqlite: "__ADD_COLUMN_IF_NOT_EXISTS:media:integrity:TEXT",
+        sql_postgres: "ALTER TABLE media ADD COLUMN IF NOT EXISTS integrity TEXT;",
     },
 ];
 
@@ -338,13 +344,49 @@ async fn run_migration(pool: &Pool, migration: &Migration) -> Result<(), Migrate
         }
         #[cfg(feature = "db-sqlite")]
         Pool::Sqlite(sq) => {
-            sqlx::raw_sql(migration.sql_sqlite).execute(sq).await
-                .map_err(|e| MigrateError::MigrationFailed {
-                    version: migration.version,
-                    description: migration.description,
-                    source: e,
-                })?;
+            // SQLite lacks ALTER TABLE ADD COLUMN IF NOT EXISTS.
+            // Handle our directive format: __ADD_COLUMN_IF_NOT_EXISTS:table:column:type
+            if let Some(rest) = migration.sql_sqlite.strip_prefix("__ADD_COLUMN_IF_NOT_EXISTS:") {
+                let parts: Vec<&str> = rest.split(':').collect();
+                if parts.len() == 3 {
+                    sqlite_add_column_if_not_exists(sq, parts[0], parts[1], parts[2]).await
+                        .map_err(|e| MigrateError::MigrationFailed {
+                            version: migration.version,
+                            description: migration.description,
+                            source: e,
+                        })?;
+                }
+            } else {
+                sqlx::raw_sql(migration.sql_sqlite).execute(sq).await
+                    .map_err(|e| MigrateError::MigrationFailed {
+                        version: migration.version,
+                        description: migration.description,
+                        source: e,
+                    })?;
+            }
         }
+    }
+    Ok(())
+}
+
+/// Add a column to a SQLite table only if it doesn't already exist.
+#[cfg(feature = "db-sqlite")]
+async fn sqlite_add_column_if_not_exists(
+    pool: &sqlx::SqlitePool,
+    table: &str,
+    column: &str,
+    col_type: &str,
+) -> Result<(), sqlx::Error> {
+    let has_col: (i32,) = sqlx::query_as(
+        &format!("SELECT COUNT(*) FROM pragma_table_info('{table}') WHERE name = '{column}'"),
+    )
+    .fetch_one(pool)
+    .await?;
+
+    if has_col.0 == 0 {
+        sqlx::raw_sql(&format!("ALTER TABLE {table} ADD COLUMN {column} {col_type}"))
+            .execute(pool)
+            .await?;
     }
     Ok(())
 }
@@ -494,6 +536,7 @@ CREATE TABLE IF NOT EXISTS media (
     width       INTEGER,
     height      INTEGER,
     blurhash    TEXT,
+    integrity   TEXT,
     description TEXT NOT NULL DEFAULT '',
     created_at  INTEGER NOT NULL
 );
@@ -1009,6 +1052,7 @@ CREATE TABLE IF NOT EXISTS media (
     width       INTEGER,
     height      INTEGER,
     blurhash    TEXT,
+    integrity   TEXT,
     description TEXT NOT NULL DEFAULT '',
     created_at  INTEGER NOT NULL
 );

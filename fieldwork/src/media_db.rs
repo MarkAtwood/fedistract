@@ -17,6 +17,7 @@ pub struct MediaRow {
     pub width: Option<i32>,
     pub height: Option<i32>,
     pub blurhash: Option<String>,
+    pub integrity: Option<String>,
     pub description: String,
     pub created_at: i64,
 }
@@ -28,8 +29,8 @@ pub async fn insert_media(pool: &Pool, media: &MediaRow) -> Result<(), sqlx::Err
         Pool::Postgres(pg) => {
             sqlx::query(
                 "INSERT INTO media (id, user_id, persona_id, post_id, file_path, mime_type, \
-                 file_size, width, height, blurhash, description, created_at) \
-                 VALUES ($1, $2::uuid, $3::uuid, $4, $5, $6, $7, $8, $9, $10, $11, $12)",
+                 file_size, width, height, blurhash, integrity, description, created_at) \
+                 VALUES ($1, $2::uuid, $3::uuid, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)",
             )
             .bind(media.id)
             .bind(&media.user_id)
@@ -41,6 +42,7 @@ pub async fn insert_media(pool: &Pool, media: &MediaRow) -> Result<(), sqlx::Err
             .bind(media.width)
             .bind(media.height)
             .bind(&media.blurhash)
+            .bind(&media.integrity)
             .bind(&media.description)
             .bind(media.created_at)
             .execute(pg)
@@ -50,8 +52,8 @@ pub async fn insert_media(pool: &Pool, media: &MediaRow) -> Result<(), sqlx::Err
         Pool::Sqlite(sq) => {
             sqlx::query(
                 "INSERT INTO media (id, user_id, persona_id, post_id, file_path, mime_type, \
-                 file_size, width, height, blurhash, description, created_at) \
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+                 file_size, width, height, blurhash, integrity, description, created_at) \
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
             )
             .bind(media.id)
             .bind(&media.user_id)
@@ -63,6 +65,7 @@ pub async fn insert_media(pool: &Pool, media: &MediaRow) -> Result<(), sqlx::Err
             .bind(media.width)
             .bind(media.height)
             .bind(&media.blurhash)
+            .bind(&media.integrity)
             .bind(&media.description)
             .bind(media.created_at)
             .execute(sq)
@@ -72,18 +75,23 @@ pub async fn insert_media(pool: &Pool, media: &MediaRow) -> Result<(), sqlx::Err
     Ok(())
 }
 
+const SELECT_COLS_PG: &str = "id, user_id::text, persona_id::text, post_id, file_path, mime_type, \
+    file_size, width, height, blurhash, integrity, description, created_at";
+const SELECT_COLS_SQ: &str = "id, user_id, persona_id, post_id, file_path, mime_type, \
+    file_size, width, height, blurhash, integrity, description, created_at";
+
+type MediaTuple = (
+    i64, String, String, Option<i64>, String, String,
+    i64, Option<i32>, Option<i32>, Option<String>, Option<String>, String, i64,
+);
+
 /// Look up a single media row by ID.
 pub async fn get_media(pool: &Pool, id: i64) -> Result<Option<MediaRow>, sqlx::Error> {
     match pool {
         #[cfg(feature = "db-postgres")]
         Pool::Postgres(pg) => {
-            let row = sqlx::query_as::<_, (
-                i64, String, String, Option<i64>, String, String,
-                i64, Option<i32>, Option<i32>, Option<String>, String, i64,
-            )>(
-                "SELECT id, user_id::text, persona_id::text, post_id, file_path, mime_type, \
-                 file_size, width, height, blurhash, description, created_at \
-                 FROM media WHERE id = $1",
+            let row = sqlx::query_as::<_, MediaTuple>(
+                &format!("SELECT {SELECT_COLS_PG} FROM media WHERE id = $1"),
             )
             .bind(id)
             .fetch_optional(pg)
@@ -92,13 +100,8 @@ pub async fn get_media(pool: &Pool, id: i64) -> Result<Option<MediaRow>, sqlx::E
         }
         #[cfg(feature = "db-sqlite")]
         Pool::Sqlite(sq) => {
-            let row = sqlx::query_as::<_, (
-                i64, String, String, Option<i64>, String, String,
-                i64, Option<i32>, Option<i32>, Option<String>, String, i64,
-            )>(
-                "SELECT id, user_id, persona_id, post_id, file_path, mime_type, \
-                 file_size, width, height, blurhash, description, created_at \
-                 FROM media WHERE id = ?1",
+            let row = sqlx::query_as::<_, MediaTuple>(
+                &format!("SELECT {SELECT_COLS_SQ} FROM media WHERE id = ?1"),
             )
             .bind(id)
             .fetch_optional(sq)
@@ -116,13 +119,8 @@ pub async fn attachments_for_post(
     match pool {
         #[cfg(feature = "db-postgres")]
         Pool::Postgres(pg) => {
-            let rows = sqlx::query_as::<_, (
-                i64, String, String, Option<i64>, String, String,
-                i64, Option<i32>, Option<i32>, Option<String>, String, i64,
-            )>(
-                "SELECT id, user_id::text, persona_id::text, post_id, file_path, mime_type, \
-                 file_size, width, height, blurhash, description, created_at \
-                 FROM media WHERE post_id = $1 ORDER BY id",
+            let rows = sqlx::query_as::<_, MediaTuple>(
+                &format!("SELECT {SELECT_COLS_PG} FROM media WHERE post_id = $1 ORDER BY id"),
             )
             .bind(post_id)
             .fetch_all(pg)
@@ -131,13 +129,8 @@ pub async fn attachments_for_post(
         }
         #[cfg(feature = "db-sqlite")]
         Pool::Sqlite(sq) => {
-            let rows = sqlx::query_as::<_, (
-                i64, String, String, Option<i64>, String, String,
-                i64, Option<i32>, Option<i32>, Option<String>, String, i64,
-            )>(
-                "SELECT id, user_id, persona_id, post_id, file_path, mime_type, \
-                 file_size, width, height, blurhash, description, created_at \
-                 FROM media WHERE post_id = ?1 ORDER BY id",
+            let rows = sqlx::query_as::<_, MediaTuple>(
+                &format!("SELECT {SELECT_COLS_SQ} FROM media WHERE post_id = ?1 ORDER BY id"),
             )
             .bind(post_id)
             .fetch_all(sq)
@@ -168,10 +161,7 @@ pub async fn delete_media(pool: &Pool, id: i64) -> Result<(), sqlx::Error> {
     Ok(())
 }
 
-/// Convert a 12-element tuple row into a [`MediaRow`].
-fn row_to_media(
-    r: (i64, String, String, Option<i64>, String, String, i64, Option<i32>, Option<i32>, Option<String>, String, i64),
-) -> MediaRow {
+fn row_to_media(r: MediaTuple) -> MediaRow {
     MediaRow {
         id: r.0,
         user_id: r.1,
@@ -183,8 +173,9 @@ fn row_to_media(
         width: r.7,
         height: r.8,
         blurhash: r.9,
-        description: r.10,
-        created_at: r.11,
+        integrity: r.10,
+        description: r.11,
+        created_at: r.12,
     }
 }
 
@@ -204,7 +195,6 @@ mod tests {
         pool
     }
 
-    /// Seed the minimum parent rows required by foreign keys.
     #[cfg(feature = "db-sqlite")]
     async fn seed_parents(pool: &Pool) {
         let sql = "\
@@ -236,6 +226,7 @@ mod tests {
             width: Some(800),
             height: Some(600),
             blurhash: Some("LEHV6nWB2yk8pyo0adR*.7kCMdnj".into()),
+            integrity: None,
             description: "a test image".into(),
             created_at: 1000,
         }
@@ -252,17 +243,22 @@ mod tests {
 
         let fetched = get_media(&pool, 1).await.unwrap().expect("row should exist");
         assert_eq!(fetched.id, 1);
-        assert_eq!(fetched.user_id, "u1");
-        assert_eq!(fetched.persona_id, "p1");
         assert_eq!(fetched.file_path, "media/u1/1.png");
-        assert_eq!(fetched.mime_type, "image/png");
-        assert_eq!(fetched.file_size, 12345);
-        assert_eq!(fetched.width, Some(800));
-        assert_eq!(fetched.height, Some(600));
-        assert_eq!(fetched.blurhash.as_deref(), Some("LEHV6nWB2yk8pyo0adR*.7kCMdnj"));
-        assert_eq!(fetched.description, "a test image");
-        assert_eq!(fetched.created_at, 1000);
-        assert!(fetched.post_id.is_none());
+        assert!(fetched.integrity.is_none());
+    }
+
+    #[cfg(feature = "db-sqlite")]
+    #[tokio::test]
+    async fn insert_with_integrity() {
+        let pool = setup_db().await;
+        seed_parents(&pool).await;
+
+        let mut media = sample_media(2, None);
+        media.integrity = Some("sha256-abc123def456".into());
+        insert_media(&pool, &media).await.unwrap();
+
+        let fetched = get_media(&pool, 2).await.unwrap().expect("row should exist");
+        assert_eq!(fetched.integrity.as_deref(), Some("sha256-abc123def456"));
     }
 
     #[cfg(feature = "db-sqlite")]

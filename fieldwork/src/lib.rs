@@ -47,6 +47,8 @@ pub mod db;
 pub mod delivery_db;
 #[cfg(any(feature = "db-postgres", feature = "db-sqlite"))]
 pub mod media_db;
+#[cfg(feature = "inbox")]  // reuses sha2 + base64 deps from inbox feature
+pub mod media_integrity;
 #[cfg(any(feature = "db-postgres", feature = "db-sqlite"))]
 pub mod relay;
 #[cfg(feature = "fetch")]

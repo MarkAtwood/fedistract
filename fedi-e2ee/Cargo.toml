@@ -1,0 +1,24 @@
+[package]
+name = "fedi-e2ee"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.72"
+license = "MIT OR Apache-2.0"
+description = "End-to-end encrypted direct messages for ActivityPub using DID key exchange"
+repository = "https://github.com/MarkAtwood/fedi-e2ee"
+keywords = ["activitypub", "encryption", "e2ee", "did", "xchacha20"]
+categories = ["cryptography", "web-programming"]
+
+[dependencies]
+chacha20poly1305 = "0.10"
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+curve25519-dalek = "4"
+x25519-dalek = { version = "2", features = ["static_secrets"] }
+fedi-did = { path = "../fedi-did" }
+hkdf = "0.12"
+multibase = "0.9"
+rand = "0.8"
+serde_json = "1"
+sha2 = "0.10"
+thiserror = "2"
+zeroize = "1"

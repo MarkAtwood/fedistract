@@ -1,0 +1,19 @@
+[package]
+name = "fedi-integrity"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.72"
+license = "MIT OR Apache-2.0"
+description = "Linked Data Integrity proofs for ActivityPub objects (FEP-8b32)"
+repository = "https://github.com/MarkAtwood/fedi-integrity"
+keywords = ["activitypub", "integrity", "linked-data", "fep-8b32", "signatures"]
+categories = ["authentication", "cryptography", "web-programming"]
+
+[dependencies]
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+fedi-did = { path = "../fedi-did" }
+hex = "0.4"
+multibase = "0.9"
+serde_json = "1"
+sha2 = "0.10"
+thiserror = "2"
