@@ -1,0 +1,12 @@
+{
+  "id": "fedistract-ki90",
+  "title": "Remove sqlx dependency from all three servers",
+  "description": "The ultimate test of zero-SQL-in-servers: remove sqlx from Cargo.toml in broadside, smallhold, and gaja. If it compiles, all SQL is in fieldwork. Any compilation error reveals a leaked sqlx::query call. Servers should only depend on fieldwork (which owns sqlx internally). Servers never import sqlx directly.",
+  "status": "open",
+  "priority": 0,
+  "issue_type": "task",
+  "owner": "mark@wolfssl.com",
+  "created_at": "2026-07-20T19:37:38.151483313Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T19:37:38.151483313Z"
+}
