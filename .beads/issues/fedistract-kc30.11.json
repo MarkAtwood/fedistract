@@ -1,0 +1,34 @@
+{
+  "id": "fedistract-kc30.11",
+  "title": "Extract fieldwork::circuit_breaker module",
+  "description": "Circuit breaker for federation delivery. Source: GJ delivery.rs (has 10k-entry eviction). Fixes SH unbounded memory growth bug.",
+  "status": "open",
+  "priority": 2,
+  "issue_type": "feature",
+  "owner": "mark@wolfssl.com",
+  "estimated_minutes": 60,
+  "created_at": "2026-07-20T01:32:50.502638811Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T01:32:50.502638811Z",
+  "labels": [
+    "extraction"
+  ],
+  "dependencies": [
+    {
+      "issue_id": "fedistract-kc30.11",
+      "depends_on_id": "fedistract-kc30",
+      "type": "parent-child",
+      "created_at": "2026-07-20T01:32:50.519137734Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    },
+    {
+      "issue_id": "fedistract-kc30.11",
+      "depends_on_id": "fedistract-kc30.1",
+      "type": "blocks",
+      "created_at": "2026-07-20T01:32:50.525299173Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}

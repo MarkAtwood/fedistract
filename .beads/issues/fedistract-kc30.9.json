@@ -1,0 +1,42 @@
+{
+  "id": "fedistract-kc30.9",
+  "title": "Extract fieldwork::cards module",
+  "description": "Link preview / OpenGraph card fetching and caching. Source: GJ cards.rs (has Postgres+SQLite support, most complete). Needs DB abstraction cleanup.",
+  "status": "open",
+  "priority": 2,
+  "issue_type": "feature",
+  "owner": "mark@wolfssl.com",
+  "estimated_minutes": 180,
+  "created_at": "2026-07-20T01:32:46.690056925Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T01:32:46.690056925Z",
+  "labels": [
+    "extraction"
+  ],
+  "dependencies": [
+    {
+      "issue_id": "fedistract-kc30.9",
+      "depends_on_id": "fedistract-kc30",
+      "type": "parent-child",
+      "created_at": "2026-07-20T01:32:46.705632898Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    },
+    {
+      "issue_id": "fedistract-kc30.9",
+      "depends_on_id": "fedistract-kc30.1",
+      "type": "blocks",
+      "created_at": "2026-07-20T01:32:46.711658177Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    },
+    {
+      "issue_id": "fedistract-kc30.9",
+      "depends_on_id": "fedistract-kc30.2",
+      "type": "blocks",
+      "created_at": "2026-07-20T01:32:46.717428029Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}

@@ -1,0 +1,99 @@
+{
+  "id": "fedistract-kc30.15",
+  "title": "Migrate gaja to fieldwork",
+  "description": "Replace inline modules in gaja with fieldwork imports. Modules: id, auth, media, cards, circuit_breaker, federation/signatures. Largest migration.",
+  "status": "open",
+  "priority": 3,
+  "issue_type": "task",
+  "owner": "mark@wolfssl.com",
+  "estimated_minutes": 240,
+  "created_at": "2026-07-20T01:33:02.062361774Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T01:33:02.062361774Z",
+  "labels": [
+    "extraction",
+    "migration"
+  ],
+  "dependencies": [
+    {
+      "issue_id": "fedistract-kc30.15",
+      "depends_on_id": "fedistract-kc30",
+      "type": "parent-child",
+      "created_at": "2026-07-20T01:33:02.084048656Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    },
+    {
+      "issue_id": "fedistract-kc30.15",
+      "depends_on_id": "fedistract-kc30.1",
+      "type": "blocks",
+      "created_at": "2026-07-20T01:33:02.090608049Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    },
+    {
+      "issue_id": "fedistract-kc30.15",
+      "depends_on_id": "fedistract-kc30.2",
+      "type": "blocks",
+      "created_at": "2026-07-20T01:33:02.096396227Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    },
+    {
+      "issue_id": "fedistract-kc30.15",
+      "depends_on_id": "fedistract-kc30.3",
+      "type": "blocks",
+      "created_at": "2026-07-20T01:33:02.102272057Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    },
+    {
+      "issue_id": "fedistract-kc30.15",
+      "depends_on_id": "fedistract-kc30.4",
+      "type": "blocks",
+      "created_at": "2026-07-20T01:33:02.107720197Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    },
+    {
+      "issue_id": "fedistract-kc30.15",
+      "depends_on_id": "fedistract-kc30.5",
+      "type": "blocks",
+      "created_at": "2026-07-20T01:33:02.113262865Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    },
+    {
+      "issue_id": "fedistract-kc30.15",
+      "depends_on_id": "fedistract-kc30.8",
+      "type": "blocks",
+      "created_at": "2026-07-20T01:33:02.1187519Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    },
+    {
+      "issue_id": "fedistract-kc30.15",
+      "depends_on_id": "fedistract-kc30.9",
+      "type": "blocks",
+      "created_at": "2026-07-20T01:33:02.124211771Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    },
+    {
+      "issue_id": "fedistract-kc30.15",
+      "depends_on_id": "fedistract-kc30.11",
+      "type": "blocks",
+      "created_at": "2026-07-20T01:33:02.129703307Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    },
+    {
+      "issue_id": "fedistract-kc30.15",
+      "depends_on_id": "fedistract-kc30.12",
+      "type": "blocks",
+      "created_at": "2026-07-20T01:33:02.13499737Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}

@@ -1,0 +1,67 @@
+{
+  "id": "fedistract-kc30.13",
+  "title": "Migrate broadside to fieldwork",
+  "description": "Replace inline modules in broadside with fieldwork imports. Start here (smallest project). Modules: signatures, sanitize, content, theme, ssrf checks.",
+  "status": "open",
+  "priority": 3,
+  "issue_type": "task",
+  "owner": "mark@wolfssl.com",
+  "estimated_minutes": 120,
+  "created_at": "2026-07-20T01:32:57.438135806Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T01:32:57.438135806Z",
+  "labels": [
+    "extraction",
+    "migration"
+  ],
+  "dependencies": [
+    {
+      "issue_id": "fedistract-kc30.13",
+      "depends_on_id": "fedistract-kc30",
+      "type": "parent-child",
+      "created_at": "2026-07-20T01:32:57.45617588Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    },
+    {
+      "issue_id": "fedistract-kc30.13",
+      "depends_on_id": "fedistract-kc30.1",
+      "type": "blocks",
+      "created_at": "2026-07-20T01:32:57.460620247Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    },
+    {
+      "issue_id": "fedistract-kc30.13",
+      "depends_on_id": "fedistract-kc30.2",
+      "type": "blocks",
+      "created_at": "2026-07-20T01:32:57.465070046Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    },
+    {
+      "issue_id": "fedistract-kc30.13",
+      "depends_on_id": "fedistract-kc30.6",
+      "type": "blocks",
+      "created_at": "2026-07-20T01:32:57.46977105Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    },
+    {
+      "issue_id": "fedistract-kc30.13",
+      "depends_on_id": "fedistract-kc30.7",
+      "type": "blocks",
+      "created_at": "2026-07-20T01:32:57.474229093Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    },
+    {
+      "issue_id": "fedistract-kc30.13",
+      "depends_on_id": "fedistract-kc30.10",
+      "type": "blocks",
+      "created_at": "2026-07-20T01:32:57.47860209Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}
