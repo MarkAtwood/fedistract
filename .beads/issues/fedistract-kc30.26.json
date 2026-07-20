@@ -1,0 +1,25 @@
+{
+  "id": "fedistract-kc30.26",
+  "title": "Extract fieldwork::profile module",
+  "description": "HTML profile page rendering for ActivityPub actors. ~160 lines duplicated in server.rs across all three projects.\n\nSource: BS server.rs:1317-1476 (serve_profile_html), SH/GJ activitypub.rs (similar).\n\nPublic API:\n- ProfileData struct { display_name, username, domain, bio_html, avatar_url, header_url, created_at, post_count, following_count, followers_count, metadata_fields: Vec\u003c(String, String)\u003e, recent_posts: Vec\u003cProfilePost\u003e }\n- ProfilePost struct { id, content_html, published, url }\n- render_profile_html(profile: \u0026ProfileData, theme_css: \u0026str) -\u003e String — render full HTML page with:\n  - Content negotiation alternate link (application/activity+json)\n  - Mastodon-style metadata table with links\n  - Recent posts list with dates\n  - Theme CSS injection point\n  - PAGE_CSS constant (shared base stylesheet)\n\nWhat stays in consumers: DB queries to populate ProfileData, route registration, content negotiation logic.\n\nDeps: None beyond std (pure string templating). Optional: fieldwork::sanitize for bio HTML.\n\nNote: PAGE_CSS constant is identical across all three. Metadata fields use Mastodon PropertyValue convention. Posts are rendered as simple HTML — no JS framework.",
+  "status": "open",
+  "priority": 3,
+  "issue_type": "feature",
+  "owner": "mark@wolfssl.com",
+  "created_at": "2026-07-20T02:19:06.848995671Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T02:19:06.848995671Z",
+  "labels": [
+    "extraction"
+  ],
+  "dependencies": [
+    {
+      "issue_id": "fedistract-kc30.26",
+      "depends_on_id": "fedistract-kc30",
+      "type": "parent-child",
+      "created_at": "2026-07-20T02:19:06.865529482Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}

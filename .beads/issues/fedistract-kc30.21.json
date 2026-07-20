@@ -1,0 +1,25 @@
+{
+  "id": "fedistract-kc30.21",
+  "title": "Extract fieldwork::activities module",
+  "description": "ActivityPub activity builders. ~110 lines of identical JSON assembly duplicated across all three projects for constructing Follow, Accept, Undo, Create+Note activities.\n\nSource: BS server.rs:1102-1158 (Accept builder), BS delivery.rs:189-262 (Create+Note builder), GJ/SH have identical patterns.\n\nPublic API:\n- build_follow(actor_uri: \u0026str, target_uri: \u0026str, follow_id: \u0026str) -\u003e serde_json::Value\n- build_accept(actor_uri: \u0026str, follow_activity: \u0026serde_json::Value, accept_id: \u0026str) -\u003e serde_json::Value\n- build_undo(actor_uri: \u0026str, original_activity: \u0026serde_json::Value, undo_id: \u0026str) -\u003e serde_json::Value\n- build_create_note(params: \u0026CreateNoteParams) -\u003e serde_json::Value — construct Create wrapping Note with:\n  - to/cc (Public + followers)\n  - tag array (hashtags, mentions)\n  - attachment array (media)\n  - contentMap for language\n  - quoteUrl for FEP-e232 quote posts\n  - preview card (link preview)\n- CreateNoteParams struct with all fields\n- build_delete(actor_uri: \u0026str, object_uri: \u0026str) -\u003e serde_json::Value\n\nWhat stays in consumers: Delivery queue integration, DB queries to populate CreateNoteParams.\n\nDeps: serde_json.\n\nNote: BS includes FEP-e232 quote post support and Misskey/Pleroma quoteUrl compat. Extract the superset.",
+  "status": "open",
+  "priority": 2,
+  "issue_type": "feature",
+  "owner": "mark@wolfssl.com",
+  "created_at": "2026-07-20T02:18:20.948912489Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T02:18:20.948912489Z",
+  "labels": [
+    "extraction"
+  ],
+  "dependencies": [
+    {
+      "issue_id": "fedistract-kc30.21",
+      "depends_on_id": "fedistract-kc30",
+      "type": "parent-child",
+      "created_at": "2026-07-20T02:18:20.964656122Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}

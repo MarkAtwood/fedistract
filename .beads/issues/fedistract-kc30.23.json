@@ -1,0 +1,25 @@
+{
+  "id": "fedistract-kc30.23",
+  "title": "Extract fieldwork::collections module",
+  "description": "ActivityPub OrderedCollection and OrderedCollectionPage construction with pagination. ~110 lines duplicated in server.rs outbox handlers across all three projects.\n\nSource: BS server.rs:504-615 (outbox handler), GJ/SH activitypub.rs (similar).\n\nPublic API:\n- build_ordered_collection(id: \u0026str, total_items: i64, first_page_url: Option\u003c\u0026str\u003e) -\u003e serde_json::Value — top-level collection with totalItems and optional first link\n- build_ordered_collection_page(id: \u0026str, part_of: \u0026str, items: Vec\u003cserde_json::Value\u003e, next_page_url: Option\u003c\u0026str\u003e, prev_page_url: Option\u003c\u0026str\u003e) -\u003e serde_json::Value — paginated page with orderedItems\n- PaginationParams { page: Option\u003cu32\u003e, page_size: u32 } — validated pagination (reject page=0)\n- paginate_url(base_url: \u0026str, page: u32) -\u003e String — construct paginated URL\n\nWhat stays in consumers: DB queries for items, route registration, page size configuration.\n\nDeps: serde_json.\n\nNote: Used for outbox, followers, following collections. BS uses 20 items/page. Make page_size configurable.",
+  "status": "open",
+  "priority": 2,
+  "issue_type": "feature",
+  "owner": "mark@wolfssl.com",
+  "created_at": "2026-07-20T02:18:30.943935403Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T02:18:30.943935403Z",
+  "labels": [
+    "extraction"
+  ],
+  "dependencies": [
+    {
+      "issue_id": "fedistract-kc30.23",
+      "depends_on_id": "fedistract-kc30",
+      "type": "parent-child",
+      "created_at": "2026-07-20T02:18:30.959070631Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}

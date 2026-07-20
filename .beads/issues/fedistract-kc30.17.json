@@ -1,0 +1,25 @@
+{
+  "id": "fedistract-kc30.17",
+  "title": "Extract fieldwork::webfinger module",
+  "description": "WebFinger server endpoint (RFC 7033). ~70 lines, 95%+ identical across gaja/smallhold/broadside.\n\nSource: Any (all three are nearly identical). BS server.rs:250-319, GJ discovery.rs, SH discovery.rs.\n\nPublic API:\n- WebFingerResponse struct (JRD+JSON with links array)\n- JrdLink struct (rel, type, href)\n- parse_webfinger_resource(query: \u0026str) -\u003e Result\u003c(user, domain), Error\u003e — parse acct: URI\n- build_webfinger_response(username: \u0026str, domain: \u0026str) -\u003e WebFingerResponse — construct JRD with AP actor link\n- Optional: axum handler that wires parse + DB lookup + build\n\nWhat stays in consumers: DB lookup for user existence, route registration.\n\nDeps: serde, serde_json. Optional: axum (for handler).\n\nSecurity: Must validate domain matches server domain (prevent cross-domain WebFinger). Must reject queries without acct: prefix.",
+  "status": "open",
+  "priority": 2,
+  "issue_type": "feature",
+  "owner": "mark@wolfssl.com",
+  "created_at": "2026-07-20T02:17:52.917227627Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T02:17:52.917227627Z",
+  "labels": [
+    "extraction"
+  ],
+  "dependencies": [
+    {
+      "issue_id": "fedistract-kc30.17",
+      "depends_on_id": "fedistract-kc30",
+      "type": "parent-child",
+      "created_at": "2026-07-20T02:17:52.932687406Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}
