@@ -2,14 +2,16 @@
   "id": "fedistract-kc30.10",
   "title": "Extract fieldwork::theme module",
   "description": "Theme/CSS handling. Source: SH theme.rs (has \u003c/style\u003e injection defense). Fixes BS missing injection defense.",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "issue_type": "feature",
   "owner": "mark@wolfssl.com",
   "estimated_minutes": 30,
   "created_at": "2026-07-20T01:32:48.6201771Z",
   "created_by": "Mark Atwood",
-  "updated_at": "2026-07-20T01:32:48.6201771Z",
+  "updated_at": "2026-07-20T02:07:24.318294813Z",
+  "closed_at": "2026-07-20T02:07:24.318294813Z",
+  "close_reason": "Closed",
   "labels": [
     "extraction"
   ],

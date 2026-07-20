@@ -1,2 +1,3 @@
 {"id":"019f7d27-5e09-718a-a34b-322769422ff9","issue_id":"fedistract-kc30.7","event_type":"created","actor":"Mark Atwood","old_value":"","new_value":"","created_at":"2026-07-20T01:32:39.81710179Z"}
 {"id":"019f7d27-5e0e-7ce6-bcbd-3366189c7301","issue_id":"fedistract-kc30.7","event_type":"label_added","actor":"Mark Atwood","comment":"Added label: extraction","created_at":"2026-07-20T01:32:39.822846253Z"}
+{"id":"019f7d47-2c98-753d-b742-f36012745eae","issue_id":"fedistract-kc30.7","event_type":"closed","actor":"Mark Atwood","old_value":"","new_value":"Closed","created_at":"2026-07-20T02:07:24.312343987Z"}

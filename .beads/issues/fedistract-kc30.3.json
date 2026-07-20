@@ -2,14 +2,16 @@
   "id": "fedistract-kc30.3",
   "title": "Extract fieldwork::id module",
   "description": "Snowflake ID generation with backpressure. Source: GJ id.rs (has sleep instead of spin, 47-bit timestamp mask). Deps on cavage-httpsig and ssrf-guard being done first (workspace setup).",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "issue_type": "feature",
   "owner": "mark@wolfssl.com",
   "estimated_minutes": 60,
   "created_at": "2026-07-20T01:32:32.592151768Z",
   "created_by": "Mark Atwood",
-  "updated_at": "2026-07-20T01:32:32.592151768Z",
+  "updated_at": "2026-07-20T02:07:24.261980599Z",
+  "closed_at": "2026-07-20T02:07:24.261980599Z",
+  "close_reason": "Closed",
   "labels": [
     "extraction"
   ],

@@ -2,14 +2,16 @@
   "id": "fedistract-kc30.7",
   "title": "Extract fieldwork::content module",
   "description": "Content processing: hashtag/mention/URL detection, Markdown rendering. Source: BS content.rs (only implementation).",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "issue_type": "feature",
   "owner": "mark@wolfssl.com",
   "estimated_minutes": 60,
   "created_at": "2026-07-20T01:32:39.811912133Z",
   "created_by": "Mark Atwood",
-  "updated_at": "2026-07-20T01:32:39.811912133Z",
+  "updated_at": "2026-07-20T02:07:24.307581982Z",
+  "closed_at": "2026-07-20T02:07:24.307581982Z",
+  "close_reason": "Closed",
   "labels": [
     "extraction"
   ],

@@ -2,14 +2,16 @@
   "id": "fedistract-kc30.4",
   "title": "Extract fieldwork::error module",
   "description": "Shared error types. Source: GJ error.rs (has quota_exceeded(), clean structure).",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "issue_type": "feature",
   "owner": "mark@wolfssl.com",
   "estimated_minutes": 30,
   "created_at": "2026-07-20T01:32:34.067133556Z",
   "created_by": "Mark Atwood",
-  "updated_at": "2026-07-20T01:32:34.067133556Z",
+  "updated_at": "2026-07-20T02:07:24.274496686Z",
+  "closed_at": "2026-07-20T02:07:24.274496686Z",
+  "close_reason": "Closed",
   "labels": [
     "extraction"
   ],

@@ -2,14 +2,16 @@
   "id": "fedistract-kc30.12",
   "title": "Extract fieldwork::retry module",
   "description": "Exponential backoff retry schedule. Source: any project (identical constants across all three).",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "issue_type": "feature",
   "owner": "mark@wolfssl.com",
   "estimated_minutes": 30,
   "created_at": "2026-07-20T01:32:51.665325334Z",
   "created_by": "Mark Atwood",
-  "updated_at": "2026-07-20T01:32:51.665325334Z",
+  "updated_at": "2026-07-20T02:07:24.340279397Z",
+  "closed_at": "2026-07-20T02:07:24.340279397Z",
+  "close_reason": "Closed",
   "labels": [
     "extraction"
   ],
