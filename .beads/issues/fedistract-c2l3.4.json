@@ -1,0 +1,25 @@
+{
+  "id": "fedistract-c2l3.4",
+  "title": "Replace theme.rs with fieldwork::theme",
+  "status": "closed",
+  "priority": 2,
+  "issue_type": "task",
+  "assignee": "Mark Atwood",
+  "owner": "mark@wolfssl.com",
+  "created_at": "2026-07-20T07:26:06.847318068Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T07:30:38.937882433Z",
+  "started_at": "2026-07-20T07:29:18.829071097Z",
+  "closed_at": "2026-07-20T07:30:38.937882433Z",
+  "close_reason": "Closed",
+  "dependencies": [
+    {
+      "issue_id": "fedistract-c2l3.4",
+      "depends_on_id": "fedistract-c2l3",
+      "type": "parent-child",
+      "created_at": "2026-07-20T07:26:06.858043064Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "id": "fedistract-c2l3.2",
+  "title": "Replace error.rs with fieldwork::error",
+  "status": "closed",
+  "priority": 2,
+  "issue_type": "task",
+  "assignee": "Mark Atwood",
+  "owner": "mark@wolfssl.com",
+  "created_at": "2026-07-20T07:26:06.731134785Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T07:28:10.839829382Z",
+  "started_at": "2026-07-20T07:27:23.783885162Z",
+  "closed_at": "2026-07-20T07:28:10.839829382Z",
+  "close_reason": "Cannot re-export: orphan rule prevents impl From\u003csqlx::Error\u003e for fieldwork::error::AppError. Kept local.",
+  "dependencies": [
+    {
+      "issue_id": "fedistract-c2l3.2",
+      "depends_on_id": "fedistract-c2l3",
+      "type": "parent-child",
+      "created_at": "2026-07-20T07:26:06.742411567Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "id": "fedistract-al9a",
+  "title": "Migrate gaja to use fieldwork crate",
+  "description": "Replace inline duplicated modules with fieldwork crate dependencies. Gaja is ~17K lines with modules that duplicate fieldwork functionality.",
+  "status": "closed",
+  "priority": 2,
+  "issue_type": "task",
+  "assignee": "Mark Atwood",
+  "owner": "mark@wolfssl.com",
+  "created_at": "2026-07-20T07:26:39.990958992Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T07:48:06.805524016Z",
+  "started_at": "2026-07-20T07:26:43.560956338Z",
+  "closed_at": "2026-07-20T07:48:06.805524016Z",
+  "close_reason": "Migrated gaja to fieldwork crate. Replaced id.rs, auth.rs, db.rs (Pool + schema), delivery.rs (retry + circuit_breaker). Updated all Postgres SQL paths from TIMESTAMPTZ to INTEGER timestamps. Net -883 lines. All 34 tests pass."
+}
