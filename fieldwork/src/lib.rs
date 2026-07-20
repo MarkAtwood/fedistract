@@ -38,7 +38,13 @@ pub mod content;
 #[cfg(feature = "error")]
 pub mod error;
 #[cfg(any(feature = "db-postgres", feature = "db-sqlite"))]
+pub mod cards_db;
+#[cfg(any(feature = "db-postgres", feature = "db-sqlite"))]
 pub mod db;
+#[cfg(any(feature = "db-postgres", feature = "db-sqlite"))]
+pub mod delivery_db;
+#[cfg(any(feature = "db-postgres", feature = "db-sqlite"))]
+pub mod media_db;
 #[cfg(feature = "fetch")]
 pub mod fetch_remote;
 #[cfg(feature = "inbox")]
