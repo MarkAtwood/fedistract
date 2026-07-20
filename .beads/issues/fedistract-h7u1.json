@@ -1,12 +1,12 @@
 {
   "id": "fedistract-h7u1",
   "title": "[EPIC] Gaja video mode — PeerTube replacement",
-  "description": "Add YouTube-style video hosting to gaja. Video upload, HLS transcoding, web player, channels, P2P distribution. Uses the same fieldwork backend, same federation, same identity. Federates with existing PeerTube instances.",
+  "description": "Add YouTube-style video hosting as a fieldwork capability available to ALL three servers. Video upload, HLS transcoding, web player, channels, and PeerTube API compatibility live in fieldwork/fieldwork-db. Broadside: video announcements. Smallhold: personal video hosting. Gaja: multi-tenant video platform.",
   "status": "open",
   "priority": 2,
   "issue_type": "epic",
   "owner": "mark@reviewcommit.com",
   "created_at": "2026-07-20T23:55:16.694758034Z",
   "created_by": "Mark Atwood",
-  "updated_at": "2026-07-20T23:55:16.694758034Z"
+  "updated_at": "2026-07-20T23:56:18.89812415Z"
 }

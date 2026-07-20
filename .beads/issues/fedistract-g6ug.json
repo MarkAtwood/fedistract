@@ -1,0 +1,12 @@
+{
+  "id": "fedistract-g6ug",
+  "title": "fieldwork-db::videos_db — video metadata, transcoding jobs, HLS segments",
+  "description": "Database module for video hosting. Tables: videos (metadata, status, duration, resolutions), transcoding_jobs (queue, progress), video_segments (HLS .ts files, S3 paths), video_comments (threaded), video_playlists. Schema migration + CRUD. Used by all three servers.",
+  "status": "open",
+  "priority": 2,
+  "issue_type": "feature",
+  "owner": "mark@reviewcommit.com",
+  "created_at": "2026-07-20T23:56:19.154949316Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T23:56:19.154949316Z"
+}

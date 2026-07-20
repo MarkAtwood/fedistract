@@ -1,12 +1,12 @@
 {
   "id": "fedistract-qqq6",
   "title": "[EPIC] Gaja photo mode — Pixelfed replacement",
-  "description": "Add Instagram-style photo sharing to gaja as a mode/personality. Uses the same fieldwork backend, same federation, same identity. Federates with existing Pixelfed instances. Goal: better, faster, multi-tenant Pixelfed-equivalent.",
+  "description": "Add Instagram-style photo sharing as a fieldwork capability available to ALL three servers (broadside, smallhold, gaja). Photo processing, albums, filters, and Pixelfed API compatibility live in fieldwork/fieldwork-db. Each server wires the routes appropriate to its personality. Broadside: photo galleries for org announcements. Smallhold: personal Instagram. Gaja: multi-tenant photo platform.",
   "status": "open",
   "priority": 2,
   "issue_type": "epic",
   "owner": "mark@reviewcommit.com",
   "created_at": "2026-07-20T23:55:16.257469388Z",
   "created_by": "Mark Atwood",
-  "updated_at": "2026-07-20T23:55:16.257469388Z"
+  "updated_at": "2026-07-20T23:56:18.848629661Z"
 }
