@@ -1,0 +1,16 @@
+{
+  "id": "fedistract-ysp9",
+  "title": "Wire fieldwork::collections module into all three servers",
+  "description": "All three servers build OrderedCollection JSON inline instead of using fieldwork::collections::build_collection/build_collection_page. Replace inline json!({type:OrderedCollection...}) with fieldwork builders. Also add pagination to outbox/followers/following endpoints in smallhold and gaja (broadside already has outbox pagination). The fieldwork module has paginate_offset with saturating_mul.",
+  "status": "closed",
+  "priority": 1,
+  "issue_type": "task",
+  "assignee": "Mark Atwood",
+  "owner": "mark@reviewcommit.com",
+  "created_at": "2026-07-20T23:38:46.947859983Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T23:49:39.152278433Z",
+  "started_at": "2026-07-20T23:38:47.03871446Z",
+  "closed_at": "2026-07-20T23:49:39.152278433Z",
+  "close_reason": "All 3 servers wired to fieldwork::collections. Outbox pagination added to smallhold+gaja. All 104 tests pass."
+}
