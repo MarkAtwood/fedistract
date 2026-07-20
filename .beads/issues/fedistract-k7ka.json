@@ -2,11 +2,15 @@
   "id": "fedistract-k7ka",
   "title": "Hide sqlx behind fieldwork's public API",
   "description": "fieldwork currently exposes sqlx types in its public API (Pool enum wraps sqlx::SqlitePool/PgPool, functions return sqlx::Error). The servers must import sqlx just to construct the Pool and handle errors. Fix: fieldwork should own pool construction (connect function), wrap sqlx::Error in its own error type, and not leak sqlx types. Then servers can drop the sqlx dependency entirely.",
-  "status": "open",
+  "status": "in_progress",
   "priority": 0,
   "issue_type": "task",
+  "assignee": "Mark Atwood",
   "owner": "mark@wolfssl.com",
   "created_at": "2026-07-20T19:37:38.20179698Z",
   "created_by": "Mark Atwood",
-  "updated_at": "2026-07-20T19:37:38.20179698Z"
+  "updated_at": "2026-07-20T19:43:56.775987227Z",
+  "started_at": "2026-07-20T19:43:56.775987227Z",
+  "lease_expires_at": "2026-07-20T19:48:56.775987227Z",
+  "heartbeat_at": "2026-07-20T19:43:56.775987227Z"
 }

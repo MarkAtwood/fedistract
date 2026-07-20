@@ -2,15 +2,15 @@
   "id": "fedistract-qf5a",
   "title": "Move all remaining inline SQL to db_extras.rs in smallhold and gaja",
   "description": "173 sqlx calls remain in smallhold business logic, 137 in gaja. Move ALL of them into db_extras.rs so business logic files are query-free. This is the centralization step before promoting common patterns to fieldwork.",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 0,
   "issue_type": "task",
   "assignee": "Mark Atwood",
   "owner": "mark@wolfssl.com",
   "created_at": "2026-07-20T19:35:26.731104456Z",
   "created_by": "Mark Atwood",
-  "updated_at": "2026-07-20T19:35:36.608377102Z",
+  "updated_at": "2026-07-20T19:58:21.716977541Z",
   "started_at": "2026-07-20T19:35:36.608377102Z",
-  "lease_expires_at": "2026-07-20T19:40:36.608377102Z",
-  "heartbeat_at": "2026-07-20T19:35:36.608377102Z"
+  "closed_at": "2026-07-20T19:58:21.716977541Z",
+  "close_reason": "All three servers at ZERO sqlx::query in business logic. Broadside: 0 (20 in db_extras). Smallhold: 0 (139 functions in db_extras). Gaja: 0 (~60 functions in db_extras). All tests pass."
 }
