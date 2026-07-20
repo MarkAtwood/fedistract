@@ -1,0 +1,15 @@
+{
+  "id": "fedistract-qjfi",
+  "title": "Replace gaja db_extras.rs with fieldwork calls",
+  "status": "closed",
+  "priority": 2,
+  "issue_type": "task",
+  "assignee": "Mark Atwood",
+  "owner": "mark@wolfssl.com",
+  "created_at": "2026-07-20T21:20:55.07675131Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T21:33:41.190427786Z",
+  "started_at": "2026-07-20T21:29:25.893275097Z",
+  "closed_at": "2026-07-20T21:33:41.190427786Z",
+  "close_reason": "Closed"
+}

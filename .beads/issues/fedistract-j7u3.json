@@ -1,0 +1,15 @@
+{
+  "id": "fedistract-j7u3",
+  "title": "Replace smallhold db_extras.rs with fieldwork calls",
+  "status": "closed",
+  "priority": 2,
+  "issue_type": "task",
+  "assignee": "Mark Atwood",
+  "owner": "mark@wolfssl.com",
+  "created_at": "2026-07-20T21:20:55.02495605Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T21:29:25.843877542Z",
+  "started_at": "2026-07-20T21:23:15.02202192Z",
+  "closed_at": "2026-07-20T21:29:25.843877542Z",
+  "close_reason": "Closed"
+}
