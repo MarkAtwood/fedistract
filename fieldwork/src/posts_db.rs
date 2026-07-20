@@ -71,8 +71,8 @@ fn pg_row_to_post(r: sqlx::postgres::PgRow) -> PostRow {
     use sqlx::Row;
     PostRow {
         id: r.get(0),
-        user_id: r.get::<String, _>(1),
-        persona_id: r.get::<String, _>(2),
+        user_id: r.get(1),
+        persona_id: r.get(2),
         ap_id: r.get(3),
         in_reply_to_id: r.get(4),
         in_reply_to_uri: r.get(5),
