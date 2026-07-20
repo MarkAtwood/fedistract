@@ -703,7 +703,6 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
- "sqlx",
  "ssrf-guard",
  "subtle",
  "thiserror",
@@ -711,6 +710,19 @@ dependencies = [
  "tracing",
  "url",
  "whatlang",
+]
+
+[[package]]
+name = "fieldwork-db"
+version = "0.1.0"
+dependencies = [
+ "fieldwork",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "thiserror",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

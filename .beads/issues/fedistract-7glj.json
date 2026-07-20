@@ -1,0 +1,16 @@
+{
+  "id": "fedistract-7glj",
+  "title": "Split fieldwork into fieldwork (pure logic) + fieldwork-db (persistence)",
+  "description": "Move all *_db.rs modules, db.rs, timeline_db, relationship_db, search_db into a new fieldwork-db crate. fieldwork keeps pure AP logic (actor, activities, collections, webfinger, nodeinfo, profile, content, sanitize, theme, auth, inbox, circuit_breaker, retry, id, media_integrity). fieldwork-db depends on fieldwork for types + sqlx for persistence. Servers depend on both. Proxy depends only on fieldwork.",
+  "status": "in_progress",
+  "priority": 0,
+  "issue_type": "feature",
+  "assignee": "Mark Atwood",
+  "owner": "mark@wolfssl.com",
+  "created_at": "2026-07-20T21:58:37.427476818Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T21:58:37.510279962Z",
+  "started_at": "2026-07-20T21:58:37.510279962Z",
+  "lease_expires_at": "2026-07-20T22:03:37.510279962Z",
+  "heartbeat_at": "2026-07-20T21:58:37.510279962Z"
+}

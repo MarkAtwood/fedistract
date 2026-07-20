@@ -25,7 +25,6 @@ serde_json = { version = "1", optional = true }
 sha2 = { version = "0.10", optional = true }
 subtle = { version = "2", optional = true }
 base64 = { version = "0.22", optional = true }
-sqlx = { version = "0.8", optional = true }
 tracing = { version = "0.1", optional = true }
 url = { version = "2", optional = true }
 whatlang = { version = "0.16", optional = true }
@@ -53,8 +52,6 @@ fetch = ["dep:reqwest", "dep:serde_json", "dep:url", "dep:bytes", "dep:cavage-ht
 nodeinfo = ["dep:serde", "dep:serde_json"]
 webfinger = ["dep:serde", "dep:serde_json"]
 profile = ["dep:serde", "dep:serde_json"]
-db-postgres = ["dep:sqlx", "sqlx/runtime-tokio", "sqlx/postgres", "dep:tracing"]
-db-sqlite = ["dep:sqlx", "sqlx/runtime-tokio", "sqlx/sqlite", "dep:tracing"]
 full = ["activities", "actor", "collections", "error", "auth", "inbox", "sanitize", "content", "theme", "nodeinfo", "webfinger", "fetch", "profile"]
 
 [dev-dependencies]

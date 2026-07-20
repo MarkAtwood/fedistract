@@ -1,0 +1,26 @@
+[package]
+name = "fieldwork-db"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.80"
+license = "MIT OR Apache-2.0"
+description = "Database persistence layer for fieldwork fediverse building blocks"
+
+[dependencies]
+fieldwork = { path = "../fieldwork" }
+sqlx = { version = "0.8", optional = true }
+thiserror = "2"
+tracing = { version = "0.1", optional = true }
+
+# Optional deps for relay serde support
+serde = { version = "1", features = ["derive"], optional = true }
+serde_json = { version = "1", optional = true }
+
+[features]
+default = []
+postgres = ["sqlx/runtime-tokio", "sqlx/postgres", "dep:tracing"]
+sqlite = ["sqlx/runtime-tokio", "sqlx/sqlite", "dep:tracing"]
+serde = ["dep:serde", "dep:serde_json"]
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt", "macros"] }

@@ -36,14 +36,6 @@ pub fn is_duplicate(hash_a: &str, hash_b: &str) -> bool {
     hash_a == hash_b
 }
 
-/// Populate the `integrity` field of a [`super::media_db::MediaRow`] from file bytes.
-///
-/// Call this before `insert_media` to store the content hash.
-#[cfg(any(feature = "db-postgres", feature = "db-sqlite"))]
-pub fn set_media_integrity(row: &mut super::media_db::MediaRow, data: &[u8]) {
-    row.integrity = Some(compute_sri(data));
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -97,30 +89,5 @@ mod tests {
         let h1 = compute_sri(b"content a");
         let h2 = compute_sri(b"content b");
         assert!(!is_duplicate(&h1, &h2));
-    }
-
-    #[cfg(any(feature = "db-postgres", feature = "db-sqlite"))]
-    #[test]
-    fn set_media_integrity_populates_field() {
-        let mut row = super::super::media_db::MediaRow {
-            id: 1,
-            user_id: 1,
-            persona_id: 101,
-            post_id: None,
-            file_path: "test.png".into(),
-            mime_type: "image/png".into(),
-            file_size: 100,
-            width: None,
-            height: None,
-            blurhash: None,
-            integrity: None,
-            description: String::new(),
-            created_at: 1000,
-        };
-
-        assert!(row.integrity.is_none());
-        set_media_integrity(&mut row, b"file content");
-        assert!(row.integrity.is_some());
-        assert!(row.integrity.as_ref().unwrap().starts_with("sha256-"));
     }
 }

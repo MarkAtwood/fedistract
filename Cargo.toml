@@ -1,3 +1,3 @@
 [workspace]
 resolver = "2"
-members = ["cavage-httpsig", "fedi-did", "fedi-e2ee", "fedi-integrity", "fedi-provenance", "fedi-ucan", "fieldwork", "ssrf-guard"]
+members = ["cavage-httpsig", "fedi-did", "fedi-e2ee", "fedi-integrity", "fedi-provenance", "fedi-ucan", "fieldwork", "fieldwork-db", "ssrf-guard"]

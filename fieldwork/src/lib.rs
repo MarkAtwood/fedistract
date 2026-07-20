@@ -20,6 +20,7 @@
 //! - **`inbox`** — Inbox POST validation: size limits, digest verification, host checks.
 //! - **`nodeinfo`** — NodeInfo 2.1 data types and discovery document construction.
 //! - **`webfinger`** — RFC 7033 WebFinger JRD types and response construction.
+//! - **`profile`** — Profile metadata types and validation.
 
 pub mod circuit_breaker;
 pub mod id;
@@ -37,83 +38,19 @@ pub mod collections;
 pub mod content;
 #[cfg(feature = "error")]
 pub mod error;
-#[cfg(any(feature = "db-postgres", feature = "db-sqlite"))]
-pub mod actor_cache;
-#[cfg(any(feature = "db-postgres", feature = "db-sqlite"))]
-pub mod admin_db;
-#[cfg(any(feature = "db-postgres", feature = "db-sqlite"))]
-pub mod cards_db;
-#[cfg(any(feature = "db-postgres", feature = "db-sqlite"))]
-pub mod conversations_db;
-#[cfg(any(feature = "db-postgres", feature = "db-sqlite"))]
-pub mod db;
-#[cfg(any(feature = "db-postgres", feature = "db-sqlite"))]
-pub mod delivery_db;
-#[cfg(any(feature = "db-postgres", feature = "db-sqlite"))]
-pub mod domain_blocks_db;
-#[cfg(any(feature = "db-postgres", feature = "db-sqlite"))]
-pub mod filters_db;
-#[cfg(any(feature = "db-postgres", feature = "db-sqlite"))]
-pub mod follow_requests_db;
-#[cfg(any(feature = "db-postgres", feature = "db-sqlite"))]
-pub mod followed_tags_db;
-#[cfg(any(feature = "db-postgres", feature = "db-sqlite"))]
-pub mod followers_db;
-#[cfg(any(feature = "db-postgres", feature = "db-sqlite"))]
-pub mod follows_db;
-#[cfg(any(feature = "db-postgres", feature = "db-sqlite"))]
-pub mod idempotency_db;
-#[cfg(any(feature = "db-postgres", feature = "db-sqlite"))]
-pub mod interactions_db;
-#[cfg(any(feature = "db-postgres", feature = "db-sqlite"))]
-pub mod invite_codes_db;
-#[cfg(any(feature = "db-postgres", feature = "db-sqlite"))]
-pub mod lists_db;
-#[cfg(any(feature = "db-postgres", feature = "db-sqlite"))]
-pub mod markers_db;
-#[cfg(any(feature = "db-postgres", feature = "db-sqlite"))]
-pub mod media_db;
-#[cfg(feature = "inbox")]  // reuses sha2 + base64 deps from inbox feature
-pub mod media_integrity;
-#[cfg(any(feature = "db-postgres", feature = "db-sqlite"))]
-pub mod mentions_db;
-#[cfg(any(feature = "db-postgres", feature = "db-sqlite"))]
-pub mod notifications_db;
-#[cfg(any(feature = "db-postgres", feature = "db-sqlite"))]
-pub mod oauth_db;
-#[cfg(any(feature = "db-postgres", feature = "db-sqlite"))]
-pub mod persona_db;
-#[cfg(any(feature = "db-postgres", feature = "db-sqlite"))]
-pub mod post_tags_db;
-#[cfg(any(feature = "db-postgres", feature = "db-sqlite"))]
-pub mod posts_db;
-#[cfg(any(feature = "db-postgres", feature = "db-sqlite"))]
-pub mod push_db;
-#[cfg(any(feature = "db-postgres", feature = "db-sqlite"))]
-pub mod relay;
-#[cfg(any(feature = "db-postgres", feature = "db-sqlite"))]
-pub mod scheduled_db;
-#[cfg(any(feature = "db-postgres", feature = "db-sqlite"))]
-pub mod search_db;
-#[cfg(any(feature = "db-postgres", feature = "db-sqlite"))]
-pub mod tenant_db;
-#[cfg(any(feature = "db-postgres", feature = "db-sqlite"))]
-pub mod timeline_db;
-#[cfg(any(feature = "db-postgres", feature = "db-sqlite"))]
-pub mod relationship_db;
-#[cfg(any(feature = "db-postgres", feature = "db-sqlite"))]
-pub mod remote_posts_db;
 #[cfg(feature = "fetch")]
 pub mod fetch_remote;
 #[cfg(feature = "inbox")]
 pub mod inbox;
+#[cfg(feature = "inbox")]
+pub mod media_integrity;
 #[cfg(feature = "nodeinfo")]
 pub mod nodeinfo;
+#[cfg(feature = "profile")]
+pub mod profile;
 #[cfg(feature = "sanitize")]
 pub mod sanitize;
 #[cfg(feature = "theme")]
 pub mod theme;
-#[cfg(any(feature = "db-postgres", feature = "db-sqlite"))]
-pub mod webauthn_db;
 #[cfg(feature = "webfinger")]
 pub mod webfinger;
