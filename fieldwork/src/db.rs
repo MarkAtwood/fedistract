@@ -56,7 +56,7 @@ pub struct Migration {
 /// The current schema version after all built-in migrations.
 /// Version 0 = fresh CREATE TABLE schema.
 /// Version 1+ = incremental migrations.
-const CURRENT_VERSION: u32 = 2;
+const CURRENT_VERSION: u32 = 3;
 
 /// Built-in migration chain. Version 0 is the fresh-install schema (handled
 /// separately). These run in order for version 1, 2, 3, etc.
@@ -90,6 +90,30 @@ CREATE INDEX IF NOT EXISTS idx_followers_did ON followers(did) WHERE did IS NOT 
         description: "add integrity column to media table for content-addressed verification",
         sql_sqlite: "__ADD_COLUMN_IF_NOT_EXISTS:media:integrity:TEXT",
         sql_postgres: "ALTER TABLE media ADD COLUMN IF NOT EXISTS integrity TEXT;",
+    },
+    Migration {
+        version: 3,
+        description: "fix follows uniqueness: dedup rows and add partial unique indexes",
+        sql_sqlite: r#"
+DELETE FROM follows WHERE rowid NOT IN (
+    SELECT MIN(rowid) FROM follows GROUP BY persona_id, followee_remote_id, followee_persona_id
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_follows_remote_unique
+    ON follows(persona_id, followee_remote_id) WHERE followee_remote_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_follows_local_unique
+    ON follows(persona_id, followee_persona_id) WHERE followee_persona_id IS NOT NULL;
+"#,
+        sql_postgres: r#"
+DELETE FROM follows a USING follows b
+    WHERE a.ctid < b.ctid
+    AND a.persona_id = b.persona_id
+    AND a.followee_remote_id IS NOT DISTINCT FROM b.followee_remote_id
+    AND a.followee_persona_id IS NOT DISTINCT FROM b.followee_persona_id;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_follows_remote_unique
+    ON follows(persona_id, followee_remote_id) WHERE followee_remote_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_follows_local_unique
+    ON follows(persona_id, followee_persona_id) WHERE followee_persona_id IS NOT NULL;
+"#,
     },
 ];
 
@@ -571,11 +595,15 @@ CREATE TABLE IF NOT EXISTS follows (
     created_at          INTEGER NOT NULL,
     show_reblogs        BOOLEAN NOT NULL DEFAULT true,
     notify              BOOLEAN NOT NULL DEFAULT false,
-    CHECK ((followee_remote_id IS NOT NULL) != (followee_persona_id IS NOT NULL)),
-    UNIQUE (persona_id, followee_remote_id, followee_persona_id)
+    CHECK ((followee_remote_id IS NOT NULL) != (followee_persona_id IS NOT NULL))
 );
 CREATE INDEX IF NOT EXISTS idx_follows_persona ON follows(persona_id);
 CREATE INDEX IF NOT EXISTS idx_follows_user ON follows(user_id);
+-- Partial unique indexes: Postgres/SQLite UNIQUE doesn't enforce uniqueness when columns are NULL
+CREATE UNIQUE INDEX IF NOT EXISTS idx_follows_remote_unique
+    ON follows(persona_id, followee_remote_id) WHERE followee_remote_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_follows_local_unique
+    ON follows(persona_id, followee_persona_id) WHERE followee_persona_id IS NOT NULL;
 
 -- Favourites / likes.
 CREATE TABLE IF NOT EXISTS favourites (
@@ -1084,11 +1112,14 @@ CREATE TABLE IF NOT EXISTS follows (
     created_at          INTEGER NOT NULL,
     show_reblogs        INTEGER NOT NULL DEFAULT 1,
     notify              INTEGER NOT NULL DEFAULT 0,
-    CHECK ((followee_remote_id IS NOT NULL) != (followee_persona_id IS NOT NULL)),
-    UNIQUE (persona_id, followee_remote_id, followee_persona_id)
+    CHECK ((followee_remote_id IS NOT NULL) != (followee_persona_id IS NOT NULL))
 );
 CREATE INDEX IF NOT EXISTS idx_follows_persona ON follows(persona_id);
 CREATE INDEX IF NOT EXISTS idx_follows_user ON follows(user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_follows_remote_unique
+    ON follows(persona_id, followee_remote_id) WHERE followee_remote_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_follows_local_unique
+    ON follows(persona_id, followee_persona_id) WHERE followee_persona_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS favourites (
     user_id        TEXT NOT NULL REFERENCES users(id),
@@ -1745,8 +1776,7 @@ CREATE TABLE follows_new (
     created_at          INTEGER NOT NULL,
     show_reblogs        INTEGER NOT NULL DEFAULT 1,
     notify              INTEGER NOT NULL DEFAULT 0,
-    CHECK ((followee_remote_id IS NOT NULL) != (followee_persona_id IS NOT NULL)),
-    UNIQUE (persona_id, followee_remote_id, followee_persona_id)
+    CHECK ((followee_remote_id IS NOT NULL) != (followee_persona_id IS NOT NULL))
 );
 INSERT INTO follows_new (persona_id, user_id, followee_remote_id, followee_persona_id,
     created_at, show_reblogs, notify)
@@ -1935,7 +1965,7 @@ mod tests {
     #[tokio::test]
     async fn extra_migrations_run_in_order() {
         let extras = [Migration {
-            version: 2,
+            version: 100,
             description: "test: add test_extra table",
             sql_sqlite: "CREATE TABLE IF NOT EXISTS test_extra (id INTEGER PRIMARY KEY, val TEXT);",
             sql_postgres: "CREATE TABLE IF NOT EXISTS test_extra (id SERIAL PRIMARY KEY, val TEXT);",
@@ -1945,7 +1975,7 @@ mod tests {
         migrate_with(&db, &extras).await.unwrap();
 
         let version = schema_version(&db).await.unwrap();
-        assert_eq!(version, 2);
+        assert_eq!(version, 100);
 
         // Extra table should exist
         let exists = table_exists(&db, "test_extra").await.unwrap();
