@@ -32,16 +32,16 @@ pub struct PersonaRow {
     pub last_status_at: Option<i64>,
 }
 
-const SELECT_COLS_PG: &str = "id::text, user_id::text, username, display_name, bio, bio_html, \
+pub(crate) const SELECT_COLS_PG: &str = "id::text, user_id::text, username, display_name, bio, bio_html, \
     private_key_pem, public_key_pem, avatar_media_id, header_media_id, \
     is_locked, discoverable, bot, did_web, fields_json::text, created_at, last_status_at";
 
-const SELECT_COLS_SQ: &str = "id, user_id, username, display_name, bio, bio_html, \
+pub(crate) const SELECT_COLS_SQ: &str = "id, user_id, username, display_name, bio, bio_html, \
     private_key_pem, public_key_pem, avatar_media_id, header_media_id, \
     is_locked, discoverable, bot, did_web, fields_json, created_at, last_status_at";
 
 #[cfg(feature = "db-postgres")]
-fn pg_row_to_persona(row: sqlx::postgres::PgRow) -> PersonaRow {
+pub(crate) fn pg_row_to_persona(row: sqlx::postgres::PgRow) -> PersonaRow {
     PersonaRow {
         id: row.get(0),
         user_id: row.get(1),
@@ -64,7 +64,7 @@ fn pg_row_to_persona(row: sqlx::postgres::PgRow) -> PersonaRow {
 }
 
 #[cfg(feature = "db-sqlite")]
-fn sq_row_to_persona(row: sqlx::sqlite::SqliteRow) -> PersonaRow {
+pub(crate) fn sq_row_to_persona(row: sqlx::sqlite::SqliteRow) -> PersonaRow {
     let is_locked: i32 = row.get(10);
     let discoverable: i32 = row.get(11);
     let bot: i32 = row.get(12);

@@ -2,11 +2,15 @@
   "id": "fedistract-0jsx",
   "title": "Extract fieldwork::conversations_db — conversation read/hidden state",
   "description": "6 queries in smallhold (3 read_markers + 3 hidden). Mark conversations read/hidden per user. Simple junction tables.",
-  "status": "open",
+  "status": "closed",
   "priority": 3,
   "issue_type": "feature",
+  "assignee": "Mark Atwood",
   "owner": "mark@wolfssl.com",
   "created_at": "2026-07-20T17:15:00.8410656Z",
   "created_by": "Mark Atwood",
-  "updated_at": "2026-07-20T17:15:00.8410656Z"
+  "updated_at": "2026-07-20T17:27:43.543090537Z",
+  "started_at": "2026-07-20T17:18:30.603470814Z",
+  "closed_at": "2026-07-20T17:27:43.543090537Z",
+  "close_reason": "All 18 fieldwork DB modules created with 361 total tests passing."
 }

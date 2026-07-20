@@ -2,11 +2,15 @@
   "id": "fedistract-yowp",
   "title": "Extract fieldwork::posts_db — post CRUD, timelines, pagination",
   "description": "153 queries across all 3 servers. The core of every fediverse server. Includes: create_post, get_post, update_post, delete_post, posts_by_persona (paginated), home_timeline (local + remote posts from followed accounts), public_timeline, tag_timeline, thread/context loading, boost resolution, visibility filtering. Also covers post_edits (insert/get history). This is the largest and most complex module.",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "issue_type": "feature",
+  "assignee": "Mark Atwood",
   "owner": "mark@wolfssl.com",
   "created_at": "2026-07-20T17:15:00.27171597Z",
   "created_by": "Mark Atwood",
-  "updated_at": "2026-07-20T17:15:00.27171597Z"
+  "updated_at": "2026-07-20T17:27:43.424972818Z",
+  "started_at": "2026-07-20T17:18:30.040578657Z",
+  "closed_at": "2026-07-20T17:27:43.424972818Z",
+  "close_reason": "All 18 fieldwork DB modules created with 361 total tests passing."
 }

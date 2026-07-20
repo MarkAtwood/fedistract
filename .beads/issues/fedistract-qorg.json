@@ -2,11 +2,15 @@
   "id": "fedistract-qorg",
   "title": "Extract fieldwork::scheduled_db — scheduled status CRUD",
   "description": "9 queries in smallhold. Create/list/update/delete scheduled posts, fetch due posts for publishing. Mastodon Client API feature.",
-  "status": "open",
+  "status": "closed",
   "priority": 3,
   "issue_type": "feature",
+  "assignee": "Mark Atwood",
   "owner": "mark@wolfssl.com",
   "created_at": "2026-07-20T17:15:00.709250634Z",
   "created_by": "Mark Atwood",
-  "updated_at": "2026-07-20T17:15:00.709250634Z"
+  "updated_at": "2026-07-20T17:27:43.52164205Z",
+  "started_at": "2026-07-20T17:18:30.476236611Z",
+  "closed_at": "2026-07-20T17:27:43.52164205Z",
+  "close_reason": "All 18 fieldwork DB modules created with 361 total tests passing."
 }

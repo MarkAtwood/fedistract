@@ -2,11 +2,15 @@
   "id": "fedistract-n16t",
   "title": "Extract fieldwork::push_db — Web Push subscriptions + VAPID keys",
   "description": "23 queries in smallhold + gaja (15 push_subscriptions + 8 vapid_keys). Create/get/update/delete push subscriptions, VAPID key management. Needed for Mastodon Client API push notification support.",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "issue_type": "feature",
+  "assignee": "Mark Atwood",
   "owner": "mark@wolfssl.com",
   "created_at": "2026-07-20T17:15:00.451993912Z",
   "created_by": "Mark Atwood",
-  "updated_at": "2026-07-20T17:15:00.451993912Z"
+  "updated_at": "2026-07-20T17:27:43.467364053Z",
+  "started_at": "2026-07-20T17:18:30.222584093Z",
+  "closed_at": "2026-07-20T17:27:43.467364053Z",
+  "close_reason": "All 18 fieldwork DB modules created with 361 total tests passing."
 }

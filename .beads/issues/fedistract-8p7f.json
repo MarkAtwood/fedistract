@@ -2,11 +2,15 @@
   "id": "fedistract-8p7f",
   "title": "Extract fieldwork::domain_blocks_db — domain block CRUD",
   "description": "4 queries in smallhold. Add/remove/list/check domain blocks. Server-level moderation.",
-  "status": "open",
+  "status": "closed",
   "priority": 3,
   "issue_type": "feature",
+  "assignee": "Mark Atwood",
   "owner": "mark@wolfssl.com",
   "created_at": "2026-07-20T17:15:00.536861384Z",
   "created_by": "Mark Atwood",
-  "updated_at": "2026-07-20T17:15:00.536861384Z"
+  "updated_at": "2026-07-20T17:27:43.487503766Z",
+  "started_at": "2026-07-20T17:18:30.30294544Z",
+  "closed_at": "2026-07-20T17:27:43.487503766Z",
+  "close_reason": "All 18 fieldwork DB modules created with 361 total tests passing."
 }

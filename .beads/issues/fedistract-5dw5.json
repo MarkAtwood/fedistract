@@ -2,11 +2,15 @@
   "id": "fedistract-5dw5",
   "title": "Extract fieldwork::markers_db — timeline marker CRUD",
   "description": "3 queries in smallhold. Get/set last-read position per timeline. Simple key-value per user+timeline.",
-  "status": "open",
+  "status": "closed",
   "priority": 3,
   "issue_type": "feature",
+  "assignee": "Mark Atwood",
   "owner": "mark@wolfssl.com",
   "created_at": "2026-07-20T17:15:00.669134773Z",
   "created_by": "Mark Atwood",
-  "updated_at": "2026-07-20T17:15:00.669134773Z"
+  "updated_at": "2026-07-20T17:27:43.512680899Z",
+  "started_at": "2026-07-20T17:18:30.43376281Z",
+  "closed_at": "2026-07-20T17:27:43.512680899Z",
+  "close_reason": "All 18 fieldwork DB modules created with 361 total tests passing."
 }

@@ -2,11 +2,15 @@
   "id": "fedistract-ynck",
   "title": "Extract fieldwork::lists_db — user list CRUD",
   "description": "17 queries in smallhold (12 lists + 5 list_accounts). Create/update/delete lists, add/remove accounts from lists, list timeline query. Mastodon Client API feature.",
-  "status": "open",
+  "status": "closed",
   "priority": 3,
   "issue_type": "feature",
+  "assignee": "Mark Atwood",
   "owner": "mark@wolfssl.com",
   "created_at": "2026-07-20T17:15:00.580486749Z",
   "created_by": "Mark Atwood",
-  "updated_at": "2026-07-20T17:15:00.580486749Z"
+  "updated_at": "2026-07-20T17:27:43.496035259Z",
+  "started_at": "2026-07-20T17:18:30.347059709Z",
+  "closed_at": "2026-07-20T17:27:43.496035259Z",
+  "close_reason": "All 18 fieldwork DB modules created with 361 total tests passing."
 }

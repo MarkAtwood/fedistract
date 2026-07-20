@@ -2,11 +2,15 @@
   "id": "fedistract-9vyk",
   "title": "Extract gaja::tenant_db — multi-tenant management",
   "description": "48 queries in gaja tenant.rs. User create/suspend/unsuspend, persona create per user, quota management, admin operations. Gaja-specific but should still be in a fieldwork module so the queries aren't inline. Even if only gaja uses it, the SQL should be in one place with tests.",
-  "status": "open",
+  "status": "closed",
   "priority": 3,
   "issue_type": "feature",
+  "assignee": "Mark Atwood",
   "owner": "mark@wolfssl.com",
   "created_at": "2026-07-20T17:15:01.007093656Z",
   "created_by": "Mark Atwood",
-  "updated_at": "2026-07-20T17:15:01.007093656Z"
+  "updated_at": "2026-07-20T17:27:43.572245974Z",
+  "started_at": "2026-07-20T17:18:30.767995836Z",
+  "closed_at": "2026-07-20T17:27:43.572245974Z",
+  "close_reason": "All 18 fieldwork DB modules created with 361 total tests passing."
 }

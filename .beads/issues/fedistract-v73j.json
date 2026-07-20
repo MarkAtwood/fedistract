@@ -2,11 +2,15 @@
   "id": "fedistract-v73j",
   "title": "Extract fieldwork::admin_db — admin tokens and auth",
   "description": "11 queries across smallhold + gaja (7 + 4). Admin token create/verify/revoke, admin password management. Includes smallhold's single-row admin table.",
-  "status": "open",
+  "status": "closed",
   "priority": 3,
   "issue_type": "feature",
+  "assignee": "Mark Atwood",
   "owner": "mark@wolfssl.com",
   "created_at": "2026-07-20T17:15:00.876744718Z",
   "created_by": "Mark Atwood",
-  "updated_at": "2026-07-20T17:15:00.876744718Z"
+  "updated_at": "2026-07-20T17:27:43.551341137Z",
+  "started_at": "2026-07-20T17:18:30.642150826Z",
+  "closed_at": "2026-07-20T17:27:43.551341137Z",
+  "close_reason": "All 18 fieldwork DB modules created with 361 total tests passing."
 }

@@ -2,11 +2,15 @@
   "id": "fedistract-2pt9",
   "title": "Extract fieldwork::invite_codes_db — invite code CRUD",
   "description": "In canonical schema but not yet used by any server. Create/validate/consume invite codes. Prep for gaja multi-tenant registration.",
-  "status": "open",
+  "status": "closed",
   "priority": 4,
   "issue_type": "feature",
+  "assignee": "Mark Atwood",
   "owner": "mark@wolfssl.com",
   "created_at": "2026-07-20T17:15:00.962418071Z",
   "created_by": "Mark Atwood",
-  "updated_at": "2026-07-20T17:15:00.962418071Z"
+  "updated_at": "2026-07-20T17:27:43.565314247Z",
+  "started_at": "2026-07-20T17:18:30.722080416Z",
+  "closed_at": "2026-07-20T17:27:43.565314247Z",
+  "close_reason": "All 18 fieldwork DB modules created with 361 total tests passing."
 }
