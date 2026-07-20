@@ -1,0 +1,19 @@
+{
+  "@context": {
+    "fep-cw": "https://raw.githubusercontent.com/MarkAtwood/fedistract/main/contexts/fep-cw.jsonld#",
+    "contentWarning": {
+      "@id": "fep-cw:contentWarning"
+    },
+    "categories": {
+      "@id": "fep-cw:categories",
+      "@container": "@set"
+    },
+    "severity": {
+      "@id": "fep-cw:severity"
+    },
+    "spoiler": {
+      "@id": "fep-cw:spoiler",
+      "@type": "xsd:boolean"
+    }
+  }
+}

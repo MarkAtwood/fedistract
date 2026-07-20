@@ -1,0 +1,21 @@
+{
+  "@context": {
+    "fep-b64f": "https://raw.githubusercontent.com/MarkAtwood/fedistract/main/contexts/fep-b64f.jsonld#",
+    "did": {
+      "@id": "fep-b64f:did",
+      "@type": "@id"
+    },
+    "handles": {
+      "@id": "fep-b64f:handles",
+      "@container": "@set"
+    },
+    "movedFrom": {
+      "@id": "as:movedFrom",
+      "@type": "@id"
+    },
+    "attributedToDid": {
+      "@id": "fep-b64f:attributedToDid",
+      "@type": "@id"
+    }
+  }
+}

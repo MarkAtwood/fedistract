@@ -126,8 +126,11 @@ pub struct MediaAttachment {
 
 /// Build the Mastodon-compatible JSON-LD `@context` array.
 ///
-/// Matches the context used by Mastodon, including `toot:` and `schema:`
-/// extension terms for discoverability, profile fields, and media features.
+/// ActivityPub JSON-LD context array.
+///
+/// Includes the standard ActivityStreams + security contexts, Mastodon's `toot:`
+/// and `schema:` extensions, and the fedistract context for DID, abstract,
+/// and content warning fields.
 fn ap_context() -> serde_json::Value {
     serde_json::json!([
         "https://www.w3.org/ns/activitystreams",
@@ -148,7 +151,11 @@ fn ap_context() -> serde_json::Value {
             "Hashtag": "as:Hashtag",
             "Emoji": "toot:Emoji",
             "blurhash": "toot:blurhash",
-            "focalPoint": {"@container": "@list", "@id": "toot:focalPoint"}
+            "focalPoint": {"@container": "@list", "@id": "toot:focalPoint"},
+            "fedistract": "https://raw.githubusercontent.com/MarkAtwood/fedistract/main/contexts/fedistract.jsonld#",
+            "did": {"@id": "fedistract:did", "@type": "@id"},
+            "abstract": "fedistract:abstract",
+            "contentWarning": "fedistract:contentWarning"
         }
     ])
 }

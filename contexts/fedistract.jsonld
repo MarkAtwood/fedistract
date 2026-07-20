@@ -1,0 +1,9 @@
+{
+  "@context": [
+    "https://raw.githubusercontent.com/MarkAtwood/fedistract/main/contexts/fep-b64f.jsonld",
+    "https://raw.githubusercontent.com/MarkAtwood/fedistract/main/contexts/fep-d4c5.jsonld",
+    "https://raw.githubusercontent.com/MarkAtwood/fedistract/main/contexts/fep-9a14.jsonld",
+    "https://raw.githubusercontent.com/MarkAtwood/fedistract/main/contexts/fep-abstract.jsonld",
+    "https://raw.githubusercontent.com/MarkAtwood/fedistract/main/contexts/fep-cw.jsonld"
+  ]
+}

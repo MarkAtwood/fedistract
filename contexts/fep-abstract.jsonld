@@ -1,0 +1,13 @@
+{
+  "@context": {
+    "fep-abstract": "https://raw.githubusercontent.com/MarkAtwood/fedistract/main/contexts/fep-abstract.jsonld#",
+    "abstract": {
+      "@id": "fep-abstract:abstract",
+      "@type": "xsd:string"
+    },
+    "description": {
+      "@id": "fep-abstract:description",
+      "@type": "xsd:string"
+    }
+  }
+}

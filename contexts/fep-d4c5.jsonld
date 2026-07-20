@@ -1,0 +1,17 @@
+{
+  "@context": {
+    "fep-d4c5": "https://raw.githubusercontent.com/MarkAtwood/fedistract/main/contexts/fep-d4c5.jsonld#",
+    "CompactAnnounce": "fep-d4c5:CompactAnnounce",
+    "activityType": "fep-d4c5:activityType",
+    "objectType": "fep-d4c5:objectType",
+    "objectHash": "fep-d4c5:objectHash",
+    "objectUrl": {
+      "@id": "fep-d4c5:objectUrl",
+      "@type": "@id"
+    },
+    "objectIpfs": {
+      "@id": "fep-d4c5:objectIpfs",
+      "@type": "@id"
+    }
+  }
+}

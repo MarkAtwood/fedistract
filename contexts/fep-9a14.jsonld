@@ -1,0 +1,21 @@
+{
+  "@context": {
+    "fep-9a14": "https://raw.githubusercontent.com/MarkAtwood/fedistract/main/contexts/fep-9a14.jsonld#",
+    "pullSyncDelta": {
+      "@id": "fep-9a14:deltaEndpoint",
+      "@type": "@id"
+    },
+    "pullSyncHead": {
+      "@id": "fep-9a14:headEndpoint",
+      "@type": "@id"
+    },
+    "pullSyncObjects": {
+      "@id": "fep-9a14:objectsEndpoint",
+      "@type": "@id"
+    },
+    "seq": "fep-9a14:seq",
+    "prev": "fep-9a14:prev",
+    "objectHash": "fep-9a14:objectHash",
+    "logEntry": "fep-9a14:logEntry"
+  }
+}
