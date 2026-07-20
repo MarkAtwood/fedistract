@@ -1,0 +1,30 @@
+{
+  "id": "fedistract-rr9g.2",
+  "title": "Add content-addressed media to fieldwork::media",
+  "description": "Add Subresource Integrity (SRI) hashes to media attachments for tamper detection and content-addressed retrieval.\n\nBackwards-compatible: adds an 'integrity' field to media attachment objects in AP Notes. Existing servers ignore it. Aware servers can verify media hasn't been modified in transit, detect CDN corruption, and potentially retrieve from alternative sources.\n\nImplementation in fieldwork::media:\n- compute_integrity(bytes: \u0026[u8]) -\u003e String\n  Returns SRI hash: 'sha256-{base64}' format per W3C SRI spec.\n\n- verify_integrity(bytes: \u0026[u8], integrity: \u0026str) -\u003e bool\n  Verify downloaded media matches its integrity hash.\n\n- MediaRow gains 'integrity' field (TEXT, nullable for backwards compat)\n  Computed at upload time, stored in DB, included in AP attachment objects.\n\nAP integration point: when building Note attachment objects, include:\n  {\n    'type': 'Document',\n    'mediaType': 'image/png',\n    'url': 'https://example.com/media/abc.png',\n    'integrity': 'sha256-base64encodedHash',\n    'name': 'alt text'\n  }\n\nOn receiving a Note with integrity-tagged media:\n1. Download media from url\n2. Compute SHA-256 of downloaded bytes\n3. Compare against integrity field\n4. Flag/reject if mismatch (CDN compromise, relay tampering)\n\nFuture: if integrity hash is available, can fetch from alternative sources:\n- IPFS: /ipfs/{CIDv1 from sha256}\n- Other instances that have the same media (content-addressed dedup)\n\nDB schema change: ALTER TABLE media ADD COLUMN integrity TEXT;\n\nDeps: sha2, base64 (both already in dep tree).\n\nSecurity: constant-time comparison for integrity verification (defense in depth, though timing isn't a realistic attack here). Use the same sha2 + base64 already in the workspace.",
+  "status": "open",
+  "priority": 2,
+  "issue_type": "feature",
+  "owner": "mark@wolfssl.com",
+  "created_at": "2026-07-20T02:54:18.974194136Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T02:54:18.974194136Z",
+  "dependencies": [
+    {
+      "issue_id": "fedistract-rr9g.2",
+      "depends_on_id": "fedistract-rr9g",
+      "type": "parent-child",
+      "created_at": "2026-07-20T02:54:18.985161631Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    },
+    {
+      "issue_id": "fedistract-rr9g.2",
+      "depends_on_id": "fedistract-rr9g.3",
+      "type": "blocks",
+      "created_at": "2026-07-20T02:55:20.965453374Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "fedistract-rr9g",
+  "title": "Fediverse capability infiltration: signed posts, content-addressed media, encrypted DMs, capability delegation, content provenance",
+  "description": "Sneak modern cryptographic capabilities into ActivityPub via backwards-compatible optional fields. Existing AP servers ignore what they don't understand. Aware servers gain verifiable posts, tamper-evident media, encrypted DMs, delegated authority, and content provenance.\n\nAll capabilities build on the DID infrastructure already extracted in fedi-did. Pattern: add optional fields -\u003e extract into crates -\u003e lower adoption barrier -\u003e de facto standard.\n\nPriority order by impact:\n1. Signed posts (FEP-8b32 / Linked Data Integrity) — highest value, makes fediverse evidence-based\n2. Content-addressed media (SRI hashes) — tamper detection, alternative retrieval\n3. Encrypted DMs (DID key exchange) — most requested feature by users\n4. Capability delegation (UCANs) — enables cross-server bots and delegation\n5. Content provenance (C2PA-lite) — journalism/anti-deepfake use case",
+  "status": "open",
+  "priority": 2,
+  "issue_type": "epic",
+  "owner": "mark@wolfssl.com",
+  "created_at": "2026-07-20T02:53:00.721151731Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T02:53:00.721151731Z"
+}

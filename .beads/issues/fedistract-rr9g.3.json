@@ -1,0 +1,22 @@
+{
+  "id": "fedistract-rr9g.3",
+  "title": "Add integrity column to media table in fieldwork::db",
+  "description": "Add 'integrity TEXT' column to the canonical media table in both Postgres and SQLite schemas. This stores the SRI hash (sha256-base64) for content-addressed media verification.\n\nSchema change:\n  media table: ADD COLUMN integrity TEXT (nullable, backwards-compatible)\n\nMigration: ALTER TABLE media ADD COLUMN integrity TEXT;\n\nThis is a prerequisite for content-addressed media support.",
+  "status": "open",
+  "priority": 2,
+  "issue_type": "task",
+  "owner": "mark@wolfssl.com",
+  "created_at": "2026-07-20T02:54:24.748655158Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T02:54:24.748655158Z",
+  "dependencies": [
+    {
+      "issue_id": "fedistract-rr9g.3",
+      "depends_on_id": "fedistract-rr9g",
+      "type": "parent-child",
+      "created_at": "2026-07-20T02:54:24.759348417Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}

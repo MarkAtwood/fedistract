@@ -1,0 +1,38 @@
+{
+  "id": "fedistract-rr9g.5",
+  "title": "Create fedi-provenance crate: content origin proofs",
+  "description": "Minimal content provenance for media attachments — cryptographic proof of who posted what and when. C2PA-lite for the fediverse.\n\nBackwards-compatible: provenance metadata is an optional field on media attachments. Existing servers ignore it. Aware servers can display provenance badges ('Original post by @alice@example.com, unmodified since 2024-01-15').\n\nNOT full C2PA (that spec is 200+ pages and requires embedded metadata in the media file itself). This is a lightweight alternative that works at the AP object level.\n\nProvenance claim structure:\n{\n  'type': 'ContentProvenance',\n  'creator': 'did:key:z6Mk...',           // DID of original poster\n  'created': '2024-01-15T10:30:00Z',      // when first posted\n  'integrity': 'sha256-base64hash',        // SRI hash of media bytes\n  'assertion': 'original',                 // or 'repost', 'edited', 'ai-generated'\n  'proof': 'z...'                          // Ed25519 signature over canonical claim\n}\n\nPublic API:\n- create_provenance(media_bytes: \u0026[u8], creator_did: \u0026str, creator_key: \u0026[u8; 32], assertion: Assertion) -\u003e Result\u003cProvenanceClaim\u003e\n  Sign a provenance claim over the media content hash + metadata.\n\n- verify_provenance(claim: \u0026ProvenanceClaim, creator_public: \u0026[u8; 32]) -\u003e Result\u003cbool\u003e\n  Verify the signature and check integrity hash matches.\n\n- attach_provenance(attachment: \u0026mut serde_json::Value, claim: \u0026ProvenanceClaim)\n  Add provenance field to an AP media attachment object.\n\n- extract_provenance(attachment: \u0026serde_json::Value) -\u003e Option\u003cProvenanceClaim\u003e\n  Extract provenance from received attachment if present.\n\n- Assertion enum: Original, Repost, Edited, AiGenerated, Unknown\n\nVerification chain:\n1. Extract provenance from attachment\n2. Download media, compute SHA-256\n3. Verify integrity hash matches (content hasn't been modified)\n4. Resolve creator DID to public key\n5. Verify Ed25519 signature over canonical claim\n6. If all pass: display provenance badge\n\nJournalism use case:\n- News organization posts photo with provenance: 'Original, by did:key of photojournalist'\n- Photo gets reshared across fediverse\n- Any aware server can verify: this specific image was posted by this specific person at this specific time and has not been modified\n- Doesn't prove the photo wasn't deepfaked, but proves the chain of custody from poster to viewer\n\nAI content labeling:\n- AI-generated images can be tagged with assertion: 'ai-generated'\n- The DID signature proves WHO made the AI claim (the poster, not a third party)\n- Complements EU AI Act and similar regulations requiring AI content disclosure\n\nDeps: ed25519-dalek, sha2, base64, fedi-did, serde, serde_json.\n\nBuilds on: fedi-integrity (for signing), content-addressed media (for integrity hashes). These three form a stack: integrity hashes -\u003e signed objects -\u003e provenance claims.",
+  "status": "open",
+  "priority": 3,
+  "issue_type": "feature",
+  "owner": "mark@wolfssl.com",
+  "created_at": "2026-07-20T02:54:58.557072635Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T02:54:58.557072635Z",
+  "dependencies": [
+    {
+      "issue_id": "fedistract-rr9g.5",
+      "depends_on_id": "fedistract-rr9g",
+      "type": "parent-child",
+      "created_at": "2026-07-20T02:54:58.567478929Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    },
+    {
+      "issue_id": "fedistract-rr9g.5",
+      "depends_on_id": "fedistract-rr9g.1",
+      "type": "blocks",
+      "created_at": "2026-07-20T02:55:21.009085176Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    },
+    {
+      "issue_id": "fedistract-rr9g.5",
+      "depends_on_id": "fedistract-rr9g.2",
+      "type": "blocks",
+      "created_at": "2026-07-20T02:55:21.051260094Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}
