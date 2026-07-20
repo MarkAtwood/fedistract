@@ -87,20 +87,41 @@ CREATE INDEX IF NOT EXISTS idx_followers_did ON followers(did) WHERE did IS NOT 
     },
 ];
 
+/// SQL to transform a legacy (pre-versioned) database to canonical schema.
+/// Each project provides its own upgrade SQL. The framework runs it when
+/// it detects existing tables but no schema version.
+pub struct LegacyUpgrade {
+    pub from: &'static str,
+    pub sql_sqlite: &'static str,
+    pub sql_postgres: &'static str,
+}
+
 /// Run schema migrations. Call at startup.
 ///
 /// For fresh databases, creates the full schema (version 0) then runs all
 /// incremental migrations. For existing databases, runs only pending migrations.
 pub async fn migrate(pool: &Pool) -> Result<(), MigrateError> {
-    migrate_with(pool, &[]).await
+    migrate_full(pool, None, &[]).await
 }
 
-/// Run schema migrations including project-specific extras.
+/// Run schema migrations with a legacy upgrade and/or project-specific extras.
+///
+/// If `legacy_upgrade` is provided and the database has tables but no version,
+/// the legacy SQL runs first to transform the schema to canonical before the
+/// base schema and incremental migrations proceed.
 ///
 /// Extra migrations are interleaved by version number with the built-in chain.
-/// Use this for project-specific tables (e.g., broadside's `feed_state`).
 pub async fn migrate_with(
     pool: &Pool,
+    extras: &[Migration],
+) -> Result<(), MigrateError> {
+    migrate_full(pool, None, extras).await
+}
+
+/// Full migration with optional legacy upgrade and extras.
+pub async fn migrate_full(
+    pool: &Pool,
+    legacy_upgrade: Option<&LegacyUpgrade>,
     extras: &[Migration],
 ) -> Result<(), MigrateError> {
     ensure_version_table(pool).await?;
@@ -111,10 +132,23 @@ pub async fn migrate_with(
         return Err(MigrateError::VersionTooNew(current, max_version(extras)));
     }
 
-    // Fresh database: run full CREATE TABLE schema as version 0
-    if current == 0 && !has_any_tables(pool).await? {
-        run_base_schema(pool).await?;
-        set_version(pool, 0).await?;
+    if current == 0 {
+        let has_tables = has_any_tables(pool).await?;
+
+        if has_tables {
+            // Existing legacy database — transform to canonical
+            if let Some(upgrade) = legacy_upgrade {
+                run_legacy_upgrade(pool, upgrade).await?;
+                tracing::info!(from = upgrade.from, "applied legacy schema upgrade");
+            }
+            // Run base schema with IF NOT EXISTS to fill any gaps
+            run_base_schema(pool).await?;
+            set_version(pool, 0).await?;
+        } else {
+            // Fresh database — create everything from scratch
+            run_base_schema(pool).await?;
+            set_version(pool, 0).await?;
+        }
     }
 
     // Run pending migrations in version order
@@ -249,6 +283,26 @@ async fn table_exists(pool: &Pool, table: &str) -> Result<bool, sqlx::Error> {
         }
     };
     Ok(count.0 > 0)
+}
+
+async fn run_legacy_upgrade(pool: &Pool, upgrade: &LegacyUpgrade) -> Result<(), MigrateError> {
+    match pool {
+        #[cfg(feature = "db-postgres")]
+        Pool::Postgres(pg) => {
+            sqlx::raw_sql(upgrade.sql_postgres).execute(pg).await
+                .map_err(|e| MigrateError::MigrationFailed {
+                    version: 0, description: "legacy upgrade", source: e
+                })?;
+        }
+        #[cfg(feature = "db-sqlite")]
+        Pool::Sqlite(sq) => {
+            sqlx::raw_sql(upgrade.sql_sqlite).execute(sq).await
+                .map_err(|e| MigrateError::MigrationFailed {
+                    version: 0, description: "legacy upgrade", source: e
+                })?;
+        }
+    }
+    Ok(())
 }
 
 async fn run_base_schema(pool: &Pool) -> Result<(), MigrateError> {
@@ -1300,6 +1354,455 @@ CREATE TABLE IF NOT EXISTS feed_state (
 );
 "#;
 
+// ---------------------------------------------------------------------------
+// Legacy upgrade SQL for consumer projects
+// ---------------------------------------------------------------------------
+
+/// Legacy upgrade for broadside databases.
+///
+/// Broadside has 7 tables with TEXT timestamps, inline follower data,
+/// and no users table. This upgrade:
+/// 1. Creates a users table with a single default user
+/// 2. Restructures personas (rename columns, add user_id, convert timestamps)
+/// 3. Normalizes followers into remote_accounts
+/// 4. Restructures posts and delivery_queue
+/// 5. Missing tables are created by the subsequent base schema run (IF NOT EXISTS)
+pub const LEGACY_BROADSIDE_SQLITE: &str = r#"
+-- Step 1: Create users table with a single operator user
+CREATE TABLE IF NOT EXISTS users (
+    id                TEXT PRIMARY KEY,
+    email             TEXT NOT NULL UNIQUE,
+    password_hash     TEXT,
+    oidc_subject      TEXT,
+    oidc_issuer       TEXT,
+    display_name      TEXT NOT NULL DEFAULT '',
+    role              TEXT NOT NULL DEFAULT 'admin',
+    created_at        INTEGER NOT NULL,
+    suspended_at      INTEGER,
+    suspended_reason  TEXT,
+    did_key           TEXT,
+    did_plc           TEXT,
+    recovery_pubkey   TEXT,
+    legal_hold        INTEGER NOT NULL DEFAULT 0,
+    quota_media_bytes INTEGER,
+    quota_posts_per_day INTEGER,
+    quota_followers   INTEGER,
+    quota_following   INTEGER,
+    UNIQUE (oidc_issuer, oidc_subject)
+);
+INSERT OR IGNORE INTO users (id, email, display_name, role, created_at)
+    SELECT 'legacy-operator', 'admin@localhost', 'Operator', 'admin',
+           CAST(strftime('%s', 'now') AS INTEGER);
+
+-- Step 2: Restructure personas (SQLite 12-step)
+CREATE TABLE personas_new (
+    id              TEXT PRIMARY KEY,
+    user_id         TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    username        TEXT NOT NULL UNIQUE,
+    display_name    TEXT NOT NULL DEFAULT '',
+    bio             TEXT NOT NULL DEFAULT '',
+    bio_html        TEXT NOT NULL DEFAULT '',
+    private_key_pem TEXT NOT NULL,
+    public_key_pem  TEXT NOT NULL,
+    avatar_media_id INTEGER,
+    header_media_id INTEGER,
+    is_locked       INTEGER NOT NULL DEFAULT 0,
+    discoverable    INTEGER NOT NULL DEFAULT 1,
+    bot             INTEGER NOT NULL DEFAULT 0,
+    did_web         TEXT,
+    fields_json     TEXT NOT NULL DEFAULT '[]',
+    created_at      INTEGER NOT NULL,
+    last_status_at  INTEGER
+);
+INSERT INTO personas_new (id, user_id, username, display_name, bio, bio_html,
+    private_key_pem, public_key_pem, fields_json, created_at)
+    SELECT id, 'legacy-operator', username, display_name, bio, '',
+           private_key, public_key,
+           COALESCE(metadata, '[]'),
+           CAST(strftime('%s', created_at) AS INTEGER)
+    FROM personas;
+DROP TABLE personas;
+ALTER TABLE personas_new RENAME TO personas;
+CREATE INDEX IF NOT EXISTS idx_personas_user ON personas(user_id);
+
+-- Step 3: Create remote_accounts from follower data
+CREATE TABLE IF NOT EXISTS remote_accounts (
+    id                INTEGER PRIMARY KEY,
+    actor_uri         TEXT NOT NULL UNIQUE,
+    username          TEXT NOT NULL DEFAULT '',
+    domain            TEXT NOT NULL DEFAULT '',
+    display_name      TEXT NOT NULL DEFAULT '',
+    bio_html          TEXT NOT NULL DEFAULT '',
+    avatar_url        TEXT,
+    header_url        TEXT,
+    public_key_pem    TEXT NOT NULL DEFAULT '',
+    public_key_id     TEXT NOT NULL DEFAULT '',
+    inbox_url         TEXT NOT NULL,
+    shared_inbox_url  TEXT,
+    followers_url     TEXT,
+    is_locked         INTEGER NOT NULL DEFAULT 0,
+    bot               INTEGER NOT NULL DEFAULT 0,
+    last_fetched_at   INTEGER NOT NULL,
+    fetched_failed_at INTEGER,
+    fetch_fail_count  INTEGER NOT NULL DEFAULT 0
+);
+INSERT OR IGNORE INTO remote_accounts (actor_uri, inbox_url, shared_inbox_url, last_fetched_at)
+    SELECT actor_uri, inbox_uri, shared_inbox_uri,
+           CAST(strftime('%s', 'now') AS INTEGER)
+    FROM followers;
+
+-- Step 4: Rebuild followers with FK to remote_accounts
+CREATE TABLE followers_new (
+    persona_id        TEXT NOT NULL REFERENCES personas(id),
+    user_id           TEXT NOT NULL REFERENCES users(id),
+    remote_account_id INTEGER NOT NULL REFERENCES remote_accounts(id),
+    accepted_at       INTEGER NOT NULL,
+    UNIQUE (persona_id, remote_account_id)
+);
+INSERT INTO followers_new (persona_id, user_id, remote_account_id, accepted_at)
+    SELECT f.persona_id, 'legacy-operator', ra.id,
+           CAST(strftime('%s', f.followed_at) AS INTEGER)
+    FROM followers f
+    JOIN remote_accounts ra ON ra.actor_uri = f.actor_uri;
+DROP TABLE followers;
+ALTER TABLE followers_new RENAME TO followers;
+CREATE INDEX IF NOT EXISTS idx_followers_persona ON followers(persona_id);
+CREATE INDEX IF NOT EXISTS idx_followers_user ON followers(user_id);
+
+-- Step 5: Restructure posts
+CREATE TABLE posts_new (
+    id              INTEGER PRIMARY KEY,
+    user_id         TEXT NOT NULL REFERENCES users(id),
+    persona_id      TEXT NOT NULL REFERENCES personas(id),
+    ap_id           TEXT NOT NULL UNIQUE,
+    in_reply_to_id  INTEGER,
+    in_reply_to_uri TEXT,
+    boost_of_id     INTEGER,
+    boost_of_uri    TEXT,
+    content         TEXT NOT NULL,
+    content_html    TEXT NOT NULL,
+    spoiler_text    TEXT NOT NULL DEFAULT '',
+    visibility      TEXT NOT NULL DEFAULT 'public',
+    sensitive       INTEGER NOT NULL DEFAULT 0,
+    language        TEXT,
+    context_url     TEXT,
+    created_at      INTEGER NOT NULL,
+    edited_at       INTEGER,
+    deleted_at      INTEGER,
+    deleted_reason  TEXT
+);
+INSERT INTO posts_new (id, user_id, persona_id, ap_id, content, content_html, created_at)
+    SELECT id, 'legacy-operator', persona_id,
+           COALESCE(ap_id, 'https://localhost/posts/' || id),
+           COALESCE(content_text, ''), content_html,
+           CAST(strftime('%s', published_at) AS INTEGER)
+    FROM posts;
+DROP TABLE posts;
+ALTER TABLE posts_new RENAME TO posts;
+CREATE INDEX IF NOT EXISTS idx_posts_user ON posts(user_id);
+CREATE INDEX IF NOT EXISTS idx_posts_persona_created ON posts(persona_id, created_at DESC);
+
+-- Step 6: Restructure delivery_queue
+CREATE TABLE delivery_queue_new (
+    id                 INTEGER PRIMARY KEY,
+    target_inbox       TEXT NOT NULL,
+    sender_persona_id  TEXT NOT NULL REFERENCES personas(id),
+    activity_json      TEXT NOT NULL,
+    attempts           INTEGER NOT NULL DEFAULT 0,
+    next_attempt_at    INTEGER NOT NULL,
+    last_error         TEXT,
+    created_at         INTEGER NOT NULL,
+    delivered_at       INTEGER,
+    dead_at            INTEGER
+);
+INSERT INTO delivery_queue_new (id, target_inbox, sender_persona_id, activity_json,
+    attempts, next_attempt_at, created_at)
+    SELECT id, inbox_uri, persona_id, COALESCE(activity_json, '{}'),
+           attempts, CAST(strftime('%s', next_retry) AS INTEGER),
+           CAST(strftime('%s', created_at) AS INTEGER)
+    FROM delivery_queue;
+DROP TABLE delivery_queue;
+ALTER TABLE delivery_queue_new RENAME TO delivery_queue;
+CREATE INDEX IF NOT EXISTS idx_delivery_pending
+    ON delivery_queue(next_attempt_at) WHERE delivered_at IS NULL AND dead_at IS NULL;
+
+-- Step 7: Restructure relays
+CREATE TABLE relays_new (
+    id         INTEGER PRIMARY KEY,
+    actor_uri  TEXT NOT NULL UNIQUE,
+    inbox_url  TEXT NOT NULL,
+    persona_id TEXT REFERENCES personas(id),
+    follow_id  TEXT NOT NULL DEFAULT '',
+    state      TEXT NOT NULL DEFAULT 'pending',
+    created_at INTEGER NOT NULL
+);
+INSERT INTO relays_new (id, actor_uri, inbox_url, persona_id, follow_id, state, created_at)
+    SELECT id, actor_uri, inbox_uri, persona_id, follow_id,
+           COALESCE(status, 'pending'),
+           CAST(strftime('%s', created_at) AS INTEGER)
+    FROM relays;
+DROP TABLE relays;
+ALTER TABLE relays_new RENAME TO relays;
+
+-- Step 8: Migrate post_media to media table format
+CREATE TABLE IF NOT EXISTS media (
+    id          INTEGER PRIMARY KEY,
+    user_id     TEXT NOT NULL REFERENCES users(id),
+    persona_id  TEXT NOT NULL REFERENCES personas(id),
+    post_id     INTEGER REFERENCES posts(id),
+    file_path   TEXT NOT NULL,
+    mime_type   TEXT NOT NULL,
+    file_size   INTEGER NOT NULL DEFAULT 0,
+    width       INTEGER,
+    height      INTEGER,
+    blurhash    TEXT,
+    description TEXT NOT NULL DEFAULT '',
+    created_at  INTEGER NOT NULL
+);
+INSERT OR IGNORE INTO media (id, user_id, persona_id, post_id, file_path, mime_type,
+    description, created_at)
+    SELECT pm.id, 'legacy-operator', p.persona_id, pm.post_id,
+           pm.file_path, pm.mime_type,
+           COALESCE(pm.description, ''),
+           CAST(strftime('%s', 'now') AS INTEGER)
+    FROM post_media pm
+    JOIN posts p ON p.id = pm.post_id;
+DROP TABLE IF EXISTS post_media;
+
+-- Step 9: Migrate cards to link_cards
+CREATE TABLE IF NOT EXISTS link_cards (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    url           TEXT NOT NULL UNIQUE,
+    card_type     TEXT NOT NULL DEFAULT 'link',
+    title         TEXT NOT NULL DEFAULT '',
+    description   TEXT NOT NULL DEFAULT '',
+    image_url     TEXT,
+    author_name   TEXT NOT NULL DEFAULT '',
+    author_url    TEXT NOT NULL DEFAULT '',
+    provider_name TEXT NOT NULL DEFAULT '',
+    provider_url  TEXT NOT NULL DEFAULT '',
+    html          TEXT NOT NULL DEFAULT '',
+    width         INTEGER NOT NULL DEFAULT 0,
+    height        INTEGER NOT NULL DEFAULT 0,
+    fetched_at    INTEGER NOT NULL,
+    failed        INTEGER NOT NULL DEFAULT 0
+);
+INSERT OR IGNORE INTO link_cards (url, title, description, image_url, fetched_at)
+    SELECT url, COALESCE(title, ''), COALESCE(description, ''),
+           image_url, CAST(strftime('%s', 'now') AS INTEGER)
+    FROM cards;
+DROP TABLE IF EXISTS cards;
+
+-- Step 10: Clean up legacy version tracking
+DROP TABLE IF EXISTS schema_meta;
+"#;
+
+/// Legacy upgrade for smallhold databases.
+///
+/// Smallhold has a monolithic `accounts` table that needs splitting into
+/// `users` + `personas`. Every FK in 20+ tables changes.
+pub const LEGACY_SMALLHOLD_SQLITE: &str = r#"
+-- Step 1: Create users table with a single owner
+CREATE TABLE IF NOT EXISTS users (
+    id                TEXT PRIMARY KEY,
+    email             TEXT NOT NULL UNIQUE,
+    password_hash     TEXT,
+    oidc_subject      TEXT,
+    oidc_issuer       TEXT,
+    display_name      TEXT NOT NULL DEFAULT '',
+    role              TEXT NOT NULL DEFAULT 'admin',
+    created_at        INTEGER NOT NULL,
+    suspended_at      INTEGER,
+    suspended_reason  TEXT,
+    did_key           TEXT,
+    did_plc           TEXT,
+    recovery_pubkey   TEXT,
+    legal_hold        INTEGER NOT NULL DEFAULT 0,
+    quota_media_bytes INTEGER,
+    quota_posts_per_day INTEGER,
+    quota_followers   INTEGER,
+    quota_following   INTEGER,
+    UNIQUE (oidc_issuer, oidc_subject)
+);
+INSERT OR IGNORE INTO users (id, email, display_name, role, created_at, did_key, recovery_pubkey)
+    SELECT 'legacy-owner', COALESCE(
+        (SELECT email FROM admin LIMIT 1), 'admin@localhost'),
+        COALESCE(display_name, username), 'admin', created_at,
+        did_key, recovery_pubkey
+    FROM accounts LIMIT 1;
+
+-- Step 2: Create personas from accounts
+CREATE TABLE IF NOT EXISTS personas (
+    id              TEXT PRIMARY KEY,
+    user_id         TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    username        TEXT NOT NULL UNIQUE,
+    display_name    TEXT NOT NULL DEFAULT '',
+    bio             TEXT NOT NULL DEFAULT '',
+    bio_html        TEXT NOT NULL DEFAULT '',
+    private_key_pem TEXT NOT NULL,
+    public_key_pem  TEXT NOT NULL,
+    avatar_media_id INTEGER,
+    header_media_id INTEGER,
+    is_locked       INTEGER NOT NULL DEFAULT 0,
+    discoverable    INTEGER NOT NULL DEFAULT 1,
+    bot             INTEGER NOT NULL DEFAULT 0,
+    did_web         TEXT,
+    fields_json     TEXT NOT NULL DEFAULT '[]',
+    created_at      INTEGER NOT NULL,
+    last_status_at  INTEGER
+);
+INSERT INTO personas (id, user_id, username, display_name, bio, bio_html,
+    private_key_pem, public_key_pem, avatar_media_id, header_media_id,
+    is_locked, discoverable, bot, fields_json, created_at, last_status_at)
+    SELECT id, 'legacy-owner', username, display_name, bio,
+           COALESCE(bio_html, ''), private_key_pem, public_key_pem,
+           avatar_media_id, header_media_id,
+           is_locked, discoverable, bot,
+           COALESCE(fields_json, '[]'), created_at, last_status_at
+    FROM accounts;
+
+-- Step 3: Add user_id + persona_id columns to posts, update from accounts
+ALTER TABLE posts ADD COLUMN user_id TEXT REFERENCES users(id);
+ALTER TABLE posts ADD COLUMN persona_id TEXT REFERENCES personas(id);
+UPDATE posts SET user_id = 'legacy-owner',
+    persona_id = account_id;
+
+-- Step 4: Add user_id + persona_id to media
+ALTER TABLE media ADD COLUMN user_id TEXT REFERENCES users(id);
+ALTER TABLE media ADD COLUMN persona_id TEXT REFERENCES personas(id);
+UPDATE media SET user_id = 'legacy-owner',
+    persona_id = account_id;
+
+-- Step 5: Rebuild followers with user_id + persona_id instead of local_account_id
+CREATE TABLE followers_new (
+    persona_id        TEXT NOT NULL,
+    user_id           TEXT NOT NULL REFERENCES users(id),
+    remote_account_id INTEGER NOT NULL REFERENCES remote_accounts(id),
+    accepted_at       INTEGER NOT NULL,
+    UNIQUE (persona_id, remote_account_id)
+);
+INSERT INTO followers_new (persona_id, user_id, remote_account_id, accepted_at)
+    SELECT local_account_id, 'legacy-owner', remote_account_id, accepted_at
+    FROM followers;
+DROP TABLE followers;
+ALTER TABLE followers_new RENAME TO followers;
+CREATE INDEX IF NOT EXISTS idx_followers_persona ON followers(persona_id);
+CREATE INDEX IF NOT EXISTS idx_followers_user ON followers(user_id);
+
+-- Step 6: Update follow_requests
+ALTER TABLE follow_requests RENAME COLUMN target_account_id TO target_persona_id;
+
+-- Step 7: Rebuild follows with persona_id/user_id
+CREATE TABLE follows_new (
+    persona_id          TEXT NOT NULL,
+    user_id             TEXT NOT NULL REFERENCES users(id),
+    followee_remote_id  INTEGER REFERENCES remote_accounts(id),
+    followee_persona_id TEXT,
+    created_at          INTEGER NOT NULL,
+    show_reblogs        INTEGER NOT NULL DEFAULT 1,
+    notify              INTEGER NOT NULL DEFAULT 0,
+    CHECK ((followee_remote_id IS NOT NULL) != (followee_persona_id IS NOT NULL)),
+    UNIQUE (persona_id, followee_remote_id, followee_persona_id)
+);
+INSERT INTO follows_new (persona_id, user_id, followee_remote_id, followee_persona_id,
+    created_at, show_reblogs, notify)
+    SELECT follower_id, 'legacy-owner', followee_remote_id, followee_persona_id,
+           created_at, show_reblogs, notify
+    FROM follows;
+DROP TABLE follows;
+ALTER TABLE follows_new RENAME TO follows;
+CREATE INDEX IF NOT EXISTS idx_follows_persona ON follows(persona_id);
+CREATE INDEX IF NOT EXISTS idx_follows_user ON follows(user_id);
+
+-- Step 8: Update favourites
+ALTER TABLE favourites ADD COLUMN user_id TEXT REFERENCES users(id);
+ALTER TABLE favourites RENAME COLUMN account_id TO persona_id;
+UPDATE favourites SET user_id = 'legacy-owner';
+
+-- Step 9: Update bookmarks
+ALTER TABLE bookmarks ADD COLUMN user_id TEXT REFERENCES users(id);
+ALTER TABLE bookmarks RENAME COLUMN account_id TO persona_id;
+UPDATE bookmarks SET user_id = 'legacy-owner';
+
+-- Step 10: Update pinned_posts
+ALTER TABLE pinned_posts RENAME COLUMN account_id TO persona_id;
+
+-- Step 11: Update notifications
+ALTER TABLE notifications ADD COLUMN user_id TEXT REFERENCES users(id);
+ALTER TABLE notifications RENAME COLUMN account_id TO persona_id;
+ALTER TABLE notifications RENAME COLUMN from_account_id TO from_persona_id;
+UPDATE notifications SET user_id = 'legacy-owner';
+
+-- Step 12: Update delivery_queue
+ALTER TABLE delivery_queue RENAME COLUMN sender_account_id TO sender_persona_id;
+ALTER TABLE delivery_queue ADD COLUMN last_error TEXT;
+ALTER TABLE delivery_queue ADD COLUMN delivered_at INTEGER;
+ALTER TABLE delivery_queue ADD COLUMN dead_at INTEGER;
+
+-- Step 13: Update oauth_tokens
+ALTER TABLE oauth_tokens ADD COLUMN user_id TEXT REFERENCES users(id);
+ALTER TABLE oauth_tokens RENAME COLUMN account_id TO persona_id;
+UPDATE oauth_tokens SET user_id = 'legacy-owner';
+
+-- Step 14: Update oauth_authz_codes
+ALTER TABLE oauth_authz_codes ADD COLUMN user_id TEXT REFERENCES users(id);
+ALTER TABLE oauth_authz_codes RENAME COLUMN account_id TO persona_id;
+UPDATE oauth_authz_codes SET user_id = 'legacy-owner';
+
+-- Step 15: Update idempotency_keys
+ALTER TABLE idempotency_keys RENAME COLUMN account_id TO user_id;
+
+-- Step 16: Update push_subscriptions
+ALTER TABLE push_subscriptions RENAME COLUMN account_id TO user_id;
+
+-- Step 17: Update also_known_as
+ALTER TABLE also_known_as RENAME COLUMN account_id TO persona_id;
+
+-- Step 18: Update conversation tables
+ALTER TABLE conversation_read_markers RENAME COLUMN account_id TO user_id;
+ALTER TABLE conversation_hidden RENAME COLUMN account_id TO user_id;
+
+-- Step 19: Update markers
+ALTER TABLE markers RENAME COLUMN account_id TO user_id;
+
+-- Step 20: Update lists
+ALTER TABLE lists RENAME COLUMN account_id TO user_id;
+
+-- Step 21: Update followed_tags
+ALTER TABLE followed_tags RENAME COLUMN account_id TO user_id;
+
+-- Step 22: Update filters
+ALTER TABLE filters RENAME COLUMN account_id TO user_id;
+
+-- Step 23: Update scheduled_statuses
+ALTER TABLE scheduled_statuses ADD COLUMN user_id TEXT REFERENCES users(id);
+ALTER TABLE scheduled_statuses RENAME COLUMN account_id TO persona_id;
+UPDATE scheduled_statuses SET user_id = 'legacy-owner';
+
+-- Step 24: Update webauthn_credentials
+ALTER TABLE webauthn_credentials ADD COLUMN user_id TEXT REFERENCES users(id);
+UPDATE webauthn_credentials SET user_id = 'legacy-owner';
+
+-- Step 25: Drop the old accounts table
+DROP TABLE IF EXISTS accounts;
+
+-- Step 26: Drop old admin table (replaced by admin_tokens in canonical)
+DROP TABLE IF EXISTS admin;
+"#;
+
+/// Pre-built legacy upgrade structs for consumer projects.
+pub const LEGACY_BROADSIDE: LegacyUpgrade = LegacyUpgrade {
+    from: "broadside",
+    sql_sqlite: LEGACY_BROADSIDE_SQLITE,
+    sql_postgres: "", // ponytail: broadside is SQLite-only for now
+};
+
+pub const LEGACY_SMALLHOLD: LegacyUpgrade = LegacyUpgrade {
+    from: "smallhold",
+    sql_sqlite: LEGACY_SMALLHOLD_SQLITE,
+    sql_postgres: "", // ponytail: smallhold is SQLite-only for now
+};
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1449,6 +1952,340 @@ mod tests {
             .execute(&pool).await.unwrap();
         let legacy = detect_legacy_schema(&db).await.unwrap();
         assert_eq!(legacy, Some("broadside"));
+    }
+
+    #[cfg(feature = "db-sqlite")]
+    #[tokio::test]
+    async fn legacy_broadside_upgrade() {
+        let (db, pool) = fresh_sqlite().await;
+
+        // Simulate broadside's legacy schema (7 tables, TEXT timestamps)
+        sqlx::raw_sql(r#"
+            CREATE TABLE personas (
+                id TEXT PRIMARY KEY, username TEXT NOT NULL UNIQUE,
+                display_name TEXT NOT NULL DEFAULT '', bio TEXT NOT NULL DEFAULT '',
+                private_key TEXT NOT NULL, public_key TEXT NOT NULL,
+                avatar_path TEXT, header_path TEXT,
+                metadata TEXT NOT NULL DEFAULT '[]',
+                created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+            );
+            INSERT INTO personas (id, username, private_key, public_key)
+                VALUES ('p1', 'alice', 'privkey', 'pubkey');
+
+            CREATE TABLE followers (
+                id TEXT PRIMARY KEY, persona_id TEXT NOT NULL,
+                actor_uri TEXT NOT NULL, inbox_uri TEXT NOT NULL,
+                shared_inbox_uri TEXT,
+                followed_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+            );
+            INSERT INTO followers (id, persona_id, actor_uri, inbox_uri, followed_at)
+                VALUES ('f1', 'p1', 'https://remote/users/bob', 'https://remote/inbox', '2025-06-15T12:00:00Z');
+
+            CREATE TABLE posts (
+                id INTEGER PRIMARY KEY, persona_id TEXT NOT NULL,
+                ap_id TEXT, source_ref TEXT, content_text TEXT NOT NULL,
+                content_html TEXT NOT NULL,
+                published_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+            );
+            INSERT INTO posts (id, persona_id, content_text, content_html, published_at)
+                VALUES (1, 'p1', 'hello', '<p>hello</p>', '2025-06-15T12:00:00Z');
+
+            CREATE TABLE delivery_queue (
+                id INTEGER PRIMARY KEY, persona_id TEXT NOT NULL,
+                inbox_uri TEXT NOT NULL, activity_json TEXT,
+                attempts INTEGER NOT NULL DEFAULT 0,
+                next_retry TEXT NOT NULL, created_at TEXT NOT NULL
+            );
+
+            CREATE TABLE relays (
+                id INTEGER PRIMARY KEY, actor_uri TEXT NOT NULL UNIQUE,
+                inbox_uri TEXT NOT NULL, persona_id TEXT,
+                follow_id TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'pending',
+                created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+            );
+
+            CREATE TABLE post_media (
+                id INTEGER PRIMARY KEY, post_id INTEGER NOT NULL,
+                file_path TEXT NOT NULL, mime_type TEXT NOT NULL,
+                description TEXT
+            );
+
+            CREATE TABLE cards (
+                id INTEGER PRIMARY KEY, url TEXT NOT NULL UNIQUE,
+                title TEXT, description TEXT, image_url TEXT
+            );
+
+            CREATE TABLE schema_meta (key TEXT PRIMARY KEY, value TEXT);
+            INSERT INTO schema_meta VALUES ('version', '4');
+        "#).execute(&pool).await.unwrap();
+
+        // Run migration with broadside legacy upgrade
+        migrate_full(&db, Some(&LEGACY_BROADSIDE), &[]).await.unwrap();
+
+        // Verify: users table exists with legacy operator
+        let user: (String,) = sqlx::query_as("SELECT id FROM users LIMIT 1")
+            .fetch_one(&pool).await.unwrap();
+        assert_eq!(user.0, "legacy-operator");
+
+        // Verify: personas has user_id and renamed columns
+        let persona: (String, String) = sqlx::query_as(
+            "SELECT user_id, private_key_pem FROM personas WHERE id = 'p1'"
+        ).fetch_one(&pool).await.unwrap();
+        assert_eq!(persona.0, "legacy-operator");
+        assert_eq!(persona.1, "privkey");
+
+        // Verify: followers normalized via remote_accounts
+        let ra: (String,) = sqlx::query_as(
+            "SELECT actor_uri FROM remote_accounts WHERE actor_uri = 'https://remote/users/bob'"
+        ).fetch_one(&pool).await.unwrap();
+        assert_eq!(ra.0, "https://remote/users/bob");
+
+        let follower: (String,) = sqlx::query_as(
+            "SELECT user_id FROM followers LIMIT 1"
+        ).fetch_one(&pool).await.unwrap();
+        assert_eq!(follower.0, "legacy-operator");
+
+        // Verify: posts has user_id and INTEGER timestamp
+        let post: (String, i64) = sqlx::query_as(
+            "SELECT user_id, created_at FROM posts WHERE id = 1"
+        ).fetch_one(&pool).await.unwrap();
+        assert_eq!(post.0, "legacy-operator");
+        assert!(post.1 > 1_700_000_000, "timestamp should be epoch seconds: {}", post.1);
+
+        // Verify: schema_meta gone, schema_version exists
+        let exists = table_exists(&db, "schema_meta").await.unwrap();
+        assert!(!exists);
+
+        let version = schema_version(&db).await.unwrap();
+        assert_eq!(version, CURRENT_VERSION);
+    }
+
+    #[cfg(feature = "db-sqlite")]
+    #[tokio::test]
+    async fn legacy_smallhold_upgrade() {
+        let (db, pool) = fresh_sqlite().await;
+
+        // Simulate smallhold's legacy schema (accounts table, no users/personas)
+        sqlx::raw_sql(r#"
+            CREATE TABLE accounts (
+                id TEXT PRIMARY KEY, username TEXT NOT NULL UNIQUE,
+                display_name TEXT NOT NULL DEFAULT '',
+                bio TEXT NOT NULL DEFAULT '', bio_html TEXT NOT NULL DEFAULT '',
+                private_key_pem TEXT NOT NULL, public_key_pem TEXT NOT NULL,
+                avatar_media_id INTEGER, header_media_id INTEGER,
+                is_locked INTEGER NOT NULL DEFAULT 0,
+                discoverable INTEGER NOT NULL DEFAULT 1,
+                bot INTEGER NOT NULL DEFAULT 0,
+                fields_json TEXT NOT NULL DEFAULT '[]',
+                did_key TEXT, recovery_pubkey TEXT,
+                created_at INTEGER NOT NULL, last_status_at INTEGER
+            );
+            INSERT INTO accounts (id, username, private_key_pem, public_key_pem, created_at)
+                VALUES ('acct1', 'alice', 'privkey', 'pubkey', 1718400000);
+
+            CREATE TABLE admin (
+                id INTEGER PRIMARY KEY, email TEXT, password_hash TEXT, totp_secret TEXT
+            );
+            INSERT INTO admin (id, email) VALUES (1, 'alice@example.com');
+
+            CREATE TABLE remote_accounts (
+                id INTEGER PRIMARY KEY, actor_uri TEXT NOT NULL UNIQUE,
+                username TEXT NOT NULL, domain TEXT NOT NULL,
+                display_name TEXT NOT NULL, bio_html TEXT NOT NULL DEFAULT '',
+                avatar_url TEXT, header_url TEXT,
+                public_key_pem TEXT NOT NULL, public_key_id TEXT NOT NULL UNIQUE,
+                inbox_url TEXT NOT NULL, shared_inbox_url TEXT, followers_url TEXT,
+                is_locked INTEGER NOT NULL DEFAULT 0, bot INTEGER NOT NULL DEFAULT 0,
+                last_fetched_at INTEGER NOT NULL, fetched_failed_at INTEGER,
+                fetch_fail_count INTEGER NOT NULL DEFAULT 0
+            );
+            INSERT INTO remote_accounts (id, actor_uri, username, domain, display_name,
+                public_key_pem, public_key_id, inbox_url, last_fetched_at)
+                VALUES (1, 'https://remote/users/bob', 'bob', 'remote', 'Bob',
+                        'pk', 'https://remote/users/bob#key', 'https://remote/inbox', 1718400000);
+
+            CREATE TABLE followers (
+                local_account_id TEXT NOT NULL, remote_account_id INTEGER NOT NULL,
+                accepted_at INTEGER NOT NULL,
+                UNIQUE (local_account_id, remote_account_id)
+            );
+            INSERT INTO followers VALUES ('acct1', 1, 1718400000);
+
+            CREATE TABLE posts (
+                id INTEGER PRIMARY KEY, account_id TEXT NOT NULL,
+                ap_id TEXT NOT NULL UNIQUE,
+                content TEXT NOT NULL, content_html TEXT NOT NULL,
+                visibility TEXT NOT NULL, created_at INTEGER NOT NULL
+            );
+            INSERT INTO posts (id, account_id, ap_id, content, content_html, visibility, created_at)
+                VALUES (1, 'acct1', 'https://example.com/posts/1', 'hello', '<p>hello</p>', 'public', 1718400000);
+
+            CREATE TABLE media (
+                id INTEGER PRIMARY KEY, account_id TEXT NOT NULL,
+                post_id INTEGER, file_path TEXT NOT NULL, mime_type TEXT NOT NULL,
+                file_size INTEGER NOT NULL, description TEXT NOT NULL DEFAULT '',
+                created_at INTEGER NOT NULL
+            );
+
+            CREATE TABLE favourites (
+                account_id TEXT NOT NULL, post_id INTEGER, remote_post_id INTEGER,
+                created_at INTEGER NOT NULL
+            );
+
+            CREATE TABLE bookmarks (
+                account_id TEXT NOT NULL, post_id INTEGER, remote_post_id INTEGER,
+                created_at INTEGER NOT NULL
+            );
+
+            CREATE TABLE pinned_posts (
+                account_id TEXT NOT NULL, post_id INTEGER NOT NULL, pinned_at INTEGER NOT NULL
+            );
+
+            CREATE TABLE notifications (
+                id INTEGER PRIMARY KEY, account_id TEXT NOT NULL,
+                kind TEXT NOT NULL, from_account_id TEXT,
+                post_id INTEGER, created_at INTEGER NOT NULL, read_at INTEGER
+            );
+
+            CREATE TABLE delivery_queue (
+                id INTEGER PRIMARY KEY, sender_account_id TEXT NOT NULL,
+                target_inbox TEXT NOT NULL, activity_json TEXT NOT NULL,
+                attempts INTEGER NOT NULL DEFAULT 0,
+                next_attempt_at INTEGER NOT NULL, created_at INTEGER NOT NULL
+            );
+
+            CREATE TABLE oauth_tokens (
+                id INTEGER PRIMARY KEY, token_hash TEXT NOT NULL UNIQUE,
+                app_id INTEGER NOT NULL, account_id TEXT,
+                scopes TEXT NOT NULL, created_at INTEGER NOT NULL
+            );
+
+            CREATE TABLE oauth_authz_codes (
+                code_hash TEXT PRIMARY KEY, app_id INTEGER NOT NULL,
+                account_id TEXT NOT NULL, scopes TEXT NOT NULL,
+                redirect_uri TEXT NOT NULL, expires_at INTEGER NOT NULL
+            );
+
+            CREATE TABLE idempotency_keys (
+                key_hash TEXT PRIMARY KEY, account_id TEXT NOT NULL,
+                post_id INTEGER NOT NULL, created_at INTEGER NOT NULL
+            );
+
+            CREATE TABLE push_subscriptions (
+                id INTEGER PRIMARY KEY, account_id TEXT NOT NULL UNIQUE,
+                endpoint TEXT NOT NULL, key_p256dh TEXT NOT NULL, key_auth TEXT NOT NULL,
+                created_at INTEGER NOT NULL
+            );
+
+            CREATE TABLE also_known_as (
+                account_id TEXT NOT NULL, uri TEXT NOT NULL, UNIQUE(account_id, uri)
+            );
+
+            CREATE TABLE conversation_read_markers (
+                account_id TEXT NOT NULL, post_id INTEGER NOT NULL
+            );
+
+            CREATE TABLE conversation_hidden (
+                account_id TEXT NOT NULL, post_id INTEGER NOT NULL
+            );
+
+            CREATE TABLE markers (
+                account_id TEXT NOT NULL, timeline TEXT NOT NULL,
+                last_read_id TEXT NOT NULL, version INTEGER NOT NULL DEFAULT 0,
+                updated_at INTEGER NOT NULL, UNIQUE(account_id, timeline)
+            );
+
+            CREATE TABLE lists (
+                id INTEGER PRIMARY KEY, account_id TEXT NOT NULL,
+                title TEXT NOT NULL, replies_policy TEXT NOT NULL DEFAULT 'list',
+                created_at INTEGER NOT NULL
+            );
+
+            CREATE TABLE followed_tags (
+                account_id TEXT NOT NULL, tag TEXT NOT NULL,
+                created_at INTEGER NOT NULL, UNIQUE(account_id, tag)
+            );
+
+            CREATE TABLE filters (
+                id INTEGER PRIMARY KEY, account_id TEXT NOT NULL,
+                title TEXT NOT NULL, context TEXT NOT NULL DEFAULT '[]',
+                filter_action TEXT NOT NULL DEFAULT 'warn',
+                expires_at INTEGER, created_at INTEGER NOT NULL
+            );
+
+            CREATE TABLE scheduled_statuses (
+                id INTEGER PRIMARY KEY, account_id TEXT NOT NULL,
+                scheduled_at INTEGER NOT NULL, params_json TEXT NOT NULL,
+                created_at INTEGER NOT NULL
+            );
+
+            CREATE TABLE webauthn_credentials (
+                id INTEGER PRIMARY KEY, credential_json TEXT NOT NULL,
+                created_at INTEGER NOT NULL
+            );
+
+            CREATE TABLE follows (
+                follower_id TEXT NOT NULL, followee_remote_id INTEGER,
+                followee_persona_id TEXT,
+                created_at INTEGER NOT NULL, show_reblogs INTEGER NOT NULL DEFAULT 1,
+                notify INTEGER NOT NULL DEFAULT 0
+            );
+
+            CREATE TABLE follow_requests (
+                id INTEGER PRIMARY KEY, requester_remote_id INTEGER NOT NULL,
+                target_account_id TEXT NOT NULL, ap_id TEXT NOT NULL UNIQUE,
+                created_at INTEGER NOT NULL
+            );
+        "#).execute(&pool).await.unwrap();
+
+        // Run migration with smallhold legacy upgrade
+        migrate_full(&db, Some(&LEGACY_SMALLHOLD), &[]).await.unwrap();
+
+        // Verify: users table has the legacy owner with email from admin table
+        let user: (String, String) = sqlx::query_as(
+            "SELECT id, email FROM users LIMIT 1"
+        ).fetch_one(&pool).await.unwrap();
+        assert_eq!(user.0, "legacy-owner");
+        assert_eq!(user.1, "alice@example.com");
+
+        // Verify: personas created from accounts
+        let persona: (String, String) = sqlx::query_as(
+            "SELECT user_id, username FROM personas WHERE id = 'acct1'"
+        ).fetch_one(&pool).await.unwrap();
+        assert_eq!(persona.0, "legacy-owner");
+        assert_eq!(persona.1, "alice");
+
+        // Verify: accounts table is gone
+        let exists = table_exists(&db, "accounts").await.unwrap();
+        assert!(!exists);
+
+        // Verify: admin table is gone
+        let exists = table_exists(&db, "admin").await.unwrap();
+        assert!(!exists);
+
+        // Verify: posts has user_id and persona_id
+        let post: (String, String) = sqlx::query_as(
+            "SELECT user_id, persona_id FROM posts WHERE id = 1"
+        ).fetch_one(&pool).await.unwrap();
+        assert_eq!(post.0, "legacy-owner");
+        assert_eq!(post.1, "acct1");
+
+        // Verify: followers rebuilt with persona_id
+        let follower: (String, String) = sqlx::query_as(
+            "SELECT persona_id, user_id FROM followers LIMIT 1"
+        ).fetch_one(&pool).await.unwrap();
+        assert_eq!(follower.0, "acct1");
+        assert_eq!(follower.1, "legacy-owner");
+
+        // Verify: all canonical tables exist after base schema fill
+        let version = schema_version(&db).await.unwrap();
+        assert_eq!(version, CURRENT_VERSION);
+
+        // Verify: did:scid columns exist (from v1 migration)
+        let count: (i32,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM pragma_table_info('users') WHERE name = 'did_scid'"
+        ).fetch_one(&pool).await.unwrap();
+        assert_eq!(count.0, 1);
     }
 
     #[cfg(feature = "db-sqlite")]

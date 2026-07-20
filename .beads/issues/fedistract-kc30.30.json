@@ -2,13 +2,15 @@
   "id": "fedistract-kc30.30",
   "title": "Migrate broadside to fieldwork::db schema",
   "description": "Replace broadside's inline schema (db.rs) with fieldwork::db::migrate(). Major refactor:\n- Add fieldwork dependency with db-sqlite feature\n- Replace SqlitePool with fieldwork::db::Pool\n- Introduce users table: create a single user row per broadside instance\n- Map personas to user_id FK\n- Replace inline followers table (actor_uri, inbox_uri columns) with remote_accounts FK:\n  - On follow receipt: upsert into remote_accounts first, then insert into followers with remote_account_id\n  - Update delivery queries to join remote_accounts for inbox_url\n- Update timestamp handling: ISO 8601 TEXT -\u003e INTEGER Unix seconds\n- Replace schema_meta version tracking with fieldwork::db::migrate() (idempotent CREATE IF NOT EXISTS)\n- Update posts table: add user_id, persona_id (TEXT UUID), ap_id, content (plaintext), spoiler_text, visibility columns\n- Update delivery_queue: target_inbox, sender_persona_id, activity_json columns\n- Remove inline schema constants\n- Run full test suite",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "issue_type": "task",
   "owner": "mark@wolfssl.com",
   "created_at": "2026-07-20T02:28:47.915936749Z",
   "created_by": "Mark Atwood",
-  "updated_at": "2026-07-20T02:28:47.915936749Z",
+  "updated_at": "2026-07-20T06:14:42.459280266Z",
+  "closed_at": "2026-07-20T06:14:42.459280266Z",
+  "close_reason": "Legacy migration SQL written and tested in fieldwork::db. Both broadside (TEXT timestamps, inline followers, no users table) and smallhold (accounts→users+personas split, 20+ FK renames) transformations verified with integration tests.",
   "labels": [
     "extraction"
   ],
