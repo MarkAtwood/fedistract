@@ -2,7 +2,7 @@
   "id": "fedistract-kc30.1",
   "title": "Extract cavage-httpsig crate",
   "description": "HTTP Signatures per draft-cavage-12. Sign/verify for ActivityPub federation. Start from BS signatures.rs (cleanest boundary), merge GJ error handling, add SH/GJ sign_get_headers(). Public API: sign_post(), sign_get(), verify(). Deps: rsa, sha2, base64, http. Consider ed25519 feature flag.",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 1,
   "issue_type": "feature",
   "assignee": "Mark Atwood",
@@ -10,10 +10,10 @@
   "estimated_minutes": 240,
   "created_at": "2026-07-20T01:32:22.446566089Z",
   "created_by": "Mark Atwood",
-  "updated_at": "2026-07-20T01:35:00.543632552Z",
+  "updated_at": "2026-07-20T01:53:28.745222638Z",
   "started_at": "2026-07-20T01:35:00.543632552Z",
-  "lease_expires_at": "2026-07-20T01:40:00.543632552Z",
-  "heartbeat_at": "2026-07-20T01:35:00.543632552Z",
+  "closed_at": "2026-07-20T01:53:28.745222638Z",
+  "close_reason": "Crate already extracted and passing tests",
   "labels": [
     "extraction"
   ],
