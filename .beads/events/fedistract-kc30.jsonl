@@ -1,2 +1,3 @@
 {"id":"019f7d26-fd73-7ad6-b3bb-8e4ba2ba1555","issue_id":"fedistract-kc30","event_type":"created","actor":"Mark Atwood","old_value":"","new_value":"","created_at":"2026-07-20T01:32:15.091711092Z"}
 {"id":"019f7d26-fd78-7c42-899c-deeba10c8cb8","issue_id":"fedistract-kc30","event_type":"label_added","actor":"Mark Atwood","comment":"Added label: extraction","created_at":"2026-07-20T01:32:15.096803796Z"}
+{"id":"019f7e82-24fa-7beb-aebb-c57932249237","issue_id":"fedistract-kc30","event_type":"closed","actor":"Mark Atwood","old_value":"","new_value":"All children complete. Both epics fully delivered.","created_at":"2026-07-20T07:51:26.202782014Z"}
