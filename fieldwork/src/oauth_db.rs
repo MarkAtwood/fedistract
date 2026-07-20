@@ -197,6 +197,195 @@ pub async fn verify_token(
     }
 }
 
+/// Insert an OAuth authorization code.
+pub async fn insert_authz_code(
+    pool: &Pool,
+    code_hash: &str,
+    app_id: i64,
+    user_id: i64,
+    persona_id: i64,
+    scopes: &str,
+    redirect_uri: &str,
+    now: i64,
+    expires_at: i64,
+) -> Result<(), sqlx::Error> {
+    match pool {
+        #[cfg(feature = "db-postgres")]
+        Pool::Postgres(pg) => {
+            sqlx::query(
+                "INSERT INTO oauth_authz_codes \
+                 (code_hash, app_id, user_id, persona_id, scopes, redirect_uri, created_at, expires_at) \
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+            )
+            .bind(code_hash)
+            .bind(app_id)
+            .bind(user_id)
+            .bind(persona_id)
+            .bind(scopes)
+            .bind(redirect_uri)
+            .bind(now)
+            .bind(expires_at)
+            .execute(pg)
+            .await?;
+        }
+        #[cfg(feature = "db-sqlite")]
+        Pool::Sqlite(sq) => {
+            sqlx::query(
+                "INSERT INTO oauth_authz_codes \
+                 (code_hash, app_id, user_id, persona_id, scopes, redirect_uri, created_at, expires_at) \
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            )
+            .bind(code_hash)
+            .bind(app_id)
+            .bind(user_id)
+            .bind(persona_id)
+            .bind(scopes)
+            .bind(redirect_uri)
+            .bind(now)
+            .bind(expires_at)
+            .execute(sq)
+            .await?;
+        }
+    }
+    Ok(())
+}
+
+/// Consume (atomically fetch and delete) an OAuth authorization code.
+///
+/// Returns `(app_id, persona_id, scopes, redirect_uri)` if the code exists
+/// and has not expired. Deletes the code row atomically.
+pub async fn consume_authz_code(
+    pool: &Pool,
+    code_hash: &str,
+    now: i64,
+) -> Result<Option<(i64, i64, String, String)>, sqlx::Error> {
+    match pool {
+        #[cfg(feature = "db-postgres")]
+        Pool::Postgres(pg) => {
+            sqlx::query_as(
+                "DELETE FROM oauth_authz_codes \
+                 WHERE code_hash = $1 AND expires_at > $2 \
+                 RETURNING app_id, persona_id, scopes, redirect_uri",
+            )
+            .bind(code_hash)
+            .bind(now)
+            .fetch_optional(pg)
+            .await
+        }
+        #[cfg(feature = "db-sqlite")]
+        Pool::Sqlite(sq) => {
+            sqlx::query_as(
+                "DELETE FROM oauth_authz_codes \
+                 WHERE code_hash = ?1 AND expires_at > ?2 \
+                 RETURNING app_id, persona_id, scopes, redirect_uri",
+            )
+            .bind(code_hash)
+            .bind(now)
+            .fetch_optional(sq)
+            .await
+        }
+    }
+}
+
+/// Update the `last_used_at` timestamp for a token by its hash. Best-effort.
+pub async fn touch_token(
+    pool: &Pool,
+    token_hash: &str,
+    now: i64,
+) -> Result<(), sqlx::Error> {
+    match pool {
+        #[cfg(feature = "db-postgres")]
+        Pool::Postgres(pg) => {
+            sqlx::query(
+                "UPDATE oauth_tokens SET last_used_at = $1 WHERE token_hash = $2",
+            )
+            .bind(now)
+            .bind(token_hash)
+            .execute(pg)
+            .await?;
+        }
+        #[cfg(feature = "db-sqlite")]
+        Pool::Sqlite(sq) => {
+            sqlx::query(
+                "UPDATE oauth_tokens SET last_used_at = ?1 WHERE token_hash = ?2",
+            )
+            .bind(now)
+            .bind(token_hash)
+            .execute(sq)
+            .await?;
+        }
+    }
+    Ok(())
+}
+
+/// Revoke a token by its hash.
+pub async fn revoke_by_hash(
+    pool: &Pool,
+    token_hash: &str,
+    now: i64,
+) -> Result<(), sqlx::Error> {
+    match pool {
+        #[cfg(feature = "db-postgres")]
+        Pool::Postgres(pg) => {
+            sqlx::query(
+                "UPDATE oauth_tokens SET revoked_at = $1 \
+                 WHERE token_hash = $2 AND revoked_at IS NULL",
+            )
+            .bind(now)
+            .bind(token_hash)
+            .execute(pg)
+            .await?;
+        }
+        #[cfg(feature = "db-sqlite")]
+        Pool::Sqlite(sq) => {
+            sqlx::query(
+                "UPDATE oauth_tokens SET revoked_at = ?1 \
+                 WHERE token_hash = ?2 AND revoked_at IS NULL",
+            )
+            .bind(now)
+            .bind(token_hash)
+            .execute(sq)
+            .await?;
+        }
+    }
+    Ok(())
+}
+
+/// Revoke all tokens for a persona. Returns the number of tokens revoked.
+pub async fn revoke_all_for_persona(
+    pool: &Pool,
+    persona_id: i64,
+    now: i64,
+) -> Result<u64, sqlx::Error> {
+    let rows_affected = match pool {
+        #[cfg(feature = "db-postgres")]
+        Pool::Postgres(pg) => {
+            sqlx::query(
+                "UPDATE oauth_tokens SET revoked_at = $1 \
+                 WHERE persona_id = $2 AND revoked_at IS NULL",
+            )
+            .bind(now)
+            .bind(persona_id)
+            .execute(pg)
+            .await?
+            .rows_affected()
+        }
+        #[cfg(feature = "db-sqlite")]
+        Pool::Sqlite(sq) => {
+            sqlx::query(
+                "UPDATE oauth_tokens SET revoked_at = ?1 \
+                 WHERE persona_id = ?2 AND revoked_at IS NULL",
+            )
+            .bind(now)
+            .bind(persona_id)
+            .execute(sq)
+            .await?
+            .rows_affected()
+        }
+    };
+    Ok(rows_affected)
+}
+
 /// Revoke a token by its ID.
 pub async fn revoke_token(pool: &Pool, token_id: i64, now: i64) -> Result<(), sqlx::Error> {
     match pool {
@@ -326,5 +515,84 @@ mod tests {
     async fn revoke_nonexistent_is_ok() {
         let pool = setup().await;
         revoke_token(&pool, 999, 3000).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn insert_and_consume_authz_code() {
+        let pool = setup().await;
+        create_app(&pool, &sample_app()).await.unwrap();
+
+        insert_authz_code(&pool, "code-hash", 1, 1, 101, "read", "urn:ietf:wg:oauth:2.0:oob", 1000, 2000)
+            .await
+            .unwrap();
+
+        let result = consume_authz_code(&pool, "code-hash", 1500).await.unwrap();
+        let (app_id, persona_id, scopes, redirect) = result.expect("code should exist");
+        assert_eq!(app_id, 1);
+        assert_eq!(persona_id, 101);
+        assert_eq!(scopes, "read");
+        assert_eq!(redirect, "urn:ietf:wg:oauth:2.0:oob");
+
+        // Second consume should return None (code was deleted)
+        assert!(consume_authz_code(&pool, "code-hash", 1500).await.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn consume_expired_code_returns_none() {
+        let pool = setup().await;
+        create_app(&pool, &sample_app()).await.unwrap();
+
+        insert_authz_code(&pool, "code-exp", 1, 1, 101, "read", "http://redir", 1000, 1500)
+            .await
+            .unwrap();
+
+        assert!(consume_authz_code(&pool, "code-exp", 2000).await.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn touch_token_updates_last_used() {
+        let pool = setup().await;
+        create_app(&pool, &sample_app()).await.unwrap();
+        create_token(&pool, 10, "hash-touch", 1, 1, 101, "read", 2000)
+            .await
+            .unwrap();
+
+        touch_token(&pool, "hash-touch", 5000).await.unwrap();
+        // Verify the token still works (touch doesn't break it)
+        let result = verify_token(&pool, "hash-touch").await.unwrap();
+        assert!(result.is_some());
+    }
+
+    #[tokio::test]
+    async fn revoke_by_hash_works() {
+        let pool = setup().await;
+        create_app(&pool, &sample_app()).await.unwrap();
+        create_token(&pool, 10, "hash-revoke", 1, 1, 101, "read", 2000)
+            .await
+            .unwrap();
+
+        revoke_by_hash(&pool, "hash-revoke", 5000).await.unwrap();
+        assert!(verify_token(&pool, "hash-revoke").await.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn revoke_all_for_persona_works() {
+        let pool = setup().await;
+        create_app(&pool, &sample_app()).await.unwrap();
+        create_token(&pool, 10, "hash-a", 1, 1, 101, "read", 2000).await.unwrap();
+        create_token(&pool, 11, "hash-b", 1, 1, 101, "read", 2000).await.unwrap();
+
+        let count = revoke_all_for_persona(&pool, 101, 5000).await.unwrap();
+        assert_eq!(count, 2);
+
+        assert!(verify_token(&pool, "hash-a").await.unwrap().is_none());
+        assert!(verify_token(&pool, "hash-b").await.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn revoke_all_for_persona_returns_zero_when_none() {
+        let pool = setup().await;
+        let count = revoke_all_for_persona(&pool, 101, 5000).await.unwrap();
+        assert_eq!(count, 0);
     }
 }

@@ -261,6 +261,212 @@ pub async fn update_persona_profile(
     Ok(())
 }
 
+/// Set the `did_web` field on a persona.
+pub async fn set_did(
+    pool: &Pool,
+    id: i64,
+    did_web: Option<&str>,
+) -> Result<(), sqlx::Error> {
+    match pool {
+        #[cfg(feature = "db-postgres")]
+        Pool::Postgres(pg) => {
+            sqlx::query("UPDATE personas SET did_web = $1 WHERE id = $2")
+                .bind(did_web)
+                .bind(id)
+                .execute(pg)
+                .await?;
+        }
+        #[cfg(feature = "db-sqlite")]
+        Pool::Sqlite(sq) => {
+            sqlx::query("UPDATE personas SET did_web = ?1 WHERE id = ?2")
+                .bind(did_web)
+                .bind(id)
+                .execute(sq)
+                .await?;
+        }
+    }
+    Ok(())
+}
+
+/// Get just the `private_key_pem` for a persona by ID.
+pub async fn get_signing_key(
+    pool: &Pool,
+    id: i64,
+) -> Result<Option<String>, sqlx::Error> {
+    let row: Option<(String,)> = match pool {
+        #[cfg(feature = "db-postgres")]
+        Pool::Postgres(pg) => {
+            sqlx::query_as("SELECT private_key_pem FROM personas WHERE id = $1")
+                .bind(id)
+                .fetch_optional(pg)
+                .await?
+        }
+        #[cfg(feature = "db-sqlite")]
+        Pool::Sqlite(sq) => {
+            sqlx::query_as("SELECT private_key_pem FROM personas WHERE id = ?1")
+                .bind(id)
+                .fetch_optional(sq)
+                .await?
+        }
+    };
+    Ok(row.map(|(pem,)| pem))
+}
+
+/// Get signing key by username. Returns `(id, username, private_key_pem)`.
+pub async fn get_signing_key_by_username(
+    pool: &Pool,
+    username: &str,
+) -> Result<Option<(i64, String, String)>, sqlx::Error> {
+    match pool {
+        #[cfg(feature = "db-postgres")]
+        Pool::Postgres(pg) => {
+            sqlx::query_as(
+                "SELECT id, username, private_key_pem FROM personas WHERE username = $1",
+            )
+            .bind(username)
+            .fetch_optional(pg)
+            .await
+        }
+        #[cfg(feature = "db-sqlite")]
+        Pool::Sqlite(sq) => {
+            sqlx::query_as(
+                "SELECT id, username, private_key_pem FROM personas WHERE username = ?1",
+            )
+            .bind(username)
+            .fetch_optional(sq)
+            .await
+        }
+    }
+}
+
+/// Update the `fields_json` on a persona by ID.
+pub async fn update_fields(
+    pool: &Pool,
+    id: i64,
+    fields_json: &str,
+) -> Result<(), sqlx::Error> {
+    match pool {
+        #[cfg(feature = "db-postgres")]
+        Pool::Postgres(pg) => {
+            sqlx::query("UPDATE personas SET fields_json = $1::jsonb WHERE id = $2")
+                .bind(fields_json)
+                .bind(id)
+                .execute(pg)
+                .await?;
+        }
+        #[cfg(feature = "db-sqlite")]
+        Pool::Sqlite(sq) => {
+            sqlx::query("UPDATE personas SET fields_json = ?1 WHERE id = ?2")
+                .bind(fields_json)
+                .bind(id)
+                .execute(sq)
+                .await?;
+        }
+    }
+    Ok(())
+}
+
+/// Update the avatar media ID on a persona.
+pub async fn update_avatar(
+    pool: &Pool,
+    id: i64,
+    media_id: Option<i64>,
+) -> Result<(), sqlx::Error> {
+    match pool {
+        #[cfg(feature = "db-postgres")]
+        Pool::Postgres(pg) => {
+            sqlx::query("UPDATE personas SET avatar_media_id = $1 WHERE id = $2")
+                .bind(media_id)
+                .bind(id)
+                .execute(pg)
+                .await?;
+        }
+        #[cfg(feature = "db-sqlite")]
+        Pool::Sqlite(sq) => {
+            sqlx::query("UPDATE personas SET avatar_media_id = ?1 WHERE id = ?2")
+                .bind(media_id)
+                .bind(id)
+                .execute(sq)
+                .await?;
+        }
+    }
+    Ok(())
+}
+
+/// Update the header media ID on a persona.
+pub async fn update_header(
+    pool: &Pool,
+    id: i64,
+    media_id: Option<i64>,
+) -> Result<(), sqlx::Error> {
+    match pool {
+        #[cfg(feature = "db-postgres")]
+        Pool::Postgres(pg) => {
+            sqlx::query("UPDATE personas SET header_media_id = $1 WHERE id = $2")
+                .bind(media_id)
+                .bind(id)
+                .execute(pg)
+                .await?;
+        }
+        #[cfg(feature = "db-sqlite")]
+        Pool::Sqlite(sq) => {
+            sqlx::query("UPDATE personas SET header_media_id = ?1 WHERE id = ?2")
+                .bind(media_id)
+                .bind(id)
+                .execute(sq)
+                .await?;
+        }
+    }
+    Ok(())
+}
+
+/// Update boolean flags on a persona. Only non-`None` values are applied.
+pub async fn update_flags(
+    pool: &Pool,
+    id: i64,
+    locked: Option<bool>,
+    bot: Option<bool>,
+    discoverable: Option<bool>,
+) -> Result<(), sqlx::Error> {
+    // ponytail: individual UPDATEs per field; upgrade to a query builder if needed
+    match pool {
+        #[cfg(feature = "db-postgres")]
+        Pool::Postgres(pg) => {
+            if let Some(v) = locked {
+                sqlx::query("UPDATE personas SET is_locked = $1 WHERE id = $2")
+                    .bind(v).bind(id).execute(pg).await?;
+            }
+            if let Some(v) = bot {
+                sqlx::query("UPDATE personas SET bot = $1 WHERE id = $2")
+                    .bind(v).bind(id).execute(pg).await?;
+            }
+            if let Some(v) = discoverable {
+                sqlx::query("UPDATE personas SET discoverable = $1 WHERE id = $2")
+                    .bind(v).bind(id).execute(pg).await?;
+            }
+        }
+        #[cfg(feature = "db-sqlite")]
+        Pool::Sqlite(sq) => {
+            if let Some(v) = locked {
+                let iv: i32 = if v { 1 } else { 0 };
+                sqlx::query("UPDATE personas SET is_locked = ?1 WHERE id = ?2")
+                    .bind(iv).bind(id).execute(sq).await?;
+            }
+            if let Some(v) = bot {
+                let iv: i32 = if v { 1 } else { 0 };
+                sqlx::query("UPDATE personas SET bot = ?1 WHERE id = ?2")
+                    .bind(iv).bind(id).execute(sq).await?;
+            }
+            if let Some(v) = discoverable {
+                let iv: i32 = if v { 1 } else { 0 };
+                sqlx::query("UPDATE personas SET discoverable = ?1 WHERE id = ?2")
+                    .bind(iv).bind(id).execute(sq).await?;
+            }
+        }
+    }
+    Ok(())
+}
+
 /// List all personas.
 pub async fn list_personas(pool: &Pool) -> Result<Vec<PersonaRow>, sqlx::Error> {
     match pool {
@@ -411,6 +617,110 @@ mod tests {
         let pool = setup().await;
         let all = list_personas(&pool).await.unwrap();
         assert!(all.is_empty());
+    }
+
+    #[tokio::test]
+    async fn set_did_works() {
+        let pool = setup().await;
+        create_persona(&pool, &sample_persona(101, "alice")).await.unwrap();
+
+        set_did(&pool, 101, Some("did:web:example.com")).await.unwrap();
+        let fetched = get_persona_by_id(&pool, 101).await.unwrap().unwrap();
+        assert_eq!(fetched.did_web.as_deref(), Some("did:web:example.com"));
+
+        set_did(&pool, 101, None).await.unwrap();
+        let fetched = get_persona_by_id(&pool, 101).await.unwrap().unwrap();
+        assert!(fetched.did_web.is_none());
+    }
+
+    #[tokio::test]
+    async fn get_signing_key_works() {
+        let pool = setup().await;
+        create_persona(&pool, &sample_persona(101, "alice")).await.unwrap();
+
+        let key = get_signing_key(&pool, 101).await.unwrap().unwrap();
+        assert!(key.contains("PRIVATE KEY"));
+    }
+
+    #[tokio::test]
+    async fn get_signing_key_returns_none() {
+        let pool = setup().await;
+        assert!(get_signing_key(&pool, 999).await.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn get_signing_key_by_username_works() {
+        let pool = setup().await;
+        create_persona(&pool, &sample_persona(101, "alice")).await.unwrap();
+
+        let (id, username, pem) = get_signing_key_by_username(&pool, "alice")
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(id, 101);
+        assert_eq!(username, "alice");
+        assert!(pem.contains("PRIVATE KEY"));
+    }
+
+    #[tokio::test]
+    async fn get_signing_key_by_username_returns_none() {
+        let pool = setup().await;
+        assert!(get_signing_key_by_username(&pool, "nope").await.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn update_fields_works() {
+        let pool = setup().await;
+        create_persona(&pool, &sample_persona(101, "alice")).await.unwrap();
+
+        update_fields(&pool, 101, r#"[{"name":"web","value":"https://example.com"}]"#)
+            .await
+            .unwrap();
+
+        let fetched = get_persona_by_id(&pool, 101).await.unwrap().unwrap();
+        assert!(fetched.fields_json.contains("web"));
+    }
+
+    #[tokio::test]
+    async fn update_avatar_works() {
+        let pool = setup().await;
+        create_persona(&pool, &sample_persona(101, "alice")).await.unwrap();
+
+        update_avatar(&pool, 101, Some(42)).await.unwrap();
+        let fetched = get_persona_by_id(&pool, 101).await.unwrap().unwrap();
+        assert_eq!(fetched.avatar_media_id, Some(42));
+
+        update_avatar(&pool, 101, None).await.unwrap();
+        let fetched = get_persona_by_id(&pool, 101).await.unwrap().unwrap();
+        assert!(fetched.avatar_media_id.is_none());
+    }
+
+    #[tokio::test]
+    async fn update_header_works() {
+        let pool = setup().await;
+        create_persona(&pool, &sample_persona(101, "alice")).await.unwrap();
+
+        update_header(&pool, 101, Some(43)).await.unwrap();
+        let fetched = get_persona_by_id(&pool, 101).await.unwrap().unwrap();
+        assert_eq!(fetched.header_media_id, Some(43));
+    }
+
+    #[tokio::test]
+    async fn update_flags_works() {
+        let pool = setup().await;
+        create_persona(&pool, &sample_persona(101, "alice")).await.unwrap();
+
+        update_flags(&pool, 101, Some(true), Some(true), Some(false)).await.unwrap();
+        let fetched = get_persona_by_id(&pool, 101).await.unwrap().unwrap();
+        assert!(fetched.is_locked);
+        assert!(fetched.bot);
+        assert!(!fetched.discoverable);
+
+        // Partial update: only change bot
+        update_flags(&pool, 101, None, Some(false), None).await.unwrap();
+        let fetched = get_persona_by_id(&pool, 101).await.unwrap().unwrap();
+        assert!(fetched.is_locked); // unchanged
+        assert!(!fetched.bot); // changed
     }
 
     #[tokio::test]

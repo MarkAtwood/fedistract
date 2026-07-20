@@ -373,6 +373,251 @@ pub async fn posts_count(pool: &Pool, persona_id: i64) -> Result<i64, sqlx::Erro
     Ok(row.0)
 }
 
+/// Check if a post exists by its ActivityPub ID.
+pub async fn exists_by_ap_id(pool: &Pool, ap_id: &str) -> Result<bool, sqlx::Error> {
+    let row: Option<(i32,)> = match pool {
+        #[cfg(feature = "db-postgres")]
+        Pool::Postgres(pg) => {
+            sqlx::query_as("SELECT 1 FROM posts WHERE ap_id = $1 LIMIT 1")
+                .bind(ap_id)
+                .fetch_optional(pg)
+                .await?
+        }
+        #[cfg(feature = "db-sqlite")]
+        Pool::Sqlite(sq) => {
+            sqlx::query_as("SELECT 1 FROM posts WHERE ap_id = ?1 LIMIT 1")
+                .bind(ap_id)
+                .fetch_optional(sq)
+                .await?
+        }
+    };
+    Ok(row.is_some())
+}
+
+/// Update a post's full content and metadata (for edits).
+pub async fn update_post_full(
+    pool: &Pool,
+    id: i64,
+    content: &str,
+    content_html: &str,
+    spoiler_text: &str,
+    sensitive: bool,
+    edited_at: i64,
+) -> Result<(), sqlx::Error> {
+    match pool {
+        #[cfg(feature = "db-postgres")]
+        Pool::Postgres(pg) => {
+            sqlx::query(
+                "UPDATE posts SET content = $1, content_html = $2, spoiler_text = $3, \
+                 sensitive = $4, edited_at = $5 WHERE id = $6",
+            )
+            .bind(content)
+            .bind(content_html)
+            .bind(spoiler_text)
+            .bind(sensitive)
+            .bind(edited_at)
+            .bind(id)
+            .execute(pg)
+            .await?;
+        }
+        #[cfg(feature = "db-sqlite")]
+        Pool::Sqlite(sq) => {
+            sqlx::query(
+                "UPDATE posts SET content = ?1, content_html = ?2, spoiler_text = ?3, \
+                 sensitive = ?4, edited_at = ?5 WHERE id = ?6",
+            )
+            .bind(content)
+            .bind(content_html)
+            .bind(spoiler_text)
+            .bind(sensitive)
+            .bind(edited_at)
+            .bind(id)
+            .execute(sq)
+            .await?;
+        }
+    }
+    Ok(())
+}
+
+/// Physically DELETE a post row (hard delete).
+pub async fn hard_delete_post(pool: &Pool, id: i64) -> Result<(), sqlx::Error> {
+    match pool {
+        #[cfg(feature = "db-postgres")]
+        Pool::Postgres(pg) => {
+            sqlx::query("DELETE FROM posts WHERE id = $1")
+                .bind(id)
+                .execute(pg)
+                .await?;
+        }
+        #[cfg(feature = "db-sqlite")]
+        Pool::Sqlite(sq) => {
+            sqlx::query("DELETE FROM posts WHERE id = ?1")
+                .bind(id)
+                .execute(sq)
+                .await?;
+        }
+    }
+    Ok(())
+}
+
+/// Insert a boost (reblog) post.
+pub async fn create_boost(
+    pool: &Pool,
+    id: i64,
+    user_id: i64,
+    persona_id: i64,
+    boost_of_id: i64,
+    boost_of_uri: &str,
+    ap_id: &str,
+    now: i64,
+) -> Result<(), sqlx::Error> {
+    match pool {
+        #[cfg(feature = "db-postgres")]
+        Pool::Postgres(pg) => {
+            sqlx::query(
+                "INSERT INTO posts \
+                 (id, user_id, persona_id, boost_of_id, boost_of_uri, ap_id, \
+                  content, content_html, spoiler_text, visibility, created_at) \
+                 VALUES ($1, $2, $3, $4, $5, $6, '', '', '', 'public', $7)",
+            )
+            .bind(id)
+            .bind(user_id)
+            .bind(persona_id)
+            .bind(boost_of_id)
+            .bind(boost_of_uri)
+            .bind(ap_id)
+            .bind(now)
+            .execute(pg)
+            .await?;
+        }
+        #[cfg(feature = "db-sqlite")]
+        Pool::Sqlite(sq) => {
+            sqlx::query(
+                "INSERT INTO posts \
+                 (id, user_id, persona_id, boost_of_id, boost_of_uri, ap_id, \
+                  content, content_html, spoiler_text, visibility, created_at) \
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, '', '', '', 'public', ?7)",
+            )
+            .bind(id)
+            .bind(user_id)
+            .bind(persona_id)
+            .bind(boost_of_id)
+            .bind(boost_of_uri)
+            .bind(ap_id)
+            .bind(now)
+            .execute(sq)
+            .await?;
+        }
+    }
+    Ok(())
+}
+
+/// Find a boost by persona and original post. Returns the boost's post ID.
+pub async fn find_boost(
+    pool: &Pool,
+    persona_id: i64,
+    boost_of_id: i64,
+) -> Result<Option<i64>, sqlx::Error> {
+    let row: Option<(i64,)> = match pool {
+        #[cfg(feature = "db-postgres")]
+        Pool::Postgres(pg) => {
+            sqlx::query_as(
+                "SELECT id FROM posts WHERE persona_id = $1 AND boost_of_id = $2",
+            )
+            .bind(persona_id)
+            .bind(boost_of_id)
+            .fetch_optional(pg)
+            .await?
+        }
+        #[cfg(feature = "db-sqlite")]
+        Pool::Sqlite(sq) => {
+            sqlx::query_as(
+                "SELECT id FROM posts WHERE persona_id = ?1 AND boost_of_id = ?2",
+            )
+            .bind(persona_id)
+            .bind(boost_of_id)
+            .fetch_optional(sq)
+            .await?
+        }
+    };
+    Ok(row.map(|(id,)| id))
+}
+
+/// Delete a boost by persona and original post.
+pub async fn delete_boost(
+    pool: &Pool,
+    persona_id: i64,
+    boost_of_id: i64,
+) -> Result<(), sqlx::Error> {
+    match pool {
+        #[cfg(feature = "db-postgres")]
+        Pool::Postgres(pg) => {
+            sqlx::query(
+                "DELETE FROM posts WHERE persona_id = $1 AND boost_of_id = $2",
+            )
+            .bind(persona_id)
+            .bind(boost_of_id)
+            .execute(pg)
+            .await?;
+        }
+        #[cfg(feature = "db-sqlite")]
+        Pool::Sqlite(sq) => {
+            sqlx::query(
+                "DELETE FROM posts WHERE persona_id = ?1 AND boost_of_id = ?2",
+            )
+            .bind(persona_id)
+            .bind(boost_of_id)
+            .execute(sq)
+            .await?;
+        }
+    }
+    Ok(())
+}
+
+/// Get featured (pinned) posts for a persona via JOIN with pinned_posts.
+pub async fn featured_posts(
+    pool: &Pool,
+    persona_id: i64,
+) -> Result<Vec<PostRow>, sqlx::Error> {
+    // pinned_posts also has persona_id, so we must prefix all columns with p.
+    const P_COLUMNS: &str = "\
+        p.id, p.user_id, p.persona_id, p.ap_id, \
+        p.in_reply_to_id, p.in_reply_to_uri, p.boost_of_id, p.boost_of_uri, \
+        p.content, p.content_html, p.spoiler_text, p.visibility, \
+        p.sensitive, p.language, p.context_url, \
+        p.created_at, p.edited_at, p.deleted_at, p.deleted_reason";
+    match pool {
+        #[cfg(feature = "db-postgres")]
+        Pool::Postgres(pg) => {
+            let sql = format!(
+                "SELECT {P_COLUMNS} FROM posts p \
+                 JOIN pinned_posts pp ON pp.post_id = p.id \
+                 WHERE pp.persona_id = $1 AND p.deleted_at IS NULL \
+                 ORDER BY pp.pinned_at DESC"
+            );
+            let rows = sqlx::query(&sql)
+                .bind(persona_id)
+                .fetch_all(pg)
+                .await?;
+            Ok(rows.into_iter().map(pg_row_to_post).collect())
+        }
+        #[cfg(feature = "db-sqlite")]
+        Pool::Sqlite(sq) => {
+            let sql = format!(
+                "SELECT {P_COLUMNS} FROM posts p \
+                 JOIN pinned_posts pp ON pp.post_id = p.id \
+                 WHERE pp.persona_id = ?1 AND p.deleted_at IS NULL \
+                 ORDER BY pp.pinned_at DESC"
+            );
+            let rows = sqlx::query(&sql)
+                .bind(persona_id)
+                .fetch_all(sq)
+                .await?;
+            Ok(rows.into_iter().map(sqlite_row_to_post).collect())
+        }
+    }
+}
+
 #[cfg(test)]
 #[cfg(feature = "db-sqlite")]
 mod tests {
@@ -518,5 +763,98 @@ mod tests {
 
         delete_post(&pool, 300, 9000, None).await.unwrap();
         assert_eq!(posts_count(&pool, 101).await.unwrap(), 1);
+    }
+
+    #[tokio::test]
+    async fn exists_by_ap_id_found() {
+        let pool = setup().await;
+        create_post(&pool, &make_post(400)).await.unwrap();
+        assert!(exists_by_ap_id(&pool, "https://example.com/posts/400").await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn exists_by_ap_id_not_found() {
+        let pool = setup().await;
+        assert!(!exists_by_ap_id(&pool, "https://example.com/posts/nope").await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn update_post_full_works() {
+        let pool = setup().await;
+        create_post(&pool, &make_post(401)).await.unwrap();
+
+        update_post_full(&pool, 401, "edited", "<p>edited</p>", "cw", true, 9000)
+            .await
+            .unwrap();
+
+        let fetched = get_post(&pool, 401).await.unwrap().unwrap();
+        assert_eq!(fetched.content, "edited");
+        assert_eq!(fetched.content_html, "<p>edited</p>");
+        assert_eq!(fetched.spoiler_text, "cw");
+        assert!(fetched.sensitive);
+        assert_eq!(fetched.edited_at, Some(9000));
+    }
+
+    #[tokio::test]
+    async fn hard_delete_removes_row() {
+        let pool = setup().await;
+        create_post(&pool, &make_post(402)).await.unwrap();
+        hard_delete_post(&pool, 402).await.unwrap();
+        assert!(get_post(&pool, 402).await.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn create_and_find_boost() {
+        let pool = setup().await;
+        create_post(&pool, &make_post(500)).await.unwrap();
+        create_boost(&pool, 501, 1, 101, 500, "https://example.com/posts/500", "https://example.com/boosts/501", 3000)
+            .await
+            .unwrap();
+
+        let found = find_boost(&pool, 101, 500).await.unwrap();
+        assert_eq!(found, Some(501));
+    }
+
+    #[tokio::test]
+    async fn find_boost_returns_none() {
+        let pool = setup().await;
+        assert!(find_boost(&pool, 101, 999).await.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn delete_boost_removes() {
+        let pool = setup().await;
+        create_post(&pool, &make_post(500)).await.unwrap();
+        create_boost(&pool, 502, 1, 101, 500, "https://example.com/posts/500", "https://example.com/boosts/502", 3000)
+            .await
+            .unwrap();
+
+        delete_boost(&pool, 101, 500).await.unwrap();
+        assert!(find_boost(&pool, 101, 500).await.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn featured_posts_returns_pinned() {
+        let pool = setup().await;
+        create_post(&pool, &make_post(600)).await.unwrap();
+        create_post(&pool, &make_post(601)).await.unwrap();
+
+        // Pin one post
+        crate::interactions_db::pin_post(&pool, 101, 600, 3000).await.unwrap();
+
+        let pinned = featured_posts(&pool, 101).await.unwrap();
+        assert_eq!(pinned.len(), 1);
+        assert_eq!(pinned[0].id, 600);
+    }
+
+    #[tokio::test]
+    async fn featured_posts_excludes_deleted() {
+        let pool = setup().await;
+        create_post(&pool, &make_post(700)).await.unwrap();
+        crate::interactions_db::pin_post(&pool, 101, 700, 3000).await.unwrap();
+        delete_post(&pool, 700, 9000, None).await.unwrap();
+
+        let pinned = featured_posts(&pool, 101).await.unwrap();
+        assert!(pinned.is_empty());
     }
 }

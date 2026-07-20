@@ -384,6 +384,106 @@ pub async fn mark_fetch_success(
     Ok(())
 }
 
+/// Look up a remote account by its primary key ID.
+pub async fn get_by_id(
+    pool: &Pool,
+    id: i64,
+) -> Result<Option<RemoteAccountRow>, sqlx::Error> {
+    match pool {
+        #[cfg(feature = "db-postgres")]
+        Pool::Postgres(pg) => {
+            let row = sqlx::query(
+                &format!("SELECT {COLUMNS} FROM remote_accounts WHERE id = $1"),
+            )
+            .bind(id)
+            .fetch_optional(pg)
+            .await?;
+            Ok(row.map(pg_row_to_account))
+        }
+        #[cfg(feature = "db-sqlite")]
+        Pool::Sqlite(sq) => {
+            let row = sqlx::query(
+                &format!("SELECT {COLUMNS} FROM remote_accounts WHERE id = ?1"),
+            )
+            .bind(id)
+            .fetch_optional(sq)
+            .await?;
+            Ok(row.map(sqlite_row_to_account))
+        }
+    }
+}
+
+/// Get the inbox URL for a remote account by actor_uri.
+///
+/// Prefers `shared_inbox_url` when available.
+pub async fn get_inbox(
+    pool: &Pool,
+    actor_uri: &str,
+) -> Result<Option<String>, sqlx::Error> {
+    let row: Option<(String,)> = match pool {
+        #[cfg(feature = "db-postgres")]
+        Pool::Postgres(pg) => {
+            sqlx::query_as(
+                "SELECT COALESCE(shared_inbox_url, inbox_url) \
+                 FROM remote_accounts WHERE actor_uri = $1",
+            )
+            .bind(actor_uri)
+            .fetch_optional(pg)
+            .await?
+        }
+        #[cfg(feature = "db-sqlite")]
+        Pool::Sqlite(sq) => {
+            sqlx::query_as(
+                "SELECT COALESCE(shared_inbox_url, inbox_url) \
+                 FROM remote_accounts WHERE actor_uri = ?1",
+            )
+            .bind(actor_uri)
+            .fetch_optional(sq)
+            .await?
+        }
+    };
+    Ok(row.map(|(url,)| url))
+}
+
+/// Cascade-delete a remote account and all related data.
+///
+/// Removes rows from: notifications, remote_posts, followers, follows,
+/// and finally the remote_accounts row itself.
+pub async fn cascade_delete(
+    pool: &Pool,
+    remote_account_id: i64,
+) -> Result<(), sqlx::Error> {
+    match pool {
+        #[cfg(feature = "db-postgres")]
+        Pool::Postgres(pg) => {
+            sqlx::query("DELETE FROM notifications WHERE from_remote_account_id = $1")
+                .bind(remote_account_id).execute(pg).await?;
+            sqlx::query("DELETE FROM remote_posts WHERE remote_account_id = $1")
+                .bind(remote_account_id).execute(pg).await?;
+            sqlx::query("DELETE FROM followers WHERE remote_account_id = $1")
+                .bind(remote_account_id).execute(pg).await?;
+            sqlx::query("DELETE FROM follows WHERE followee_remote_id = $1")
+                .bind(remote_account_id).execute(pg).await?;
+            sqlx::query("DELETE FROM remote_accounts WHERE id = $1")
+                .bind(remote_account_id).execute(pg).await?;
+        }
+        #[cfg(feature = "db-sqlite")]
+        Pool::Sqlite(sq) => {
+            sqlx::query("DELETE FROM notifications WHERE from_remote_account_id = ?1")
+                .bind(remote_account_id).execute(sq).await?;
+            sqlx::query("DELETE FROM remote_posts WHERE remote_account_id = ?1")
+                .bind(remote_account_id).execute(sq).await?;
+            sqlx::query("DELETE FROM followers WHERE remote_account_id = ?1")
+                .bind(remote_account_id).execute(sq).await?;
+            sqlx::query("DELETE FROM follows WHERE followee_remote_id = ?1")
+                .bind(remote_account_id).execute(sq).await?;
+            sqlx::query("DELETE FROM remote_accounts WHERE id = ?1")
+                .bind(remote_account_id).execute(sq).await?;
+        }
+    }
+    Ok(())
+}
+
 /// Pure function: returns `true` if the account's `last_fetched_at` is older
 /// than `max_age_secs` relative to `now`.
 pub fn needs_refetch(account: &RemoteAccountRow, now: i64, max_age_secs: i64) -> bool {
@@ -576,6 +676,54 @@ mod tests {
         assert_eq!(fetched.fetch_fail_count, 0);
         assert!(fetched.fetched_failed_at.is_none());
         assert_eq!(fetched.last_fetched_at, 1_700_003_000);
+    }
+
+    #[cfg(feature = "db-sqlite")]
+    #[tokio::test]
+    async fn get_by_id_finds_account() {
+        let pool = setup_db().await;
+        let acct = sample_account();
+        let id = upsert_remote_account(&pool, &acct).await.unwrap();
+
+        let fetched = get_by_id(&pool, id).await.unwrap().expect("should find by id");
+        assert_eq!(fetched.actor_uri, acct.actor_uri);
+    }
+
+    #[cfg(feature = "db-sqlite")]
+    #[tokio::test]
+    async fn get_by_id_returns_none() {
+        let pool = setup_db().await;
+        assert!(get_by_id(&pool, 999).await.unwrap().is_none());
+    }
+
+    #[cfg(feature = "db-sqlite")]
+    #[tokio::test]
+    async fn get_inbox_returns_shared() {
+        let pool = setup_db().await;
+        let acct = sample_account();
+        upsert_remote_account(&pool, &acct).await.unwrap();
+
+        let inbox = get_inbox(&pool, &acct.actor_uri).await.unwrap().unwrap();
+        assert_eq!(inbox, "https://remote.example/inbox");
+    }
+
+    #[cfg(feature = "db-sqlite")]
+    #[tokio::test]
+    async fn get_inbox_returns_none_for_unknown() {
+        let pool = setup_db().await;
+        assert!(get_inbox(&pool, "https://nobody/actor").await.unwrap().is_none());
+    }
+
+    #[cfg(feature = "db-sqlite")]
+    #[tokio::test]
+    async fn cascade_delete_removes_account() {
+        let pool = setup_db().await;
+        let acct = sample_account();
+        let id = upsert_remote_account(&pool, &acct).await.unwrap();
+
+        cascade_delete(&pool, id).await.unwrap();
+
+        assert!(get_by_id(&pool, id).await.unwrap().is_none());
     }
 
     #[test]

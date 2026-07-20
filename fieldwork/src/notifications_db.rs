@@ -203,6 +203,96 @@ pub async fn mark_all_read(pool: &Pool, user_id: i64, now: i64) -> Result<(), sq
     Ok(())
 }
 
+/// Delete notifications matching a specific kind and optional source/post filters.
+///
+/// Used by inbox undo handlers to remove a specific notification (e.g., undo favourite).
+pub async fn delete_by_kind(
+    pool: &Pool,
+    persona_id: i64,
+    kind: &str,
+    from_remote_id: Option<i64>,
+    post_id: Option<i64>,
+) -> Result<(), sqlx::Error> {
+    match pool {
+        #[cfg(feature = "db-postgres")]
+        Pool::Postgres(pg) => {
+            sqlx::query(
+                "DELETE FROM notifications \
+                 WHERE persona_id = $1 AND kind = $2 \
+                 AND from_remote_account_id IS NOT DISTINCT FROM $3 \
+                 AND post_id IS NOT DISTINCT FROM $4",
+            )
+            .bind(persona_id)
+            .bind(kind)
+            .bind(from_remote_id)
+            .bind(post_id)
+            .execute(pg)
+            .await?;
+        }
+        #[cfg(feature = "db-sqlite")]
+        Pool::Sqlite(sq) => {
+            sqlx::query(
+                "DELETE FROM notifications \
+                 WHERE persona_id = ?1 AND kind = ?2 \
+                 AND (from_remote_account_id IS ?3) \
+                 AND (post_id IS ?4)",
+            )
+            .bind(persona_id)
+            .bind(kind)
+            .bind(from_remote_id)
+            .bind(post_id)
+            .execute(sq)
+            .await?;
+        }
+    }
+    Ok(())
+}
+
+/// Check whether a notification exists matching the given criteria.
+pub async fn notification_exists(
+    pool: &Pool,
+    persona_id: i64,
+    kind: &str,
+    from_remote_id: Option<i64>,
+    post_id: Option<i64>,
+) -> Result<bool, sqlx::Error> {
+    let row: Option<(i32,)> = match pool {
+        #[cfg(feature = "db-postgres")]
+        Pool::Postgres(pg) => {
+            sqlx::query_as(
+                "SELECT 1 FROM notifications \
+                 WHERE persona_id = $1 AND kind = $2 \
+                 AND from_remote_account_id IS NOT DISTINCT FROM $3 \
+                 AND post_id IS NOT DISTINCT FROM $4 \
+                 LIMIT 1",
+            )
+            .bind(persona_id)
+            .bind(kind)
+            .bind(from_remote_id)
+            .bind(post_id)
+            .fetch_optional(pg)
+            .await?
+        }
+        #[cfg(feature = "db-sqlite")]
+        Pool::Sqlite(sq) => {
+            sqlx::query_as(
+                "SELECT 1 FROM notifications \
+                 WHERE persona_id = ?1 AND kind = ?2 \
+                 AND (from_remote_account_id IS ?3) \
+                 AND (post_id IS ?4) \
+                 LIMIT 1",
+            )
+            .bind(persona_id)
+            .bind(kind)
+            .bind(from_remote_id)
+            .bind(post_id)
+            .fetch_optional(sq)
+            .await?
+        }
+    };
+    Ok(row.is_some())
+}
+
 /// Delete all notifications for a user.
 pub async fn clear_notifications(pool: &Pool, user_id: i64) -> Result<(), sqlx::Error> {
     match pool {
@@ -343,5 +433,53 @@ mod tests {
         clear_notifications(&pool, 1).await.unwrap();
         let notifs = get_notifications(&pool, 1, 10).await.unwrap();
         assert!(notifs.is_empty());
+    }
+
+    #[tokio::test]
+    async fn notification_exists_found() {
+        let pool = setup().await;
+        create_notification(&pool, &sample_notif(10, "follow")).await.unwrap();
+
+        assert!(notification_exists(&pool, 101, "follow", None, None).await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn notification_exists_not_found() {
+        let pool = setup().await;
+        assert!(!notification_exists(&pool, 101, "follow", None, None).await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn delete_by_kind_removes_matching() {
+        let pool = setup().await;
+        create_notification(&pool, &sample_notif(10, "follow")).await.unwrap();
+        create_notification(&pool, &sample_notif(11, "mention")).await.unwrap();
+
+        delete_by_kind(&pool, 101, "follow", None, None).await.unwrap();
+
+        let notifs = get_notifications(&pool, 1, 10).await.unwrap();
+        assert_eq!(notifs.len(), 1);
+        assert_eq!(notifs[0].kind, "mention");
+    }
+
+    #[tokio::test]
+    async fn delete_by_kind_with_post_id() {
+        let pool = setup().await;
+        // Create a post for FK reference
+        let sq = match &pool { Pool::Sqlite(sq) => sq.clone() };
+        sqlx::raw_sql(
+            "INSERT INTO posts (id, user_id, persona_id, ap_id, content, content_html, visibility, created_at) \
+             VALUES (100, 1, 101, 'https://example.com/posts/100', 'hi', '<p>hi</p>', 'public', 1000);",
+        )
+        .execute(&sq)
+        .await
+        .unwrap();
+
+        let mut notif = sample_notif(20, "favourite");
+        notif.post_id = Some(100);
+        create_notification(&pool, &notif).await.unwrap();
+
+        delete_by_kind(&pool, 101, "favourite", None, Some(100)).await.unwrap();
+        assert!(!notification_exists(&pool, 101, "favourite", None, Some(100)).await.unwrap());
     }
 }

@@ -223,6 +223,108 @@ pub async fn schedule_retry(
     Ok(())
 }
 
+/// Count pending deliveries (not yet delivered, not dead).
+pub async fn count_pending(pool: &Pool) -> Result<i64, sqlx::Error> {
+    let row: (i64,) = match pool {
+        #[cfg(feature = "db-postgres")]
+        Pool::Postgres(pg) => {
+            sqlx::query_as(
+                "SELECT COUNT(*)::bigint FROM delivery_queue \
+                 WHERE delivered_at IS NULL AND dead_at IS NULL",
+            )
+            .fetch_one(pg)
+            .await?
+        }
+        #[cfg(feature = "db-sqlite")]
+        Pool::Sqlite(sq) => {
+            sqlx::query_as(
+                "SELECT COUNT(*) FROM delivery_queue \
+                 WHERE delivered_at IS NULL AND dead_at IS NULL",
+            )
+            .fetch_one(sq)
+            .await?
+        }
+    };
+    Ok(row.0)
+}
+
+/// Count dead-lettered deliveries.
+pub async fn count_dead(pool: &Pool) -> Result<i64, sqlx::Error> {
+    let row: (i64,) = match pool {
+        #[cfg(feature = "db-postgres")]
+        Pool::Postgres(pg) => {
+            sqlx::query_as(
+                "SELECT COUNT(*)::bigint FROM delivery_queue WHERE dead_at IS NOT NULL",
+            )
+            .fetch_one(pg)
+            .await?
+        }
+        #[cfg(feature = "db-sqlite")]
+        Pool::Sqlite(sq) => {
+            sqlx::query_as(
+                "SELECT COUNT(*) FROM delivery_queue WHERE dead_at IS NOT NULL",
+            )
+            .fetch_one(sq)
+            .await?
+        }
+    };
+    Ok(row.0)
+}
+
+/// Count successfully delivered items.
+pub async fn count_delivered(pool: &Pool) -> Result<i64, sqlx::Error> {
+    let row: (i64,) = match pool {
+        #[cfg(feature = "db-postgres")]
+        Pool::Postgres(pg) => {
+            sqlx::query_as(
+                "SELECT COUNT(*)::bigint FROM delivery_queue WHERE delivered_at IS NOT NULL",
+            )
+            .fetch_one(pg)
+            .await?
+        }
+        #[cfg(feature = "db-sqlite")]
+        Pool::Sqlite(sq) => {
+            sqlx::query_as(
+                "SELECT COUNT(*) FROM delivery_queue WHERE delivered_at IS NOT NULL",
+            )
+            .fetch_one(sq)
+            .await?
+        }
+    };
+    Ok(row.0)
+}
+
+/// Retry all dead-lettered deliveries by resetting to pending. Returns rows affected.
+pub async fn retry_all_dead(pool: &Pool, now: i64) -> Result<u64, sqlx::Error> {
+    let rows_affected = match pool {
+        #[cfg(feature = "db-postgres")]
+        Pool::Postgres(pg) => {
+            sqlx::query(
+                "UPDATE delivery_queue \
+                 SET dead_at = NULL, last_error = NULL, attempts = 0, next_attempt_at = $1 \
+                 WHERE dead_at IS NOT NULL",
+            )
+            .bind(now)
+            .execute(pg)
+            .await?
+            .rows_affected()
+        }
+        #[cfg(feature = "db-sqlite")]
+        Pool::Sqlite(sq) => {
+            sqlx::query(
+                "UPDATE delivery_queue \
+                 SET dead_at = NULL, last_error = NULL, attempts = 0, next_attempt_at = ?1 \
+                 WHERE dead_at IS NOT NULL",
+            )
+            .bind(now)
+            .execute(sq)
+            .await?
+            .rows_affected()
+        }
+    };
+    Ok(rows_affected)
+}
+
 /// Delete completed or dead jobs created before `before` (unix epoch seconds).
 ///
 /// Returns the number of rows deleted.
@@ -479,5 +581,55 @@ mod tests {
         // Nothing is delivered or dead, so nothing to purge
         let deleted = purge_old(&pool, NOW + 1000).await.unwrap();
         assert_eq!(deleted, 0);
+    }
+
+    #[cfg(feature = "db-sqlite")]
+    #[tokio::test]
+    async fn count_pending_works() {
+        let pool = test_pool().await;
+        assert_eq!(count_pending(&pool).await.unwrap(), 0);
+
+        enqueue(&pool, "https://a/inbox", 101, "{}", NOW).await.unwrap();
+        enqueue(&pool, "https://b/inbox", 101, "{}", NOW).await.unwrap();
+        assert_eq!(count_pending(&pool).await.unwrap(), 2);
+    }
+
+    #[cfg(feature = "db-sqlite")]
+    #[tokio::test]
+    async fn count_dead_works() {
+        let pool = test_pool().await;
+        let id = enqueue(&pool, "https://a/inbox", 101, "{}", NOW).await.unwrap();
+        assert_eq!(count_dead(&pool).await.unwrap(), 0);
+
+        mark_dead(&pool, id, "gone", NOW + 1).await.unwrap();
+        assert_eq!(count_dead(&pool).await.unwrap(), 1);
+    }
+
+    #[cfg(feature = "db-sqlite")]
+    #[tokio::test]
+    async fn count_delivered_works() {
+        let pool = test_pool().await;
+        let id = enqueue(&pool, "https://a/inbox", 101, "{}", NOW).await.unwrap();
+        assert_eq!(count_delivered(&pool).await.unwrap(), 0);
+
+        mark_delivered(&pool, id, NOW + 1).await.unwrap();
+        assert_eq!(count_delivered(&pool).await.unwrap(), 1);
+    }
+
+    #[cfg(feature = "db-sqlite")]
+    #[tokio::test]
+    async fn retry_all_dead_resets() {
+        let pool = test_pool().await;
+        let id1 = enqueue(&pool, "https://a/inbox", 101, "{}", NOW).await.unwrap();
+        let id2 = enqueue(&pool, "https://b/inbox", 101, "{}", NOW).await.unwrap();
+
+        mark_dead(&pool, id1, "error1", NOW + 1).await.unwrap();
+        mark_dead(&pool, id2, "error2", NOW + 1).await.unwrap();
+        assert_eq!(count_dead(&pool).await.unwrap(), 2);
+
+        let retried = retry_all_dead(&pool, NOW + 100).await.unwrap();
+        assert_eq!(retried, 2);
+        assert_eq!(count_dead(&pool).await.unwrap(), 0);
+        assert_eq!(count_pending(&pool).await.unwrap(), 2);
     }
 }

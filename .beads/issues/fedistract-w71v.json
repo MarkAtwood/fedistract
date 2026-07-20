@@ -2,11 +2,15 @@
   "id": "fedistract-w71v",
   "title": "Extract fieldwork::relationship_db — composite relationship queries",
   "description": "Promote common relationship building from db_extras.rs into fieldwork. Composes: follows_db::is_following_remote + followers_db::is_following + interactions_db::is_blocked + is_muted + follows show_reblogs/notify fields. Returns a Relationship struct matching Mastodon API shape. Used by every follow/unfollow/block/mute endpoint.",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "issue_type": "feature",
+  "assignee": "Mark Atwood",
   "owner": "mark@wolfssl.com",
   "created_at": "2026-07-20T19:35:26.918730528Z",
   "created_by": "Mark Atwood",
-  "updated_at": "2026-07-20T19:35:26.918730528Z"
+  "updated_at": "2026-07-20T21:19:12.185385678Z",
+  "started_at": "2026-07-20T21:09:27.534703398Z",
+  "closed_at": "2026-07-20T21:19:12.185385678Z",
+  "close_reason": "All 4 modules created/extended. 428 fieldwork tests pass. 67 new functions across 9 modules."
 }

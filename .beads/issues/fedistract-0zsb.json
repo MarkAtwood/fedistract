@@ -2,11 +2,15 @@
   "id": "fedistract-0zsb",
   "title": "Extract fieldwork::inbox_ops — inbox activity processing",
   "description": "Promote common inbox processing from db_extras.rs into fieldwork. Orchestrates: resolve actor → upsert remote_account → process activity (Create→store remote_post, Follow→add follower, Like→create notification, etc.). Composes: actor_cache + remote_posts_db + followers_db + notifications_db. Each activity type is a function.",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "issue_type": "feature",
+  "assignee": "Mark Atwood",
   "owner": "mark@wolfssl.com",
   "created_at": "2026-07-20T19:35:26.963877568Z",
   "created_by": "Mark Atwood",
-  "updated_at": "2026-07-20T19:35:26.963877568Z"
+  "updated_at": "2026-07-20T21:19:12.197920713Z",
+  "started_at": "2026-07-20T21:09:27.574887586Z",
+  "closed_at": "2026-07-20T21:19:12.197920713Z",
+  "close_reason": "All 4 modules created/extended. 428 fieldwork tests pass. 67 new functions across 9 modules."
 }

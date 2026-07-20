@@ -94,7 +94,13 @@ pub mod relay;
 #[cfg(any(feature = "db-postgres", feature = "db-sqlite"))]
 pub mod scheduled_db;
 #[cfg(any(feature = "db-postgres", feature = "db-sqlite"))]
+pub mod search_db;
+#[cfg(any(feature = "db-postgres", feature = "db-sqlite"))]
 pub mod tenant_db;
+#[cfg(any(feature = "db-postgres", feature = "db-sqlite"))]
+pub mod timeline_db;
+#[cfg(any(feature = "db-postgres", feature = "db-sqlite"))]
+pub mod relationship_db;
 #[cfg(any(feature = "db-postgres", feature = "db-sqlite"))]
 pub mod remote_posts_db;
 #[cfg(feature = "fetch")]
