@@ -1,0 +1,12 @@
+{
+  "id": "fedistract-bqic",
+  "title": "Extract fieldwork::idempotency_db — idempotency key CRUD",
+  "description": "7 queries in smallhold + gaja. Check/store idempotency keys for Mastodon Client API POST requests. Simple key-value with TTL.",
+  "status": "open",
+  "priority": 3,
+  "issue_type": "feature",
+  "owner": "mark@wolfssl.com",
+  "created_at": "2026-07-20T17:15:00.796873216Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T17:15:00.796873216Z"
+}

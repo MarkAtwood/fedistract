@@ -1,0 +1,12 @@
+{
+  "id": "fedistract-i8ok",
+  "title": "Extract fieldwork::webauthn_db — WebAuthn credential storage",
+  "description": "8 queries in smallhold. Store/retrieve WebAuthn credentials and challenges. Used for passkey login.",
+  "status": "open",
+  "priority": 3,
+  "issue_type": "feature",
+  "owner": "mark@wolfssl.com",
+  "created_at": "2026-07-20T17:15:00.752212647Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T17:15:00.752212647Z"
+}

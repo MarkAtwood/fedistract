@@ -1,0 +1,12 @@
+{
+  "id": "fedistract-2pt9",
+  "title": "Extract fieldwork::invite_codes_db — invite code CRUD",
+  "description": "In canonical schema but not yet used by any server. Create/validate/consume invite codes. Prep for gaja multi-tenant registration.",
+  "status": "open",
+  "priority": 4,
+  "issue_type": "feature",
+  "owner": "mark@wolfssl.com",
+  "created_at": "2026-07-20T17:15:00.962418071Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T17:15:00.962418071Z"
+}

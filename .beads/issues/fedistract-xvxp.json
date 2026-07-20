@@ -1,0 +1,12 @@
+{
+  "id": "fedistract-xvxp",
+  "title": "Extract fieldwork::remote_posts_db — federated post cache",
+  "description": "17 queries in smallhold + gaja. Insert/update/delete cached remote posts. Used by inbox handlers when receiving Create/Update/Delete from remote actors. Includes fetched_at tracking.",
+  "status": "open",
+  "priority": 2,
+  "issue_type": "feature",
+  "owner": "mark@wolfssl.com",
+  "created_at": "2026-07-20T17:15:00.406821548Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T17:15:00.406821548Z"
+}

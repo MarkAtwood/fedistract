@@ -1,0 +1,12 @@
+{
+  "id": "fedistract-zw1e",
+  "title": "Extract fieldwork::post_tags_db — hashtag CRUD",
+  "description": "20 queries in smallhold + gaja. Insert tags for post, get tags for post, delete tags for post, search posts by tag. Simple junction table CRUD.",
+  "status": "open",
+  "priority": 2,
+  "issue_type": "feature",
+  "owner": "mark@wolfssl.com",
+  "created_at": "2026-07-20T17:15:00.320057234Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T17:15:00.320057234Z"
+}

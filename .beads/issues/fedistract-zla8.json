@@ -1,0 +1,12 @@
+{
+  "id": "fedistract-zla8",
+  "title": "Extract fieldwork::follow_requests_db — pending follow request CRUD",
+  "description": "8 queries in smallhold. Create/accept/reject/list follow requests for locked accounts. Only in smallhold currently but gaja will need it.",
+  "status": "open",
+  "priority": 3,
+  "issue_type": "feature",
+  "owner": "mark@wolfssl.com",
+  "created_at": "2026-07-20T17:15:00.491013994Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T17:15:00.491013994Z"
+}
