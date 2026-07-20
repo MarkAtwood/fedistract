@@ -1,0 +1,21 @@
+[package]
+name = "ssrf-guard"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.72"
+license = "MIT OR Apache-2.0"
+description = "SSRF protection: validate URLs and IPs against private/internal/reserved ranges"
+repository = "https://github.com/MarkAtwood/ssrf-guard"
+keywords = ["ssrf", "security", "activitypub", "federation", "firewall"]
+categories = ["web-programming", "network-programming"]
+
+[dependencies]
+thiserror = "2"
+url = "2"
+tokio = { version = "1", features = ["net"], optional = true }
+reqwest = { version = "0.12", optional = true }
+
+[features]
+default = []
+resolve = ["tokio"]
+reqwest = ["dep:reqwest", "resolve"]
