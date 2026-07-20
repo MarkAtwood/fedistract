@@ -1,0 +1,16 @@
+{
+  "id": "fedistract-7nsu",
+  "title": "Fix token mint scope format: comma-separated vs space-separated",
+  "description": "smallhold's 'token mint' CLI command outputs scopes as comma-separated ('read,write,follow') but the API scope checker (api.rs:248) splits on whitespace. Tokens minted via CLI fail write-scope checks. Fix: either change token mint to use space-separated scopes, or change the scope checker to handle both formats.",
+  "status": "closed",
+  "priority": 1,
+  "issue_type": "bug",
+  "assignee": "Mark Atwood",
+  "owner": "mark@wolfssl.com",
+  "created_at": "2026-07-20T13:27:19.658075634Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T13:33:48.493051112Z",
+  "started_at": "2026-07-20T13:27:24.807749663Z",
+  "closed_at": "2026-07-20T13:33:48.493051112Z",
+  "close_reason": "Fixed: CLI default scopes changed from comma to space-separated. Scope checker updated to handle both formats."
+}

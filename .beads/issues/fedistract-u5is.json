@@ -1,0 +1,16 @@
+{
+  "id": "fedistract-u5is",
+  "title": "Home timeline missing remote/federated posts",
+  "description": "smallhold's /api/v1/timelines/home endpoint only returns local posts. Remote posts delivered to the inbox are stored in remote_posts table but not included in the home timeline query. The public timeline also doesn't include them. Need to JOIN remote_posts for followed accounts into the timeline query.",
+  "status": "closed",
+  "priority": 1,
+  "issue_type": "bug",
+  "assignee": "Mark Atwood",
+  "owner": "mark@wolfssl.com",
+  "created_at": "2026-07-20T13:27:19.705127249Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-20T13:33:48.54582984Z",
+  "started_at": "2026-07-20T13:27:24.859499936Z",
+  "closed_at": "2026-07-20T13:33:48.54582984Z",
+  "close_reason": "Fixed: home timeline now includes remote posts from followed accounts via UNION query on remote_posts JOIN remote_accounts."
+}
