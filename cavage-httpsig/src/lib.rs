@@ -67,6 +67,10 @@ pub enum VerifyError {
     InvalidSignatureBytes,
     #[error("signature verification failed")]
     SignatureMismatch,
+    #[error("malformed quoted value in Signature header: {0}")]
+    MalformedQuotedValue(String),
+    #[error("Signature header exceeds size limit")]
+    HeaderTooLarge,
 }
 
 /// Sign an outbound HTTP POST request (ActivityPub delivery).
@@ -176,17 +180,32 @@ pub fn verify(
 }
 
 /// Parsed components of an HTTP Signature header.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct SignatureParts {
     pub key_id: String,
     pub headers: String,
     pub signature: String,
 }
 
+impl std::fmt::Debug for SignatureParts {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SignatureParts")
+            .field("key_id", &self.key_id)
+            .field("headers", &self.headers)
+            .field("signature", &"[REDACTED]")
+            .finish()
+    }
+}
+
 /// Parse a Signature header value into its components.
 ///
 /// Format: `keyId="...",algorithm="...",headers="...",signature="..."`
 pub fn parse_signature_header(header: &str) -> Result<SignatureParts, VerifyError> {
+    const MAX_HEADER_SIZE: usize = 8192;
+    if header.len() > MAX_HEADER_SIZE {
+        return Err(VerifyError::HeaderTooLarge);
+    }
+
     let mut key_id_val = None;
     let mut headers_val = None;
     let mut signature_val = None;
@@ -194,11 +213,23 @@ pub fn parse_signature_header(header: &str) -> Result<SignatureParts, VerifyErro
     for part in split_signature_params(header) {
         let part = part.trim();
         if let Some(val) = part.strip_prefix("keyId=\"") {
-            key_id_val = Some(val.strip_suffix('"').unwrap_or(val).to_string());
+            key_id_val = Some(
+                val.strip_suffix('"')
+                    .ok_or_else(|| VerifyError::MalformedQuotedValue("keyId".into()))?
+                    .to_string(),
+            );
         } else if let Some(val) = part.strip_prefix("headers=\"") {
-            headers_val = Some(val.strip_suffix('"').unwrap_or(val).to_string());
+            headers_val = Some(
+                val.strip_suffix('"')
+                    .ok_or_else(|| VerifyError::MalformedQuotedValue("headers".into()))?
+                    .to_string(),
+            );
         } else if let Some(val) = part.strip_prefix("signature=\"") {
-            signature_val = Some(val.strip_suffix('"').unwrap_or(val).to_string());
+            signature_val = Some(
+                val.strip_suffix('"')
+                    .ok_or_else(|| VerifyError::MalformedQuotedValue("signature".into()))?
+                    .to_string(),
+            );
         }
     }
 
@@ -525,6 +556,37 @@ zloXrMaFLBPp2UUN/amDTUIJ
             parse_signature_header(r#"algorithm="rsa-sha256""#),
             Err(VerifyError::MissingKeyId)
         ));
+    }
+
+    #[test]
+    fn parse_signature_header_rejects_missing_closing_quote() {
+        // keyId has no closing quote — must be rejected
+        let header = r#"keyId="https://example.com/key"#;
+        assert!(
+            parse_signature_header(header).is_err(),
+            "must reject header with missing closing quote"
+        );
+    }
+
+    #[test]
+    fn parse_signature_header_rejects_oversized() {
+        let huge = format!(r#"keyId="k",headers="h",signature="{}""#, "A".repeat(9000));
+        assert!(matches!(
+            parse_signature_header(&huge),
+            Err(VerifyError::HeaderTooLarge)
+        ));
+    }
+
+    #[test]
+    fn signature_parts_debug_redacts() {
+        let parts = SignatureParts {
+            key_id: "https://example.com/key".into(),
+            headers: "(request-target) host date".into(),
+            signature: "secret_signature_value".into(),
+        };
+        let debug = format!("{parts:?}");
+        assert!(!debug.contains("secret_signature_value"));
+        assert!(debug.contains("[REDACTED]"));
     }
 
     #[test]
