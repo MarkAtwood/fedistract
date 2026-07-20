@@ -1,0 +1,19 @@
+[package]
+name = "fedi-did"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.72"
+license = "MIT OR Apache-2.0"
+description = "DID (Decentralized Identifier) utilities for fediverse servers"
+repository = "https://github.com/MarkAtwood/fedi-did"
+keywords = ["did", "decentralized-identity", "activitypub", "federation", "bip39"]
+categories = ["authentication", "cryptography", "web-programming"]
+
+[dependencies]
+bip39 = "2"
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+multibase = "0.9"
+rand = "0.8"
+serde_json = "1"
+sha2 = "0.10"
+thiserror = "2"
