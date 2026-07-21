@@ -1196,6 +1196,45 @@ pub async fn delete_podcast_episode(pool: &Pool, id: i64) -> Result<(), sqlx::Er
 }
 
 // ---------------------------------------------------------------------------
+// API type conversions (feature: api-convert)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "api-convert")]
+impl From<&TrackRow> for fieldwork::funkwhale_api::TrackResponse {
+    fn from(t: &TrackRow) -> Self {
+        Self {
+            id: t.id,
+            title: t.title.clone(),
+            artist: t.artist.clone(),
+            album: t.album.clone(),
+            track_number: t.track_number,
+            duration: t.duration,
+            file_size: t.file_size,
+            mime_type: t.mime_type.clone(),
+            description: t.description.clone(),
+            visibility: t.visibility.clone(),
+            created_at: t.created_at,
+            listen_url: Some(format!("/api/v1/listen/{}", t.id)),
+        }
+    }
+}
+
+#[cfg(feature = "api-convert")]
+impl From<&AudioChannelRow> for fieldwork::funkwhale_api::ChannelResponse {
+    fn from(c: &AudioChannelRow) -> Self {
+        Self {
+            persona_id: c.persona_id,
+            description: c.description.clone(),
+            category: c.category.clone(),
+            language: c.language.clone(),
+            rss_enabled: c.rss_enabled,
+            itunes_category: c.itunes_category.clone(),
+            created_at: c.created_at,
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 

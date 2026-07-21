@@ -7,7 +7,7 @@ license = "MIT OR Apache-2.0"
 description = "Database persistence layer for fieldwork fediverse building blocks"
 
 [dependencies]
-fieldwork = { path = "../fieldwork" }
+fieldwork = { path = "../fieldwork", default-features = false }
 sqlx = { version = "0.8", optional = true }
 thiserror = "2"
 tracing = { version = "0.1", optional = true }
@@ -21,6 +21,7 @@ default = []
 postgres = ["sqlx/runtime-tokio", "sqlx/postgres", "dep:tracing"]
 sqlite = ["sqlx/runtime-tokio", "sqlx/sqlite", "dep:tracing"]
 serde = ["dep:serde", "dep:serde_json"]
+api-convert = ["fieldwork/funkwhale-api", "fieldwork/bookwyrm-api", "fieldwork/writefreely-api", "fieldwork/sanitize"]
 
 [dev-dependencies]
 tokio = { version = "1", features = ["rt", "macros"] }

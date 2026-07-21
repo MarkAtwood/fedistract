@@ -598,6 +598,48 @@ pub async fn reviews_by_user(
     }
 }
 
+// ---------------------------------------------------------------------------
+// API type conversions (feature: api-convert)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "api-convert")]
+impl From<&BookRow> for fieldwork::bookwyrm_api::BookResponse {
+    fn from(b: &BookRow) -> Self {
+        Self {
+            id: b.id,
+            title: b.title.clone(),
+            author: b.author.clone(),
+            isbn: b.isbn.clone(),
+            isbn13: b.isbn13.clone(),
+            openlibrary_id: b.openlibrary_id.clone(),
+            cover_url: b.cover_url.clone(),
+            description: b.description.clone(),
+            pages: b.pages,
+            published_year: b.published_year,
+            language: b.language.clone(),
+            created_at: b.created_at,
+        }
+    }
+}
+
+#[cfg(feature = "api-convert")]
+impl From<&ReviewRow> for fieldwork::bookwyrm_api::ReviewResponse {
+    fn from(r: &ReviewRow) -> Self {
+        Self {
+            id: r.id,
+            user_id: r.user_id,
+            persona_id: r.persona_id,
+            book_id: r.book_id,
+            content: r.content.clone(),
+            content_html: r.content_html.clone(),
+            rating: r.rating,
+            spoiler: r.spoiler,
+            ap_id: r.ap_id.clone(),
+            created_at: r.created_at,
+        }
+    }
+}
+
 #[cfg(test)]
 #[cfg(feature = "sqlite")]
 mod tests {

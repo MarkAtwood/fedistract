@@ -1,0 +1,16 @@
+{
+  "id": "fedistract-8lou",
+  "title": "Move row→response mappings into fieldwork types and extract shared helpers",
+  "description": "Eliminate duplication across 3 servers: (1) Add From\u003cDbRow\u003e impls on API response types in fieldwork so servers don't each copy row_to_response(). (2) Extract now_secs(), epoch_to_iso(), slugify() into fieldwork::util. Covers all 8 API faces.",
+  "status": "in_progress",
+  "priority": 1,
+  "issue_type": "task",
+  "assignee": "Mark Atwood",
+  "owner": "mark@reviewcommit.com",
+  "created_at": "2026-07-21T03:37:52.885949303Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-21T03:37:56.668831196Z",
+  "started_at": "2026-07-21T03:37:56.668831196Z",
+  "lease_expires_at": "2026-07-21T03:42:56.668831196Z",
+  "heartbeat_at": "2026-07-21T03:37:56.668831196Z"
+}

@@ -29,6 +29,8 @@
 pub mod circuit_breaker;
 pub mod id;
 pub mod retry;
+#[cfg(feature = "sanitize")]
+pub mod util;
 
 #[cfg(feature = "activities")]
 pub mod activities;

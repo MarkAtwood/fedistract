@@ -519,6 +519,50 @@ pub async fn move_to_collection(
 // Tests
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// API type conversions (feature: api-convert)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "api-convert")]
+impl CollectionRow {
+    pub fn to_api_response(&self) -> fieldwork::writefreely_api::CollectionResponse {
+        fieldwork::writefreely_api::CollectionResponse {
+            alias: self.alias.clone(),
+            title: self.title.clone(),
+            description: self.description.clone(),
+            style_sheet: if self.style_sheet.is_empty() { None } else { Some(self.style_sheet.clone()) },
+            public: self.visibility == "public",
+        }
+    }
+}
+
+#[cfg(feature = "api-convert")]
+impl ArticleRow {
+    pub fn to_api_response(&self, include_token: bool) -> fieldwork::writefreely_api::PostResponse {
+        use fieldwork::util::epoch_to_iso;
+        let collection = self.collection_alias.as_ref().map(|alias| {
+            fieldwork::writefreely_api::CollectionRef {
+                alias: alias.clone(),
+                title: String::new(),
+            }
+        });
+        fieldwork::writefreely_api::PostResponse {
+            id: self.id.to_string(),
+            slug: self.slug.clone(),
+            token: if include_token { self.edit_token.clone() } else { None },
+            title: self.title.clone(),
+            body: self.body.clone(),
+            font: Some(self.font.clone()),
+            lang: self.language.clone(),
+            rtl: if self.rtl { Some(true) } else { None },
+            created: epoch_to_iso(self.created_at),
+            updated: self.updated_at.map(epoch_to_iso),
+            views: self.views,
+            collection,
+        }
+    }
+}
+
 #[cfg(test)]
 #[cfg(feature = "sqlite")]
 mod tests {
