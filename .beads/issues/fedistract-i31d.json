@@ -2,15 +2,15 @@
   "id": "fedistract-i31d",
   "title": "Replace render_markdown_simple with real pulldown-cmark rendering",
   "description": "Current function is a paragraph-splitting hack that doesn't parse markdown. pulldown-cmark is already an optional dep behind sanitize feature. Use it properly.",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 1,
   "issue_type": "task",
   "assignee": "Mark Atwood",
   "owner": "mark@reviewcommit.com",
   "created_at": "2026-07-21T04:00:02.899854052Z",
   "created_by": "Mark Atwood",
-  "updated_at": "2026-07-21T04:00:07.982497034Z",
+  "updated_at": "2026-07-21T04:04:49.636008107Z",
   "started_at": "2026-07-21T04:00:07.982497034Z",
-  "lease_expires_at": "2026-07-21T04:05:07.982497034Z",
-  "heartbeat_at": "2026-07-21T04:00:07.982497034Z"
+  "closed_at": "2026-07-21T04:04:49.636008107Z",
+  "close_reason": "render_markdown now uses pulldown-cmark with ammonia sanitization. Headings, bold, italic, code blocks, tables, strikethrough all work."
 }
