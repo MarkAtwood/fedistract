@@ -61,6 +61,8 @@ JSON-LD contexts hosted at `contexts/*.jsonld`.
 
 All three share the same fieldwork/fieldwork-db crates. Server-specific code is thin handler glue — auth extraction and route wiring.
 
+None of the servers ship a web frontend. They are pure API servers — users connect with existing fediverse clients (Phanpy, Elk, Ivory, Tusky, Jerboa, etc.). Server-rendered HTML is limited to profile pages and photo galleries for browser visitors.
+
 ## Building
 
 ```bash
