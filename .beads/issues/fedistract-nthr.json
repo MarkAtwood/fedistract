@@ -1,0 +1,13 @@
+{
+  "id": "fedistract-nthr",
+  "title": "Register albums_db and trending_db in lib.rs",
+  "status": "closed",
+  "priority": 2,
+  "issue_type": "task",
+  "owner": "mark@reviewcommit.com",
+  "created_at": "2026-07-21T00:09:18.113054946Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-21T00:12:23.607943362Z",
+  "closed_at": "2026-07-21T00:12:23.607943362Z",
+  "close_reason": "Closed"
+}

@@ -1,0 +1,14 @@
+{
+  "id": "fedistract-mji0",
+  "title": "Extract media processing into fieldwork::media_processing",
+  "description": "Extract duplicated image processing from smallhold and gaja into shared fieldwork module",
+  "status": "closed",
+  "priority": 2,
+  "issue_type": "epic",
+  "owner": "mark@reviewcommit.com",
+  "created_at": "2026-07-21T00:07:32.686593127Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-21T00:13:57.75675169Z",
+  "closed_at": "2026-07-21T00:13:57.75675169Z",
+  "close_reason": "All children completed"
+}

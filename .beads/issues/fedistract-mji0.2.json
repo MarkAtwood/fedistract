@@ -1,0 +1,26 @@
+{
+  "id": "fedistract-mji0.2",
+  "title": "Update smallhold to use fieldwork::media_processing",
+  "description": "Replace inline image processing with fieldwork calls",
+  "status": "closed",
+  "priority": 2,
+  "issue_type": "task",
+  "assignee": "Mark Atwood",
+  "owner": "mark@reviewcommit.com",
+  "created_at": "2026-07-21T00:07:38.70980552Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-21T00:10:26.665488708Z",
+  "started_at": "2026-07-21T00:09:09.714616576Z",
+  "closed_at": "2026-07-21T00:10:26.665488708Z",
+  "close_reason": "Closed",
+  "dependencies": [
+    {
+      "issue_id": "fedistract-mji0.2",
+      "depends_on_id": "fedistract-mji0",
+      "type": "parent-child",
+      "created_at": "2026-07-21T00:07:38.722502429Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}

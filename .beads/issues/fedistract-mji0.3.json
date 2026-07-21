@@ -1,0 +1,26 @@
+{
+  "id": "fedistract-mji0.3",
+  "title": "Update gaja to use fieldwork::media_processing",
+  "description": "Replace inline image processing with fieldwork calls",
+  "status": "closed",
+  "priority": 2,
+  "issue_type": "task",
+  "assignee": "Mark Atwood",
+  "owner": "mark@reviewcommit.com",
+  "created_at": "2026-07-21T00:07:38.768971178Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-21T00:12:14.829695625Z",
+  "started_at": "2026-07-21T00:10:26.717621927Z",
+  "closed_at": "2026-07-21T00:12:14.829695625Z",
+  "close_reason": "Closed",
+  "dependencies": [
+    {
+      "issue_id": "fedistract-mji0.3",
+      "depends_on_id": "fedistract-mji0",
+      "type": "parent-child",
+      "created_at": "2026-07-21T00:07:38.778848461Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}

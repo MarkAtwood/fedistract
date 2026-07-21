@@ -1,0 +1,26 @@
+{
+  "id": "fedistract-mji0.1",
+  "title": "Create fieldwork media_processing module",
+  "description": "New module with sniff_mime, validate_image, process_image, generate_thumbnail, MediaError",
+  "status": "closed",
+  "priority": 2,
+  "issue_type": "task",
+  "assignee": "Mark Atwood",
+  "owner": "mark@reviewcommit.com",
+  "created_at": "2026-07-21T00:07:38.657320605Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-21T00:09:05.071668158Z",
+  "started_at": "2026-07-21T00:07:42.32818766Z",
+  "closed_at": "2026-07-21T00:09:05.071668158Z",
+  "close_reason": "Closed",
+  "dependencies": [
+    {
+      "issue_id": "fedistract-mji0.1",
+      "depends_on_id": "fedistract-mji0",
+      "type": "parent-child",
+      "created_at": "2026-07-21T00:07:38.668193384Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}
