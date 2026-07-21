@@ -9,10 +9,10 @@
   "owner": "mark@reviewcommit.com",
   "created_at": "2026-07-21T04:20:10.070532373Z",
   "created_by": "Mark Atwood",
-  "updated_at": "2026-07-21T04:35:18.019433258Z",
+  "updated_at": "2026-07-21T04:42:47.351915306Z",
   "started_at": "2026-07-21T04:28:01.657672628Z",
-  "closed_at": "2026-07-21T04:35:18.019433258Z",
-  "close_reason": "Won't fix: #[non_exhaustive] adds friction without benefit. These API types are intentionally extensible — consumers are our own servers.",
+  "closed_at": "2026-07-21T04:42:47.351915306Z",
+  "close_reason": "Fixed: Added #[non_exhaustive] + Default to all public structs across mastodon_api (11), funkwhale_api (8), bookwyrm_api (10), writefreely_api (17). Fixed audio_db.rs From impls to use Default+mutation pattern. books_db.rs and articles_db.rs need same fix by their agents.",
   "labels": [
     "review"
   ],

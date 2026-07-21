@@ -47,8 +47,6 @@ pub const MARKDOWN_PATH: &str = "/api/markdown";
 
 /// WriteFreely wraps all responses in `{ "code": N, "data": ... }`.
 #[derive(Debug, Clone, Serialize)]
-#[non_exhaustive]
-#[non_exhaustive]
 pub struct WfResponse<T> {
     pub code: u16,
     pub data: T,
@@ -56,8 +54,6 @@ pub struct WfResponse<T> {
 
 /// Error response: `{ "code": N, "error_msg": "..." }`.
 #[derive(Debug, Clone, Serialize, Default)]
-#[non_exhaustive]
-#[non_exhaustive]
 pub struct WfError {
     pub code: u16,
     pub error_msg: String,
@@ -68,8 +64,6 @@ pub struct WfError {
 // ---------------------------------------------------------------------------
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
-#[non_exhaustive]
-#[non_exhaustive]
 pub struct PostResponse {
     pub id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -93,16 +87,12 @@ pub struct PostResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
-#[non_exhaustive]
-#[non_exhaustive]
 pub struct CollectionRef {
     pub alias: String,
     pub title: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
-#[non_exhaustive]
-#[non_exhaustive]
 pub struct CreatePostRequest {
     pub body: String,
     #[serde(default)]
@@ -120,8 +110,6 @@ pub struct CreatePostRequest {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-#[non_exhaustive]
-#[non_exhaustive]
 pub struct UpdatePostRequest {
     #[serde(default)]
     pub token: Option<String>,
@@ -138,8 +126,6 @@ pub struct UpdatePostRequest {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-#[non_exhaustive]
-#[non_exhaustive]
 pub struct ClaimPostRequest {
     pub id: String,
     pub token: String,
@@ -150,8 +136,6 @@ pub struct ClaimPostRequest {
 // ---------------------------------------------------------------------------
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
-#[non_exhaustive]
-#[non_exhaustive]
 pub struct CollectionResponse {
     pub alias: String,
     pub title: String,
@@ -162,8 +146,6 @@ pub struct CollectionResponse {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-#[non_exhaustive]
-#[non_exhaustive]
 pub struct CreateCollectionRequest {
     pub alias: String,
     #[serde(default)]
@@ -171,8 +153,6 @@ pub struct CreateCollectionRequest {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-#[non_exhaustive]
-#[non_exhaustive]
 pub struct UpdateCollectionRequest {
     #[serde(default)]
     pub title: Option<String>,
@@ -185,8 +165,6 @@ pub struct UpdateCollectionRequest {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-#[non_exhaustive]
-#[non_exhaustive]
 pub struct CollectRequest {
     pub id: String,
     #[serde(default)]
@@ -194,8 +172,6 @@ pub struct CollectRequest {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-#[non_exhaustive]
-#[non_exhaustive]
 pub struct PinRequest {
     pub id: String,
     #[serde(default = "default_position")]
@@ -207,8 +183,6 @@ fn default_position() -> i32 {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-#[non_exhaustive]
-#[non_exhaustive]
 pub struct UnpinRequest {
     pub id: String,
 }
@@ -218,8 +192,6 @@ pub struct UnpinRequest {
 // ---------------------------------------------------------------------------
 
 #[derive(Debug, Clone, Serialize, Default)]
-#[non_exhaustive]
-#[non_exhaustive]
 pub struct UserResponse {
     pub username: String,
 }
@@ -229,15 +201,11 @@ pub struct UserResponse {
 // ---------------------------------------------------------------------------
 
 #[derive(Debug, Clone, Deserialize)]
-#[non_exhaustive]
-#[non_exhaustive]
 pub struct MarkdownRequest {
     pub raw_body: String,
 }
 
 #[derive(Debug, Clone, Serialize, Default)]
-#[non_exhaustive]
-#[non_exhaustive]
 pub struct MarkdownResponse {
     pub body: String,
 }
@@ -247,8 +215,6 @@ pub struct MarkdownResponse {
 // ---------------------------------------------------------------------------
 
 #[derive(Debug, Clone, Deserialize)]
-#[non_exhaustive]
-#[non_exhaustive]
 pub struct CollectionPostsQuery {
     #[serde(default)]
     pub body: Option<bool>,
