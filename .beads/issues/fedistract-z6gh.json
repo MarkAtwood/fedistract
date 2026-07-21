@@ -2,11 +2,15 @@
   "id": "fedistract-z6gh",
   "title": "[EPIC] Book/reading mode — Bookwyrm replacement",
   "description": "Add federated book tracking and reviews to all three servers. Book database, reading shelves (to-read, reading, read), reviews, ratings. Federates with existing Bookwyrm instances. Uses AP for reviews (as Article objects) and reading status (as custom activities). Broadside: publisher book announcements. Smallhold: personal reading log. Gaja: multi-tenant book community.",
-  "status": "open",
+  "status": "in_progress",
   "priority": 4,
   "issue_type": "epic",
+  "assignee": "Mark Atwood",
   "owner": "mark@reviewcommit.com",
   "created_at": "2026-07-20T23:58:15.588218799Z",
   "created_by": "Mark Atwood",
-  "updated_at": "2026-07-20T23:58:15.588218799Z"
+  "updated_at": "2026-07-21T02:24:29.128757754Z",
+  "started_at": "2026-07-21T02:24:29.128757754Z",
+  "lease_expires_at": "2026-07-21T02:29:29.128757754Z",
+  "heartbeat_at": "2026-07-21T02:24:29.128757754Z"
 }
