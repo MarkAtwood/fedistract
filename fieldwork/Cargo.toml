@@ -55,7 +55,8 @@ nodeinfo = ["dep:serde", "dep:serde_json"]
 webfinger = ["dep:serde", "dep:serde_json"]
 profile = ["dep:serde", "dep:serde_json"]
 media = ["dep:image", "dep:blurhash"]
-full = ["activities", "actor", "collections", "error", "auth", "inbox", "sanitize", "content", "theme", "nodeinfo", "webfinger", "fetch", "profile", "media"]
+video = []
+full = ["activities", "actor", "collections", "error", "auth", "inbox", "sanitize", "content", "theme", "nodeinfo", "webfinger", "fetch", "profile", "media", "video"]
 
 [dev-dependencies]
 tokio = { version = "1", features = ["rt", "macros"] }

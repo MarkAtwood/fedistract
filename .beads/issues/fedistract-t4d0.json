@@ -2,11 +2,15 @@
   "id": "fedistract-t4d0",
   "title": "fieldwork::video — FFmpeg integration for transcoding and thumbnails",
   "description": "Video processing module in fieldwork. Wraps FFmpeg as subprocess. HLS transcoding (multiple resolutions), thumbnail extraction, duration/resolution detection, animated preview GIF generation. Pure logic — no DB. All three servers use this.",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "issue_type": "feature",
+  "assignee": "Mark Atwood",
   "owner": "mark@reviewcommit.com",
   "created_at": "2026-07-20T23:56:19.027612779Z",
   "created_by": "Mark Atwood",
-  "updated_at": "2026-07-20T23:56:19.027612779Z"
+  "updated_at": "2026-07-21T01:52:34.809780247Z",
+  "started_at": "2026-07-21T01:38:05.507793604Z",
+  "closed_at": "2026-07-21T01:52:34.809780247Z",
+  "close_reason": "PeerTube video mode complete. videos_db (28 tests, 7 tables), FFmpeg command builder (8 tests), PeerTube API v1 (13 endpoints) in all 3 servers. Write endpoints stubbed 501 pending transcoding worker."
 }

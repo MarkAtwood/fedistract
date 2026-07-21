@@ -2,11 +2,15 @@
   "id": "fedistract-g6ug",
   "title": "fieldwork-db::videos_db — video metadata, transcoding jobs, HLS segments",
   "description": "Database module for video hosting. Tables: videos (metadata, status, duration, resolutions), transcoding_jobs (queue, progress), video_segments (HLS .ts files, S3 paths), video_comments (threaded), video_playlists. Schema migration + CRUD. Used by all three servers.",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "issue_type": "feature",
+  "assignee": "Mark Atwood",
   "owner": "mark@reviewcommit.com",
   "created_at": "2026-07-20T23:56:19.154949316Z",
   "created_by": "Mark Atwood",
-  "updated_at": "2026-07-20T23:56:19.154949316Z"
+  "updated_at": "2026-07-21T01:52:34.793540729Z",
+  "started_at": "2026-07-21T01:38:05.462834146Z",
+  "closed_at": "2026-07-21T01:52:34.793540729Z",
+  "close_reason": "PeerTube video mode complete. videos_db (28 tests, 7 tables), FFmpeg command builder (8 tests), PeerTube API v1 (13 endpoints) in all 3 servers. Write endpoints stubbed 501 pending transcoding worker."
 }

@@ -22,6 +22,7 @@
 //! - **`webfinger`** — RFC 7033 WebFinger JRD types and response construction.
 //! - **`profile`** — Profile metadata types and validation.
 //! - **`media`** — Image processing: MIME sniffing, validation, resize, EXIF strip, blurhash.
+//! - **`video`** — FFmpeg command builder for HLS transcoding (pure logic, no subprocess).
 
 pub mod circuit_breaker;
 pub mod id;
@@ -55,5 +56,7 @@ pub mod profile;
 pub mod sanitize;
 #[cfg(feature = "theme")]
 pub mod theme;
+#[cfg(feature = "video")]
+pub mod video;
 #[cfg(feature = "webfinger")]
 pub mod webfinger;

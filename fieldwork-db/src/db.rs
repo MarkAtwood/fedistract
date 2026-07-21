@@ -147,7 +147,7 @@ pub struct Migration {
 /// The current schema version after all built-in migrations.
 /// Version 0 = fresh CREATE TABLE schema.
 /// Version 1+ = incremental migrations.
-const CURRENT_VERSION: u32 = 6;
+const CURRENT_VERSION: u32 = 7;
 
 /// Built-in migration chain. Version 0 is the fresh-install schema (handled
 /// separately). These run in order for version 1, 2, 3, etc.
@@ -697,6 +697,198 @@ CREATE TABLE IF NOT EXISTS community_bans (
     expires_at INTEGER,
     created_at INTEGER NOT NULL,
     UNIQUE (community_id, persona_id)
+);
+"#,
+    },
+    Migration {
+        version: 7,
+        description: "add PeerTube-style video hosting tables",
+        sql_sqlite: r#"
+CREATE TABLE IF NOT EXISTS video_channels (
+    persona_id INTEGER PRIMARY KEY REFERENCES personas(id),
+    description TEXT NOT NULL DEFAULT '',
+    banner_media_id INTEGER REFERENCES media(id),
+    created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS videos (
+    id INTEGER PRIMARY KEY,
+    channel_id INTEGER NOT NULL REFERENCES video_channels(persona_id),
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    title TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    description_html TEXT NOT NULL DEFAULT '',
+    ap_id TEXT NOT NULL UNIQUE,
+    duration INTEGER,
+    original_file_path TEXT,
+    original_file_size INTEGER,
+    original_mime_type TEXT,
+    thumbnail_path TEXT,
+    preview_path TEXT,
+    visibility TEXT NOT NULL DEFAULT 'public',
+    nsfw INTEGER NOT NULL DEFAULT 0,
+    language TEXT,
+    licence TEXT,
+    category TEXT,
+    tags TEXT NOT NULL DEFAULT '[]',
+    views INTEGER NOT NULL DEFAULT 0,
+    likes INTEGER NOT NULL DEFAULT 0,
+    dislikes INTEGER NOT NULL DEFAULT 0,
+    state TEXT NOT NULL DEFAULT 'pending',
+    created_at INTEGER NOT NULL,
+    published_at INTEGER,
+    updated_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_videos_channel ON videos(channel_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_videos_state ON videos(state);
+
+CREATE TABLE IF NOT EXISTS transcoding_jobs (
+    id INTEGER PRIMARY KEY,
+    video_id INTEGER NOT NULL REFERENCES videos(id) ON DELETE CASCADE,
+    resolution INTEGER NOT NULL,
+    state TEXT NOT NULL DEFAULT 'pending',
+    progress INTEGER NOT NULL DEFAULT 0,
+    output_path TEXT,
+    file_size INTEGER,
+    error TEXT,
+    created_at INTEGER NOT NULL,
+    started_at INTEGER,
+    completed_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_transcoding_jobs_state ON transcoding_jobs(state);
+
+CREATE TABLE IF NOT EXISTS video_files (
+    id INTEGER PRIMARY KEY,
+    video_id INTEGER NOT NULL REFERENCES videos(id) ON DELETE CASCADE,
+    resolution INTEGER NOT NULL,
+    file_path TEXT NOT NULL,
+    file_size INTEGER NOT NULL,
+    fps INTEGER,
+    created_at INTEGER NOT NULL,
+    UNIQUE (video_id, resolution)
+);
+
+CREATE TABLE IF NOT EXISTS video_comments (
+    id INTEGER PRIMARY KEY,
+    video_id INTEGER NOT NULL REFERENCES videos(id) ON DELETE CASCADE,
+    parent_comment_id INTEGER REFERENCES video_comments(id),
+    author_persona_id INTEGER NOT NULL REFERENCES personas(id),
+    content TEXT NOT NULL,
+    content_html TEXT NOT NULL,
+    ap_id TEXT NOT NULL UNIQUE,
+    removed INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_video_comments_video ON video_comments(video_id);
+
+CREATE TABLE IF NOT EXISTS video_playlists (
+    id INTEGER PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    title TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    visibility TEXT NOT NULL DEFAULT 'public',
+    created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS video_playlist_items (
+    playlist_id INTEGER NOT NULL REFERENCES video_playlists(id) ON DELETE CASCADE,
+    video_id INTEGER NOT NULL REFERENCES videos(id),
+    position INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (playlist_id, video_id)
+);
+"#,
+        sql_postgres: r#"
+CREATE TABLE IF NOT EXISTS video_channels (
+    persona_id BIGINT PRIMARY KEY REFERENCES personas(id),
+    description TEXT NOT NULL DEFAULT '',
+    banner_media_id BIGINT REFERENCES media(id),
+    created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS videos (
+    id BIGINT PRIMARY KEY,
+    channel_id BIGINT NOT NULL REFERENCES video_channels(persona_id),
+    user_id BIGINT NOT NULL REFERENCES users(id),
+    title TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    description_html TEXT NOT NULL DEFAULT '',
+    ap_id TEXT NOT NULL UNIQUE,
+    duration INTEGER,
+    original_file_path TEXT,
+    original_file_size BIGINT,
+    original_mime_type TEXT,
+    thumbnail_path TEXT,
+    preview_path TEXT,
+    visibility TEXT NOT NULL DEFAULT 'public',
+    nsfw BOOLEAN NOT NULL DEFAULT false,
+    language TEXT,
+    licence TEXT,
+    category TEXT,
+    tags TEXT NOT NULL DEFAULT '[]',
+    views INTEGER NOT NULL DEFAULT 0,
+    likes INTEGER NOT NULL DEFAULT 0,
+    dislikes INTEGER NOT NULL DEFAULT 0,
+    state TEXT NOT NULL DEFAULT 'pending',
+    created_at INTEGER NOT NULL,
+    published_at INTEGER,
+    updated_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_videos_channel ON videos(channel_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_videos_state ON videos(state);
+
+CREATE TABLE IF NOT EXISTS transcoding_jobs (
+    id BIGINT PRIMARY KEY,
+    video_id BIGINT NOT NULL REFERENCES videos(id) ON DELETE CASCADE,
+    resolution INTEGER NOT NULL,
+    state TEXT NOT NULL DEFAULT 'pending',
+    progress INTEGER NOT NULL DEFAULT 0,
+    output_path TEXT,
+    file_size BIGINT,
+    error TEXT,
+    created_at INTEGER NOT NULL,
+    started_at INTEGER,
+    completed_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_transcoding_jobs_state ON transcoding_jobs(state);
+
+CREATE TABLE IF NOT EXISTS video_files (
+    id BIGINT PRIMARY KEY,
+    video_id BIGINT NOT NULL REFERENCES videos(id) ON DELETE CASCADE,
+    resolution INTEGER NOT NULL,
+    file_path TEXT NOT NULL,
+    file_size BIGINT NOT NULL,
+    fps INTEGER,
+    created_at INTEGER NOT NULL,
+    UNIQUE (video_id, resolution)
+);
+
+CREATE TABLE IF NOT EXISTS video_comments (
+    id BIGINT PRIMARY KEY,
+    video_id BIGINT NOT NULL REFERENCES videos(id) ON DELETE CASCADE,
+    parent_comment_id BIGINT REFERENCES video_comments(id),
+    author_persona_id BIGINT NOT NULL REFERENCES personas(id),
+    content TEXT NOT NULL,
+    content_html TEXT NOT NULL,
+    ap_id TEXT NOT NULL UNIQUE,
+    removed BOOLEAN NOT NULL DEFAULT false,
+    created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_video_comments_video ON video_comments(video_id);
+
+CREATE TABLE IF NOT EXISTS video_playlists (
+    id BIGINT PRIMARY KEY,
+    user_id BIGINT NOT NULL REFERENCES users(id),
+    title TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    visibility TEXT NOT NULL DEFAULT 'public',
+    created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS video_playlist_items (
+    playlist_id BIGINT NOT NULL REFERENCES video_playlists(id) ON DELETE CASCADE,
+    video_id BIGINT NOT NULL REFERENCES videos(id),
+    position INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (playlist_id, video_id)
 );
 "#,
     },
@@ -1548,6 +1740,100 @@ CREATE TABLE IF NOT EXISTS album_items (
     UNIQUE (album_id, media_id)
 );
 CREATE INDEX IF NOT EXISTS idx_album_items_album ON album_items(album_id, position);
+
+-- Video hosting (PeerTube-compatible).
+CREATE TABLE IF NOT EXISTS video_channels (
+    persona_id BIGINT PRIMARY KEY REFERENCES personas(id),
+    description TEXT NOT NULL DEFAULT '',
+    banner_media_id BIGINT REFERENCES media(id),
+    created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS videos (
+    id BIGINT PRIMARY KEY,
+    channel_id BIGINT NOT NULL REFERENCES video_channels(persona_id),
+    user_id BIGINT NOT NULL REFERENCES users(id),
+    title TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    description_html TEXT NOT NULL DEFAULT '',
+    ap_id TEXT NOT NULL UNIQUE,
+    duration INTEGER,
+    original_file_path TEXT,
+    original_file_size BIGINT,
+    original_mime_type TEXT,
+    thumbnail_path TEXT,
+    preview_path TEXT,
+    visibility TEXT NOT NULL DEFAULT 'public',
+    nsfw BOOLEAN NOT NULL DEFAULT false,
+    language TEXT,
+    licence TEXT,
+    category TEXT,
+    tags TEXT NOT NULL DEFAULT '[]',
+    views INTEGER NOT NULL DEFAULT 0,
+    likes INTEGER NOT NULL DEFAULT 0,
+    dislikes INTEGER NOT NULL DEFAULT 0,
+    state TEXT NOT NULL DEFAULT 'pending',
+    created_at INTEGER NOT NULL,
+    published_at INTEGER,
+    updated_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_videos_channel ON videos(channel_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_videos_state ON videos(state);
+
+CREATE TABLE IF NOT EXISTS transcoding_jobs (
+    id BIGINT PRIMARY KEY,
+    video_id BIGINT NOT NULL REFERENCES videos(id) ON DELETE CASCADE,
+    resolution INTEGER NOT NULL,
+    state TEXT NOT NULL DEFAULT 'pending',
+    progress INTEGER NOT NULL DEFAULT 0,
+    output_path TEXT,
+    file_size BIGINT,
+    error TEXT,
+    created_at INTEGER NOT NULL,
+    started_at INTEGER,
+    completed_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_transcoding_jobs_state ON transcoding_jobs(state);
+
+CREATE TABLE IF NOT EXISTS video_files (
+    id BIGINT PRIMARY KEY,
+    video_id BIGINT NOT NULL REFERENCES videos(id) ON DELETE CASCADE,
+    resolution INTEGER NOT NULL,
+    file_path TEXT NOT NULL,
+    file_size BIGINT NOT NULL,
+    fps INTEGER,
+    created_at INTEGER NOT NULL,
+    UNIQUE (video_id, resolution)
+);
+
+CREATE TABLE IF NOT EXISTS video_comments (
+    id BIGINT PRIMARY KEY,
+    video_id BIGINT NOT NULL REFERENCES videos(id) ON DELETE CASCADE,
+    parent_comment_id BIGINT REFERENCES video_comments(id),
+    author_persona_id BIGINT NOT NULL REFERENCES personas(id),
+    content TEXT NOT NULL,
+    content_html TEXT NOT NULL,
+    ap_id TEXT NOT NULL UNIQUE,
+    removed BOOLEAN NOT NULL DEFAULT false,
+    created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_video_comments_video ON video_comments(video_id);
+
+CREATE TABLE IF NOT EXISTS video_playlists (
+    id BIGINT PRIMARY KEY,
+    user_id BIGINT NOT NULL REFERENCES users(id),
+    title TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    visibility TEXT NOT NULL DEFAULT 'public',
+    created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS video_playlist_items (
+    playlist_id BIGINT NOT NULL REFERENCES video_playlists(id) ON DELETE CASCADE,
+    video_id BIGINT NOT NULL REFERENCES videos(id),
+    position INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (playlist_id, video_id)
+);
 "#;
 
 // ---------------------------------------------------------------------------
@@ -2054,6 +2340,100 @@ CREATE TABLE IF NOT EXISTS album_items (
     UNIQUE (album_id, media_id)
 );
 CREATE INDEX IF NOT EXISTS idx_album_items_album ON album_items(album_id, position);
+
+-- Video hosting (PeerTube-compatible).
+CREATE TABLE IF NOT EXISTS video_channels (
+    persona_id INTEGER PRIMARY KEY REFERENCES personas(id),
+    description TEXT NOT NULL DEFAULT '',
+    banner_media_id INTEGER REFERENCES media(id),
+    created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS videos (
+    id INTEGER PRIMARY KEY,
+    channel_id INTEGER NOT NULL REFERENCES video_channels(persona_id),
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    title TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    description_html TEXT NOT NULL DEFAULT '',
+    ap_id TEXT NOT NULL UNIQUE,
+    duration INTEGER,
+    original_file_path TEXT,
+    original_file_size INTEGER,
+    original_mime_type TEXT,
+    thumbnail_path TEXT,
+    preview_path TEXT,
+    visibility TEXT NOT NULL DEFAULT 'public',
+    nsfw INTEGER NOT NULL DEFAULT 0,
+    language TEXT,
+    licence TEXT,
+    category TEXT,
+    tags TEXT NOT NULL DEFAULT '[]',
+    views INTEGER NOT NULL DEFAULT 0,
+    likes INTEGER NOT NULL DEFAULT 0,
+    dislikes INTEGER NOT NULL DEFAULT 0,
+    state TEXT NOT NULL DEFAULT 'pending',
+    created_at INTEGER NOT NULL,
+    published_at INTEGER,
+    updated_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_videos_channel ON videos(channel_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_videos_state ON videos(state);
+
+CREATE TABLE IF NOT EXISTS transcoding_jobs (
+    id INTEGER PRIMARY KEY,
+    video_id INTEGER NOT NULL REFERENCES videos(id) ON DELETE CASCADE,
+    resolution INTEGER NOT NULL,
+    state TEXT NOT NULL DEFAULT 'pending',
+    progress INTEGER NOT NULL DEFAULT 0,
+    output_path TEXT,
+    file_size INTEGER,
+    error TEXT,
+    created_at INTEGER NOT NULL,
+    started_at INTEGER,
+    completed_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_transcoding_jobs_state ON transcoding_jobs(state);
+
+CREATE TABLE IF NOT EXISTS video_files (
+    id INTEGER PRIMARY KEY,
+    video_id INTEGER NOT NULL REFERENCES videos(id) ON DELETE CASCADE,
+    resolution INTEGER NOT NULL,
+    file_path TEXT NOT NULL,
+    file_size INTEGER NOT NULL,
+    fps INTEGER,
+    created_at INTEGER NOT NULL,
+    UNIQUE (video_id, resolution)
+);
+
+CREATE TABLE IF NOT EXISTS video_comments (
+    id INTEGER PRIMARY KEY,
+    video_id INTEGER NOT NULL REFERENCES videos(id) ON DELETE CASCADE,
+    parent_comment_id INTEGER REFERENCES video_comments(id),
+    author_persona_id INTEGER NOT NULL REFERENCES personas(id),
+    content TEXT NOT NULL,
+    content_html TEXT NOT NULL,
+    ap_id TEXT NOT NULL UNIQUE,
+    removed INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_video_comments_video ON video_comments(video_id);
+
+CREATE TABLE IF NOT EXISTS video_playlists (
+    id INTEGER PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    title TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    visibility TEXT NOT NULL DEFAULT 'public',
+    created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS video_playlist_items (
+    playlist_id INTEGER NOT NULL REFERENCES video_playlists(id) ON DELETE CASCADE,
+    video_id INTEGER NOT NULL REFERENCES videos(id),
+    position INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (playlist_id, video_id)
+);
 "#;
 
 // ---------------------------------------------------------------------------

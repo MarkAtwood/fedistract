@@ -2,11 +2,15 @@
   "id": "fedistract-ty4q",
   "title": "fieldwork::peertube_api — PeerTube Client API route handlers",
   "description": "Axum route handlers implementing PeerTube API endpoints. Completely different schema from Mastodon. Endpoints: /api/v1/videos, /api/v1/video-channels, /api/v1/videos/{id}/comment-threads, /api/v1/users/me/video-playlists, /api/v1/jobs. Reusable by all three servers.",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "issue_type": "feature",
+  "assignee": "Mark Atwood",
   "owner": "mark@reviewcommit.com",
   "created_at": "2026-07-20T23:56:19.111382315Z",
   "created_by": "Mark Atwood",
-  "updated_at": "2026-07-20T23:56:19.111382315Z"
+  "updated_at": "2026-07-21T01:52:34.824282363Z",
+  "started_at": "2026-07-21T01:38:05.550414443Z",
+  "closed_at": "2026-07-21T01:52:34.824282363Z",
+  "close_reason": "PeerTube video mode complete. videos_db (28 tests, 7 tables), FFmpeg command builder (8 tests), PeerTube API v1 (13 endpoints) in all 3 servers. Write endpoints stubbed 501 pending transcoding worker."
 }

@@ -81,4 +81,6 @@ pub mod timeline_db;
 #[cfg(any(feature = "postgres", feature = "sqlite"))]
 pub mod trending_db;
 #[cfg(any(feature = "postgres", feature = "sqlite"))]
+pub mod videos_db;
+#[cfg(any(feature = "postgres", feature = "sqlite"))]
 pub mod webauthn_db;
