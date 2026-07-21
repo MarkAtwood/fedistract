@@ -4,7 +4,7 @@
 //! [`crate::db`]. Each function dispatches on [`crate::db::Pool`] to emit
 //! the correct SQL dialect.
 //!
-//! `PostRow` has 18 columns, exceeding sqlx's 16-tuple `FromRow` limit,
+//! `PostRow` has 20 columns, exceeding sqlx's 16-tuple `FromRow` limit,
 //! so we use `query().fetch_*()` + `Row::get` by column index.
 
 use crate::db::Pool;
@@ -31,6 +31,9 @@ pub struct PostRow {
     pub edited_at: Option<i64>,
     pub deleted_at: Option<i64>,
     pub deleted_reason: Option<String>,
+    /// FEP post abstract (plain text summary). Named `abstract_text` because
+    /// `abstract` is a Rust reserved keyword; maps to the `abstract` SQL column.
+    pub abstract_text: Option<String>,
 }
 
 const COLUMNS: &str = "\
@@ -38,7 +41,7 @@ const COLUMNS: &str = "\
     in_reply_to_id, in_reply_to_uri, boost_of_id, boost_of_uri, \
     content, content_html, spoiler_text, visibility, \
     sensitive, language, context_url, \
-    created_at, edited_at, deleted_at, deleted_reason";
+    created_at, edited_at, deleted_at, deleted_reason, abstract";
 
 #[cfg(feature = "sqlite")]
 fn sqlite_row_to_post(r: sqlx::sqlite::SqliteRow) -> PostRow {
@@ -63,6 +66,7 @@ fn sqlite_row_to_post(r: sqlx::sqlite::SqliteRow) -> PostRow {
         edited_at: r.get(16),
         deleted_at: r.get(17),
         deleted_reason: r.get(18),
+        abstract_text: r.get(19),
     }
 }
 
@@ -89,6 +93,7 @@ fn pg_row_to_post(r: sqlx::postgres::PgRow) -> PostRow {
         edited_at: r.get(16),
         deleted_at: r.get(17),
         deleted_reason: r.get(18),
+        abstract_text: r.get(19),
     }
 }
 
@@ -103,13 +108,13 @@ pub async fn create_post(pool: &Pool, post: &PostRow) -> Result<(), sqlx::Error>
                     in_reply_to_id, in_reply_to_uri, boost_of_id, boost_of_uri, \
                     content, content_html, spoiler_text, visibility, \
                     sensitive, language, context_url, \
-                    created_at, edited_at, deleted_at, deleted_reason\
+                    created_at, edited_at, deleted_at, deleted_reason, abstract\
                  ) VALUES (\
                     $1, $2, $3, $4, \
                     $5, $6, $7, $8, \
                     $9, $10, $11, $12, \
                     $13, $14, $15, \
-                    $16, $17, $18, $19\
+                    $16, $17, $18, $19, $20\
                  )",
             )
             .bind(post.id)
@@ -131,6 +136,7 @@ pub async fn create_post(pool: &Pool, post: &PostRow) -> Result<(), sqlx::Error>
             .bind(post.edited_at)
             .bind(post.deleted_at)
             .bind(&post.deleted_reason)
+            .bind(&post.abstract_text)
             .execute(pg)
             .await?;
         }
@@ -142,13 +148,13 @@ pub async fn create_post(pool: &Pool, post: &PostRow) -> Result<(), sqlx::Error>
                     in_reply_to_id, in_reply_to_uri, boost_of_id, boost_of_uri, \
                     content, content_html, spoiler_text, visibility, \
                     sensitive, language, context_url, \
-                    created_at, edited_at, deleted_at, deleted_reason\
+                    created_at, edited_at, deleted_at, deleted_reason, abstract\
                  ) VALUES (\
                     ?1, ?2, ?3, ?4, \
                     ?5, ?6, ?7, ?8, \
                     ?9, ?10, ?11, ?12, \
                     ?13, ?14, ?15, \
-                    ?16, ?17, ?18, ?19\
+                    ?16, ?17, ?18, ?19, ?20\
                  )",
             )
             .bind(post.id)
@@ -170,6 +176,7 @@ pub async fn create_post(pool: &Pool, post: &PostRow) -> Result<(), sqlx::Error>
             .bind(post.edited_at)
             .bind(post.deleted_at)
             .bind(&post.deleted_reason)
+            .bind(&post.abstract_text)
             .execute(sq)
             .await?;
         }
@@ -585,7 +592,7 @@ pub async fn featured_posts(
         p.in_reply_to_id, p.in_reply_to_uri, p.boost_of_id, p.boost_of_uri, \
         p.content, p.content_html, p.spoiler_text, p.visibility, \
         p.sensitive, p.language, p.context_url, \
-        p.created_at, p.edited_at, p.deleted_at, p.deleted_reason";
+        p.created_at, p.edited_at, p.deleted_at, p.deleted_reason, p.abstract";
     match pool {
         #[cfg(feature = "postgres")]
         Pool::Postgres(pg) => {
@@ -665,6 +672,7 @@ mod tests {
             edited_at: None,
             deleted_at: None,
             deleted_reason: None,
+            abstract_text: None,
         }
     }
 

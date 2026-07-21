@@ -61,6 +61,9 @@ pub struct Note {
     pub tag: Vec<Value>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub attachment: Vec<Value>,
+    /// FEP post abstract (plain text summary for accessibility/previews).
+    #[serde(rename = "abstract", skip_serializing_if = "Option::is_none")]
+    pub abstract_text: Option<String>,
 }
 
 /// Build a `Create{Note}` activity.
@@ -87,6 +90,7 @@ pub fn create_note(
         published: None,
         tag: Vec::new(),
         attachment: Vec::new(),
+        abstract_text: None,
     };
 
     Activity {
@@ -381,6 +385,7 @@ mod tests {
             published: None,
             tag: Vec::new(),
             attachment: Vec::new(),
+            abstract_text: None,
         };
 
         let json = serde_json::to_value(&note).unwrap();
@@ -391,6 +396,7 @@ mod tests {
         assert!(json.get("summary").is_none());
         assert!(json.get("url").is_none());
         assert!(json.get("published").is_none());
+        assert!(json.get("abstract").is_none());
         // Empty vecs with skip_serializing_if should be absent
         assert!(json.get("tag").is_none());
         assert!(json.get("attachment").is_none());
@@ -412,6 +418,7 @@ mod tests {
             published: Some("2025-01-01T00:00:00Z".to_string()),
             tag: vec![json!({"type": "Hashtag", "name": "#test"})],
             attachment: vec![json!({"type": "Document", "url": "https://example.com/image.png"})],
+            abstract_text: None,
         };
 
         let json = serde_json::to_value(&note).unwrap();

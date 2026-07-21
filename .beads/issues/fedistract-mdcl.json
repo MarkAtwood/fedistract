@@ -2,15 +2,15 @@
   "id": "fedistract-mdcl",
   "title": "Add post summary/abstract field for long-form accessibility",
   "description": "Long posts (\u003e500 chars) should have a short description — alt text for the content itself. ActivityStreams summary is hijacked by Mastodon for content warnings. Options: (1) add 'abstract' extension field to Notes (backwards-compatible, ignored by unaware servers), (2) auto-generate from first sentence/200 chars, (3) user-provided summary field in the compose UI. This is the same infiltration strategy as DID — add useful fields that other servers ignore until adoption makes them expected. Implementation: add abstract column to posts table, include in AP Note output, add to compose API.",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "issue_type": "feature",
   "assignee": "Mark Atwood",
   "owner": "mark@wolfssl.com",
   "created_at": "2026-07-20T23:06:17.705426135Z",
   "created_by": "Mark Atwood",
-  "updated_at": "2026-07-21T02:24:29.088163908Z",
+  "updated_at": "2026-07-21T02:43:45.001523321Z",
   "started_at": "2026-07-21T02:24:29.088163908Z",
-  "lease_expires_at": "2026-07-21T02:29:29.088163908Z",
-  "heartbeat_at": "2026-07-21T02:24:29.088163908Z"
+  "closed_at": "2026-07-21T02:43:45.001523321Z",
+  "close_reason": "Post abstract field implemented across all 3 servers. Schema migration v11, posts_db updated, auto-generation for posts \u003e500 chars, included in Mastodon API + AP Note output."
 }

@@ -58,7 +58,8 @@ media = ["dep:image", "dep:blurhash"]
 video = []
 podcast = []
 funkwhale-api = ["dep:serde", "dep:serde_json", "dep:axum"]
-full = ["activities", "actor", "collections", "error", "auth", "inbox", "sanitize", "content", "theme", "nodeinfo", "webfinger", "fetch", "profile", "media", "video", "podcast", "funkwhale-api"]
+bookwyrm-api = ["dep:serde", "dep:serde_json"]
+full = ["activities", "actor", "collections", "error", "auth", "inbox", "sanitize", "content", "theme", "nodeinfo", "webfinger", "fetch", "profile", "media", "video", "podcast", "funkwhale-api", "bookwyrm-api"]
 
 [dev-dependencies]
 tokio = { version = "1", features = ["rt", "macros"] }

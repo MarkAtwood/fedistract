@@ -147,7 +147,7 @@ pub struct Migration {
 /// The current schema version after all built-in migrations.
 /// Version 0 = fresh CREATE TABLE schema.
 /// Version 1+ = incremental migrations.
-const CURRENT_VERSION: u32 = 9;
+const CURRENT_VERSION: u32 = 11;
 
 /// Built-in migration chain. Version 0 is the fresh-install schema (handled
 /// separately). These run in order for version 1, 2, 3, etc.
@@ -1102,6 +1102,142 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_reactions_remote_unique
 CREATE INDEX IF NOT EXISTS idx_reactions_post ON reactions(post_id) WHERE post_id IS NOT NULL;
 "#,
     },
+    Migration {
+        version: 10,
+        description: "add Bookwyrm-style books, editions, shelves, and reviews tables",
+        sql_sqlite: r#"
+CREATE TABLE IF NOT EXISTS books (
+    id INTEGER PRIMARY KEY,
+    title TEXT NOT NULL,
+    author TEXT NOT NULL DEFAULT '',
+    isbn TEXT,
+    isbn13 TEXT,
+    openlibrary_id TEXT,
+    cover_url TEXT,
+    description TEXT NOT NULL DEFAULT '',
+    pages INTEGER,
+    published_year INTEGER,
+    language TEXT,
+    created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_books_isbn ON books(isbn) WHERE isbn IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_books_title ON books(title);
+
+CREATE TABLE IF NOT EXISTS book_editions (
+    id INTEGER PRIMARY KEY,
+    book_id INTEGER NOT NULL REFERENCES books(id),
+    title TEXT NOT NULL,
+    isbn TEXT,
+    isbn13 TEXT,
+    publisher TEXT,
+    published_year INTEGER,
+    pages INTEGER,
+    cover_url TEXT,
+    format TEXT,
+    language TEXT,
+    created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS reading_shelves (
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    book_id INTEGER NOT NULL REFERENCES books(id),
+    status TEXT NOT NULL,
+    started_at INTEGER,
+    finished_at INTEGER,
+    rating INTEGER,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER,
+    UNIQUE (user_id, book_id),
+    CHECK (status IN ('to-read', 'reading', 'read')),
+    CHECK (rating IS NULL OR (rating >= 1 AND rating <= 5))
+);
+CREATE INDEX IF NOT EXISTS idx_shelves_user ON reading_shelves(user_id, status);
+
+CREATE TABLE IF NOT EXISTS book_reviews (
+    id INTEGER PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    persona_id INTEGER NOT NULL REFERENCES personas(id),
+    book_id INTEGER NOT NULL REFERENCES books(id),
+    content TEXT NOT NULL,
+    content_html TEXT NOT NULL,
+    rating INTEGER,
+    spoiler INTEGER NOT NULL DEFAULT 0,
+    ap_id TEXT NOT NULL UNIQUE,
+    created_at INTEGER NOT NULL,
+    CHECK (rating IS NULL OR (rating >= 1 AND rating <= 5))
+);
+CREATE INDEX IF NOT EXISTS idx_reviews_book ON book_reviews(book_id, created_at DESC);
+"#,
+        sql_postgres: r#"
+CREATE TABLE IF NOT EXISTS books (
+    id BIGINT PRIMARY KEY,
+    title TEXT NOT NULL,
+    author TEXT NOT NULL DEFAULT '',
+    isbn TEXT,
+    isbn13 TEXT,
+    openlibrary_id TEXT,
+    cover_url TEXT,
+    description TEXT NOT NULL DEFAULT '',
+    pages INTEGER,
+    published_year INTEGER,
+    language TEXT,
+    created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_books_isbn ON books(isbn) WHERE isbn IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_books_title ON books(title);
+
+CREATE TABLE IF NOT EXISTS book_editions (
+    id BIGINT PRIMARY KEY,
+    book_id BIGINT NOT NULL REFERENCES books(id),
+    title TEXT NOT NULL,
+    isbn TEXT,
+    isbn13 TEXT,
+    publisher TEXT,
+    published_year INTEGER,
+    pages INTEGER,
+    cover_url TEXT,
+    format TEXT,
+    language TEXT,
+    created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS reading_shelves (
+    user_id BIGINT NOT NULL REFERENCES users(id),
+    book_id BIGINT NOT NULL REFERENCES books(id),
+    status TEXT NOT NULL,
+    started_at INTEGER,
+    finished_at INTEGER,
+    rating INTEGER,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER,
+    UNIQUE (user_id, book_id),
+    CHECK (status IN ('to-read', 'reading', 'read')),
+    CHECK (rating IS NULL OR (rating >= 1 AND rating <= 5))
+);
+CREATE INDEX IF NOT EXISTS idx_shelves_user ON reading_shelves(user_id, status);
+
+CREATE TABLE IF NOT EXISTS book_reviews (
+    id BIGINT PRIMARY KEY,
+    user_id BIGINT NOT NULL REFERENCES users(id),
+    persona_id BIGINT NOT NULL REFERENCES personas(id),
+    book_id BIGINT NOT NULL REFERENCES books(id),
+    content TEXT NOT NULL,
+    content_html TEXT NOT NULL,
+    rating INTEGER,
+    spoiler BOOLEAN NOT NULL DEFAULT false,
+    ap_id TEXT NOT NULL UNIQUE,
+    created_at INTEGER NOT NULL,
+    CHECK (rating IS NULL OR (rating >= 1 AND rating <= 5))
+);
+CREATE INDEX IF NOT EXISTS idx_reviews_book ON book_reviews(book_id, created_at DESC);
+"#,
+    },
+    Migration {
+        version: 11,
+        description: "add abstract column to posts table",
+        sql_sqlite: "__ADD_COLUMN_IF_NOT_EXISTS:posts:abstract:TEXT",
+        sql_postgres: "ALTER TABLE posts ADD COLUMN IF NOT EXISTS abstract TEXT;",
+    },
 ];
 
 /// SQL to transform a legacy (pre-versioned) database to canonical schema.
@@ -1501,7 +1637,8 @@ CREATE TABLE IF NOT EXISTS posts (
     created_at      INTEGER NOT NULL,
     edited_at       INTEGER,
     deleted_at      INTEGER,
-    deleted_reason  TEXT
+    deleted_reason  TEXT,
+    abstract        TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_posts_user ON posts(user_id);
 CREATE INDEX IF NOT EXISTS idx_posts_persona_created ON posts(persona_id, created_at DESC);
@@ -2240,7 +2377,8 @@ CREATE TABLE IF NOT EXISTS posts (
     created_at      INTEGER NOT NULL,
     edited_at       INTEGER,
     deleted_at      INTEGER,
-    deleted_reason  TEXT
+    deleted_reason  TEXT,
+    abstract        TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_posts_user ON posts(user_id);
 CREATE INDEX IF NOT EXISTS idx_posts_persona_created ON posts(persona_id, created_at DESC);
