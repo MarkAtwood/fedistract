@@ -21,6 +21,7 @@
 //! - **`nodeinfo`** — NodeInfo 2.1 data types and discovery document construction.
 //! - **`webfinger`** — RFC 7033 WebFinger JRD types and response construction.
 //! - **`profile`** — Profile metadata types and validation.
+//! - **`media`** — Image processing: MIME sniffing, validation, resize, EXIF strip, blurhash.
 
 pub mod circuit_breaker;
 pub mod id;
@@ -44,6 +45,8 @@ pub mod fetch_remote;
 pub mod inbox;
 #[cfg(feature = "inbox")]
 pub mod media_integrity;
+#[cfg(feature = "media")]
+pub mod media_processing;
 #[cfg(feature = "nodeinfo")]
 pub mod nodeinfo;
 #[cfg(feature = "profile")]

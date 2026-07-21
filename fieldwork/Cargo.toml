@@ -28,6 +28,8 @@ base64 = { version = "0.22", optional = true }
 tracing = { version = "0.1", optional = true }
 url = { version = "2", optional = true }
 whatlang = { version = "0.16", optional = true }
+image = { version = "0.25", optional = true, default-features = false, features = ["jpeg", "png", "gif", "webp"] }
+blurhash = { version = "0.2", optional = true }
 
 # Workspace path dependencies (feature-gated)
 cavage-httpsig = { path = "../cavage-httpsig", optional = true }
@@ -52,7 +54,8 @@ fetch = ["dep:reqwest", "dep:serde_json", "dep:url", "dep:bytes", "dep:cavage-ht
 nodeinfo = ["dep:serde", "dep:serde_json"]
 webfinger = ["dep:serde", "dep:serde_json"]
 profile = ["dep:serde", "dep:serde_json"]
-full = ["activities", "actor", "collections", "error", "auth", "inbox", "sanitize", "content", "theme", "nodeinfo", "webfinger", "fetch", "profile"]
+media = ["dep:image", "dep:blurhash"]
+full = ["activities", "actor", "collections", "error", "auth", "inbox", "sanitize", "content", "theme", "nodeinfo", "webfinger", "fetch", "profile", "media"]
 
 [dev-dependencies]
 tokio = { version = "1", features = ["rt", "macros"] }
