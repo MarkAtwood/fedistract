@@ -54,7 +54,9 @@ pub const USER_READING_PATH: &str = "/api/v1/users/{id}/reading";
 // ---------------------------------------------------------------------------
 
 /// JSON response for a single book.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[non_exhaustive]
+#[non_exhaustive]
 pub struct BookResponse {
     pub id: i64,
     pub title: String,
@@ -79,6 +81,8 @@ pub struct BookResponse {
 
 /// JSON request to add a book.
 #[derive(Debug, Clone, Deserialize)]
+#[non_exhaustive]
+#[non_exhaustive]
 pub struct CreateBookRequest {
     pub title: String,
     #[serde(default)]
@@ -96,6 +100,8 @@ pub struct CreateBookRequest {
 
 /// Query parameters for book search.
 #[derive(Debug, Clone, Deserialize)]
+#[non_exhaustive]
+#[non_exhaustive]
 pub struct BookSearchParams {
     #[serde(default)]
     pub q: String,
@@ -112,7 +118,9 @@ fn default_limit() -> i64 {
 // ---------------------------------------------------------------------------
 
 /// JSON response for a user's shelf summary.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[non_exhaustive]
+#[non_exhaustive]
 pub struct ShelfSummaryResponse {
     pub to_read: i64,
     pub reading: i64,
@@ -120,7 +128,9 @@ pub struct ShelfSummaryResponse {
 }
 
 /// JSON response for a book on a shelf.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[non_exhaustive]
+#[non_exhaustive]
 pub struct ShelfBookResponse {
     pub book_id: i64,
     pub title: String,
@@ -133,6 +143,8 @@ pub struct ShelfBookResponse {
 
 /// JSON request to set reading status.
 #[derive(Debug, Clone, Deserialize)]
+#[non_exhaustive]
+#[non_exhaustive]
 pub struct SetReadingStatusRequest {
     pub book_id: i64,
     pub status: String,
@@ -140,6 +152,8 @@ pub struct SetReadingStatusRequest {
 
 /// JSON request to rate a book.
 #[derive(Debug, Clone, Deserialize)]
+#[non_exhaustive]
+#[non_exhaustive]
 pub struct RateBookRequest {
     pub rating: i32,
 }
@@ -149,7 +163,9 @@ pub struct RateBookRequest {
 // ---------------------------------------------------------------------------
 
 /// JSON response for a book review.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[non_exhaustive]
+#[non_exhaustive]
 pub struct ReviewResponse {
     pub id: i64,
     pub user_id: i64,
@@ -166,6 +182,8 @@ pub struct ReviewResponse {
 
 /// JSON request to write a review.
 #[derive(Debug, Clone, Deserialize)]
+#[non_exhaustive]
+#[non_exhaustive]
 pub struct CreateReviewRequest {
     pub content: String,
     pub rating: Option<i32>,
@@ -178,7 +196,9 @@ pub struct CreateReviewRequest {
 // ---------------------------------------------------------------------------
 
 /// JSON response for a user's reading activity.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[non_exhaustive]
+#[non_exhaustive]
 pub struct UserReadingResponse {
     pub shelves: ShelfSummaryResponse,
     pub recent_reviews: Vec<ReviewResponse>,

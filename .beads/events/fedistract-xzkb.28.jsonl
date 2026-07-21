@@ -1,0 +1,4 @@
+{"id":"019f82e7-ceb3-732a-8a9d-4924802b0858","issue_id":"fedistract-xzkb.28","event_type":"created","actor":"Mark Atwood","old_value":"","new_value":"","created_at":"2026-07-21T04:20:57.651208168Z"}
+{"id":"019f82e7-ceb8-71e2-b157-b47b5d85cc3f","issue_id":"fedistract-xzkb.28","event_type":"label_added","actor":"Mark Atwood","comment":"Added label: elegance","created_at":"2026-07-21T04:20:57.65612447Z"}
+{"id":"019f82e7-cebc-7eb7-80f7-5c3f32246e8f","issue_id":"fedistract-xzkb.28","event_type":"label_added","actor":"Mark Atwood","comment":"Added label: review","created_at":"2026-07-21T04:20:57.660965142Z"}
+{"id":"019f82f7-c9dc-77ec-8c1f-540258b7f614","issue_id":"fedistract-xzkb.28","event_type":"closed","actor":"Mark Atwood","old_value":"","new_value":"Fixed: SELECT_COLS_PG and SELECT_COLS_SQ merged into single SELECT_COLS constant","created_at":"2026-07-21T04:38:24.988519853Z"}

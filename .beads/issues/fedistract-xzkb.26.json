@@ -1,0 +1,29 @@
+{
+  "id": "fedistract-xzkb.26",
+  "title": "Downstream servers carry unused direct deps",
+  "description": "smallhold and broadside list direct dependencies on crates they never 'use' directly -- those crates are only accessed transitively through fieldwork features. smallhold: ammonia, argon2, blurhash, image, whatlang, pulldown-cmark, subtle (7 crates). broadside: ammonia, blurhash (2 crates confirmed unused). These don't affect compilation (Cargo deduplicates), but they create version-sync maintenance burden: updating these versions in both places, and risk of silent version divergence if fieldwork pins differently than the downstream server.",
+  "status": "closed",
+  "priority": 3,
+  "issue_type": "bug",
+  "assignee": "Mark Atwood",
+  "owner": "mark@reviewcommit.com",
+  "created_at": "2026-07-21T04:20:56.169134465Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-21T04:39:20.873925883Z",
+  "started_at": "2026-07-21T04:39:05.097670895Z",
+  "closed_at": "2026-07-21T04:39:20.873925883Z",
+  "close_reason": "Accepted: small maintenance burden. cargo-machete can identify these but the risk is zero — unused deps don't affect runtime behavior.",
+  "labels": [
+    "review"
+  ],
+  "dependencies": [
+    {
+      "issue_id": "fedistract-xzkb.26",
+      "depends_on_id": "fedistract-xzkb",
+      "type": "parent-child",
+      "created_at": "2026-07-21T04:20:56.18886253Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}

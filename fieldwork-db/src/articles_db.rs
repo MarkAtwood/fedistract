@@ -240,9 +240,6 @@ pub async fn delete_collection(pool: &Pool, alias: &str) -> Result<(), sqlx::Err
 // ---------------------------------------------------------------------------
 
 pub async fn create_article(pool: &Pool, a: &ArticleRow) -> Result<(), sqlx::Error> {
-    let rtl_int: i32 = if a.rtl { 1 } else { 0 };
-    let pinned_int: i32 = if a.pinned { 1 } else { 0 };
-    let draft_int: i32 = if a.draft { 1 } else { 0 };
     match pool {
         #[cfg(feature = "postgres")]
         Pool::Postgres(pg) => {
@@ -254,14 +251,17 @@ pub async fn create_article(pool: &Pool, a: &ArticleRow) -> Result<(), sqlx::Err
             .bind(&a.collection_alias).bind(&a.slug)
             .bind(&a.title).bind(&a.body).bind(&a.body_html)
             .bind(&a.font).bind(&a.language)
-            .bind(rtl_int).bind(pinned_int).bind(a.pin_position)
-            .bind(draft_int).bind(&a.ap_id)
+            .bind(a.rtl).bind(a.pinned).bind(a.pin_position)
+            .bind(a.draft).bind(&a.ap_id)
             .bind(&a.edit_token).bind(a.views)
             .bind(a.created_at).bind(a.updated_at)
             .execute(pg).await?;
         }
         #[cfg(feature = "sqlite")]
         Pool::Sqlite(sq) => {
+            let rtl_int: i32 = if a.rtl { 1 } else { 0 };
+            let pinned_int: i32 = if a.pinned { 1 } else { 0 };
+            let draft_int: i32 = if a.draft { 1 } else { 0 };
             sqlx::query(&format!(
                 "INSERT INTO articles ({ARTICLE_COLS}) \
                  VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19)"
@@ -333,7 +333,7 @@ pub async fn list_collection_articles(
         Pool::Postgres(pg) => {
             let rows = sqlx::query(&format!(
                 "SELECT {ARTICLE_COLS} FROM articles \
-                 WHERE collection_alias = $1 AND draft = 0 \
+                 WHERE collection_alias = $1 AND draft = false \
                  ORDER BY created_at DESC LIMIT $2 OFFSET $3"
             )).bind(alias).bind(limit).bind(offset).fetch_all(pg).await?;
             Ok(rows.into_iter().map(pg_row_to_article).collect())
@@ -404,7 +404,7 @@ pub async fn update_article(
             )
             .bind(body).bind(body_html).bind(title)
             .bind(font).bind(language)
-            .bind(rtl.map(|b| if b { 1i32 } else { 0 }))
+            .bind(rtl)
             .bind(now).bind(id)
             .execute(pg).await?;
         }
@@ -467,7 +467,7 @@ pub async fn pin_article(pool: &Pool, id: i64, position: i32) -> Result<(), sqlx
     match pool {
         #[cfg(feature = "postgres")]
         Pool::Postgres(pg) => {
-            sqlx::query("UPDATE articles SET pinned = 1, pin_position = $1 WHERE id = $2")
+            sqlx::query("UPDATE articles SET pinned = true, pin_position = $1 WHERE id = $2")
                 .bind(position).bind(id).execute(pg).await?;
         }
         #[cfg(feature = "sqlite")]
@@ -483,7 +483,7 @@ pub async fn unpin_article(pool: &Pool, id: i64) -> Result<(), sqlx::Error> {
     match pool {
         #[cfg(feature = "postgres")]
         Pool::Postgres(pg) => {
-            sqlx::query("UPDATE articles SET pinned = 0, pin_position = NULL WHERE id = $1")
+            sqlx::query("UPDATE articles SET pinned = false, pin_position = NULL WHERE id = $1")
                 .bind(id).execute(pg).await?;
         }
         #[cfg(feature = "sqlite")]

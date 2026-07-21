@@ -1,0 +1,30 @@
+{
+  "id": "fedistract-xzkb.31",
+  "title": "fedi-e2ee panics on invalid Ed25519 pubkey",
+  "description": "ed25519_to_x25519_public() at fedi-e2ee/src/lib.rs:200 calls .expect() on CompressedEdwardsY::decompress(). If the recipient's Ed25519 public key (sourced from a remote actor's DID document) is not a valid curve point, this panics and crashes the server. Attacker can craft a DID document with invalid public key bytes to DoS any server that attempts to encrypt a DM to them. Fix: return E2eeError instead of panicking, propagate through derive_shared_secret and encrypt_dm/decrypt_dm.",
+  "status": "closed",
+  "priority": 0,
+  "issue_type": "bug",
+  "assignee": "Mark Atwood",
+  "owner": "mark@reviewcommit.com",
+  "created_at": "2026-07-21T04:21:06.356456837Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-21T04:35:36.667722358Z",
+  "started_at": "2026-07-21T04:27:21.414442827Z",
+  "closed_at": "2026-07-21T04:35:36.667722358Z",
+  "close_reason": "Fixed: ed25519_to_x25519_public returns Result, .expect() replaced with .ok_or(E2eeError::InvalidPublicKey). Propagated to callers.",
+  "labels": [
+    "review",
+    "crypto"
+  ],
+  "dependencies": [
+    {
+      "issue_id": "fedistract-xzkb.31",
+      "depends_on_id": "fedistract-xzkb",
+      "type": "parent-child",
+      "created_at": "2026-07-21T04:21:06.381116303Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}

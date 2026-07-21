@@ -1,0 +1,30 @@
+{
+  "id": "fedistract-xzkb.33",
+  "title": "verify_object/verify_provenance Ok(false) pit",
+  "description": "fedi-integrity::verify_object (line 151) and fedi-provenance::verify_provenance (line 137) return Ok(ProofStatus{valid:false}) / Ok(false) when signature verification fails, instead of Err. This is a pit-of-failure API: any caller that checks .is_ok() without inspecting the inner bool will silently accept forged signatures. The correct design is to return Err(SignatureVerification) for invalid signatures, reserving Ok for verified-valid results. Same pattern in both crates.",
+  "status": "closed",
+  "priority": 1,
+  "issue_type": "bug",
+  "assignee": "Mark Atwood",
+  "owner": "mark@reviewcommit.com",
+  "created_at": "2026-07-21T04:21:12.862908975Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-21T04:35:36.721003335Z",
+  "started_at": "2026-07-21T04:28:01.705648004Z",
+  "closed_at": "2026-07-21T04:35:36.721003335Z",
+  "close_reason": "Fixed: verify_object returns Err(VerificationFailed) instead of Ok(false). verify_provenance returns Err(SignatureVerification). Tests updated.",
+  "labels": [
+    "review",
+    "crypto"
+  ],
+  "dependencies": [
+    {
+      "issue_id": "fedistract-xzkb.33",
+      "depends_on_id": "fedistract-xzkb",
+      "type": "parent-child",
+      "created_at": "2026-07-21T04:21:12.886768803Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}

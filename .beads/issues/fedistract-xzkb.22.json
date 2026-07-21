@@ -1,0 +1,27 @@
+{
+  "id": "fedistract-xzkb.22",
+  "title": "PaginatedResponse count is page count, not total count",
+  "description": "In all funkwhale handler implementations (broadside, smallhold, gaja), PaginatedResponse.count is set to results.len() -- the number of items in the current page. The Funkwhale API contract expects count to be the total number of matching items across all pages, which clients use to calculate total pages. With the current implementation, clients see count=25 on every page and cannot determine when to stop paginating. Fix: add a count query to the DB layer (SELECT COUNT(*) with the same WHERE clause) and pass the total to PaginatedResponse.",
+  "status": "closed",
+  "priority": 2,
+  "issue_type": "bug",
+  "owner": "mark@reviewcommit.com",
+  "created_at": "2026-07-21T04:20:50.744499275Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-21T04:23:06.099513554Z",
+  "closed_at": "2026-07-21T04:23:06.099513554Z",
+  "close_reason": "Duplicate of xzkb.3",
+  "labels": [
+    "review"
+  ],
+  "dependencies": [
+    {
+      "issue_id": "fedistract-xzkb.22",
+      "depends_on_id": "fedistract-xzkb",
+      "type": "parent-child",
+      "created_at": "2026-07-21T04:20:50.764672389Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}

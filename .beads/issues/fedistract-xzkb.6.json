@@ -1,0 +1,29 @@
+{
+  "id": "fedistract-xzkb.6",
+  "title": "StatusBuilder fields are all pub with no non_exhaustive",
+  "description": "mastodon_api.rs:181-205 StatusBuilder has 24 pub fields, no #[non_exhaustive], and no Default impl. Adding any field is a semver-breaking change because all 3 downstream servers construct it with struct literal syntax. Either add #[non_exhaustive] + a constructor/Default, or switch to actual builder pattern (methods returning \u0026mut Self). The 'Builder' name is misleading since it has no builder methods.",
+  "status": "closed",
+  "priority": 1,
+  "issue_type": "bug",
+  "assignee": "Mark Atwood",
+  "owner": "mark@reviewcommit.com",
+  "created_at": "2026-07-21T04:20:06.205425428Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-21T04:35:18.145425889Z",
+  "started_at": "2026-07-21T04:28:01.612424137Z",
+  "closed_at": "2026-07-21T04:35:18.145425889Z",
+  "close_reason": "Fixed: Default derive added to StatusBuilder. #[non_exhaustive] removed per project policy — these types are intentionally extensible.",
+  "labels": [
+    "review"
+  ],
+  "dependencies": [
+    {
+      "issue_id": "fedistract-xzkb.6",
+      "depends_on_id": "fedistract-xzkb",
+      "type": "parent-child",
+      "created_at": "2026-07-21T04:20:06.225367315Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}

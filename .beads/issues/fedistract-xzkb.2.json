@@ -1,0 +1,30 @@
+{
+  "id": "fedistract-xzkb.2",
+  "title": "Missing auth on WF update/delete post",
+  "description": "update_post and delete_post handlers lack proper authentication/authorization checks in two servers:\n\n1. smallhold/src/writefreely_api.rs update_post (line 95): checks edit_token if provided, but if no token is sent AND article.edit_token is None, any unauthenticated request can update any post. No AuthenticatedAccount extractor is used.\n\n2. smallhold/src/writefreely_api.rs delete_post (line 150): only validates edit_token if article has one. If article.edit_token is None, any request can delete any post without auth.\n\n3. gaja/src/writefreely_api.rs update_post (line 54): no auth check at all. Any unauthenticated request can modify any post.\n\n4. gaja/src/writefreely_api.rs delete_post (line 71): no auth check at all. Any unauthenticated request can delete any post.\n\nContrast with the create_post handlers in the same files which correctly require AuthenticatedAccount/AuthenticatedUser with write scope.\n\nLocations:\n- /home/mark/PROJECT/smallhold/src/writefreely_api.rs:95-171\n- /home/mark/PROJECT/gaja/src/writefreely_api.rs:54-78",
+  "status": "closed",
+  "priority": 0,
+  "issue_type": "bug",
+  "assignee": "Mark Atwood",
+  "owner": "mark@reviewcommit.com",
+  "created_at": "2026-07-21T04:19:42.550383827Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-21T04:40:26.136636341Z",
+  "started_at": "2026-07-21T04:27:21.278233493Z",
+  "closed_at": "2026-07-21T04:40:26.136636341Z",
+  "close_reason": "Fixed: update_post and delete_post in both smallhold and gaja now require either valid edit token or authenticated user. Option\u003cAuth\u003e extractors added.",
+  "labels": [
+    "review",
+    "correctness"
+  ],
+  "dependencies": [
+    {
+      "issue_id": "fedistract-xzkb.2",
+      "depends_on_id": "fedistract-xzkb",
+      "type": "parent-child",
+      "created_at": "2026-07-21T04:19:42.572856629Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}

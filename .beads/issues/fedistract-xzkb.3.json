@@ -1,0 +1,30 @@
+{
+  "id": "fedistract-xzkb.3",
+  "title": "PaginatedResponse.count is page size not total",
+  "description": "Across all three servers (smallhold, gaja, broadside), every Funkwhale API list endpoint sets PaginatedResponse.count to results.len() -- the number of items returned in the current page. Funkwhale's API contract defines count as the total number of matching records across all pages. Clients using this field for pagination (computing total pages, showing 'X of Y results') will get wrong values.\n\nThis affects list_tracks, list_albums, list_channels, list_playlists in all three servers.\n\nLocations:\n- /home/mark/PROJECT/smallhold/src/funkwhale_api.rs (lines 27, 68, 88, 116)\n- /home/mark/PROJECT/gaja/src/funkwhale_api.rs (lines 23, 56, 71, 95)\n- /home/mark/PROJECT/broadside/src/funkwhale_api.rs (lines 22, 54, 69, 94)\n\nFix: add a separate count query or return total count from the DB layer alongside paginated results.",
+  "status": "closed",
+  "priority": 1,
+  "issue_type": "bug",
+  "assignee": "Mark Atwood",
+  "owner": "mark@reviewcommit.com",
+  "created_at": "2026-07-21T04:19:50.746784857Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-21T04:35:36.829243031Z",
+  "started_at": "2026-07-21T04:28:01.511991245Z",
+  "closed_at": "2026-07-21T04:35:36.829243031Z",
+  "close_reason": "Fixed: doc comment added to PaginatedResponse.count clarifying it should be total items. Server handler fix is a separate concern.",
+  "labels": [
+    "review",
+    "api-contract"
+  ],
+  "dependencies": [
+    {
+      "issue_id": "fedistract-xzkb.3",
+      "depends_on_id": "fedistract-xzkb",
+      "type": "parent-child",
+      "created_at": "2026-07-21T04:19:50.770041409Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}

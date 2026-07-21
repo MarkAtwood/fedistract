@@ -63,6 +63,16 @@ pub const PHOTO_GRID_CSS: &str = "\
 @media (max-width: 640px) { .photo-grid { grid-template-columns: repeat(2, 1fr); } }\
 @media (max-width: 400px) { .photo-grid { grid-template-columns: 1fr; } }";
 
+/// Escape a string for safe interpolation inside an HTML attribute value.
+///
+/// Replaces `&`, `"`, `<`, and `>` with their character references.
+fn escape_html_attr(s: &str) -> String {
+    s.replace('&', "&amp;")
+        .replace('"', "&quot;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+}
+
 /// Render a photo grid HTML fragment from media items.
 ///
 /// Each item is `(file_url, alt_text, post_url)`.
@@ -73,6 +83,8 @@ pub fn render_photo_grid(items: &[(String, String, String)]) -> String {
     let mut html = String::from("<div class=\"photo-grid\">");
     for (file_url, alt, post_url) in items {
         let alt_escaped = ammonia::clean(alt);
+        let post_url = escape_html_attr(post_url);
+        let file_url = escape_html_attr(file_url);
         html.push_str(&format!(
             "<a href=\"{post_url}\"><img src=\"{file_url}\" alt=\"{alt_escaped}\" loading=\"lazy\"></a>"
         ));
@@ -150,5 +162,32 @@ mod tests {
     fn render_markdown_code_block() {
         let html = render_markdown("```\nlet x = 1;\n```");
         assert!(html.contains("<code>"));
+    }
+
+    #[test]
+    fn photo_grid_escapes_urls() {
+        let items = vec![(
+            "https://evil.example/img\"><script>alert(1)</script><img src=\"x".into(),
+            "alt text".into(),
+            "javascript:alert(document.cookie)\"onmouseover=\"alert(1)".into(),
+        )];
+        let html = render_photo_grid(&items);
+        // Quotes must be escaped so they cannot break out of href/src attributes
+        assert!(!html.contains("\"onmouseover"));
+        assert!(!html.contains("\"><script>"));
+        // The escaped forms must be present instead
+        assert!(html.contains("&quot;"));
+    }
+
+    #[test]
+    fn photo_grid_preserves_valid_urls() {
+        let items = vec![(
+            "https://cdn.example.com/photo.jpg".into(),
+            "A photo".into(),
+            "https://example.com/posts/1".into(),
+        )];
+        let html = render_photo_grid(&items);
+        assert!(html.contains("href=\"https://example.com/posts/1\""));
+        assert!(html.contains("src=\"https://cdn.example.com/photo.jpg\""));
     }
 }

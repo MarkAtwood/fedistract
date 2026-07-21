@@ -1,0 +1,30 @@
+{
+  "id": "fedistract-xzkb.34",
+  "title": "fedi-e2ee missing zeroize on key intermediates",
+  "description": "ed25519_to_x25519_private() at fedi-e2ee/src/lib.rs:186-192 does not zeroize two intermediates containing key material: (1) the SHA-512 hash output (GenericArray\u003cu8, U64\u003e) which contains the full Ed25519 expanded key, and (2) the x_bytes [u8; 32] array copied from hash[..32]. Both remain on the stack after X25519Secret::from() consumes the value. The shared_secret and encryption_key ARE zeroized in encrypt_dm/decrypt_dm, but the X25519 private key derivation path leaks intermediates. Fix: make hash and x_bytes mutable, zeroize both after use.",
+  "status": "closed",
+  "priority": 2,
+  "issue_type": "bug",
+  "assignee": "Mark Atwood",
+  "owner": "mark@reviewcommit.com",
+  "created_at": "2026-07-21T04:21:20.313742003Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-21T04:38:25.037214251Z",
+  "started_at": "2026-07-21T04:35:44.760771375Z",
+  "closed_at": "2026-07-21T04:38:25.037214251Z",
+  "close_reason": "Fixed: ed25519_to_x25519_private now zeroizes SHA-512 hash and x_bytes intermediates",
+  "labels": [
+    "review",
+    "crypto"
+  ],
+  "dependencies": [
+    {
+      "issue_id": "fedistract-xzkb.34",
+      "depends_on_id": "fedistract-xzkb",
+      "type": "parent-child",
+      "created_at": "2026-07-21T04:21:20.338935416Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}

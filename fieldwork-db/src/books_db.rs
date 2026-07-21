@@ -460,7 +460,6 @@ const REVIEW_COLS: &str = "id, user_id, persona_id, book_id, content, content_ht
 
 /// Insert a new book review.
 pub async fn create_review(pool: &Pool, review: &ReviewRow) -> Result<(), sqlx::Error> {
-    let spoiler_int: i32 = if review.spoiler { 1 } else { 0 };
     match pool {
         #[cfg(feature = "postgres")]
         Pool::Postgres(pg) => {
@@ -476,7 +475,7 @@ pub async fn create_review(pool: &Pool, review: &ReviewRow) -> Result<(), sqlx::
             .bind(&review.content)
             .bind(&review.content_html)
             .bind(review.rating)
-            .bind(spoiler_int)
+            .bind(review.spoiler)
             .bind(&review.ap_id)
             .bind(review.created_at)
             .execute(pg)
@@ -484,6 +483,7 @@ pub async fn create_review(pool: &Pool, review: &ReviewRow) -> Result<(), sqlx::
         }
         #[cfg(feature = "sqlite")]
         Pool::Sqlite(sq) => {
+            let spoiler_int: i32 = if review.spoiler { 1 } else { 0 };
             sqlx::query(
                 "INSERT INTO book_reviews (id, user_id, persona_id, book_id, content, \
                  content_html, rating, spoiler, ap_id, created_at) \

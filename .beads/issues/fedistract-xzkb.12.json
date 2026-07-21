@@ -1,0 +1,29 @@
+{
+  "id": "fedistract-xzkb.12",
+  "title": "MediaRow missing Debug and Clone derives",
+  "description": "media_db.rs:9 MediaRow has no derive attributes at all. Every other public row type in fieldwork-db (BookRow, TrackRow, AudioChannelRow, ArticleRow, CollectionRow, ReviewRow, PodcastSeriesRow, PodcastEpisodeRow) derives Debug + Clone. Missing Debug prevents logging/error context. Missing Clone prevents passing MediaRow through APIs that need ownership copies. This is an inconsistency that will bite downstream consumers.",
+  "status": "closed",
+  "priority": 2,
+  "issue_type": "bug",
+  "assignee": "Mark Atwood",
+  "owner": "mark@reviewcommit.com",
+  "created_at": "2026-07-21T04:20:22.474057678Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-21T04:38:24.859758148Z",
+  "started_at": "2026-07-21T04:35:44.454800628Z",
+  "closed_at": "2026-07-21T04:38:24.859758148Z",
+  "close_reason": "Fixed: Debug + Clone derives added to MediaRow",
+  "labels": [
+    "review"
+  ],
+  "dependencies": [
+    {
+      "issue_id": "fedistract-xzkb.12",
+      "depends_on_id": "fedistract-xzkb",
+      "type": "parent-child",
+      "created_at": "2026-07-21T04:20:22.490168111Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}

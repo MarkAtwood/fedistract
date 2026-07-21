@@ -1,0 +1,29 @@
+{
+  "id": "fedistract-xzkb.15",
+  "title": "smallhold update_post auth is incomplete",
+  "description": "In smallhold/src/writefreely_api.rs update_post (line 95), authentication only triggers when body.token is Some. If no token is provided AND the user is not logged in, the update proceeds without any check. The code checks the token validity if provided, but does not require either a valid token or authenticated session. An unauthenticated request with no token field can update any post. Contrast with create_post which calls auth.require_scope(\"write\"). Same pattern in delete_post: if article.edit_token is None, deletion proceeds without auth.",
+  "status": "closed",
+  "priority": 0,
+  "issue_type": "bug",
+  "assignee": "Mark Atwood",
+  "owner": "mark@reviewcommit.com",
+  "created_at": "2026-07-21T04:20:33.235920382Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-21T04:40:26.194328895Z",
+  "started_at": "2026-07-21T04:27:21.327206874Z",
+  "closed_at": "2026-07-21T04:40:26.194328895Z",
+  "close_reason": "Fixed: same fix as xzkb.2. Both handlers now have proper token_ok + auth check pattern.",
+  "labels": [
+    "review"
+  ],
+  "dependencies": [
+    {
+      "issue_id": "fedistract-xzkb.15",
+      "depends_on_id": "fedistract-xzkb",
+      "type": "parent-child",
+      "created_at": "2026-07-21T04:20:33.256566609Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "id": "fedistract-xzkb.40",
+  "title": "pulldown-cmark default-features not disabled in fieldwork",
+  "description": "fieldwork/Cargo.toml line 21: pulldown-cmark = { version = \"0.12\", optional = true } enables default features. Downstream servers smallhold and gaja both specify default-features = false, features = [\"html\"], intending minimal compilation. Since Cargo unifies features additively, the servers end up with pulldown-cmark's full default feature set anyway when using fieldwork. Fix: add default-features = false, features = [\"html\"] to fieldwork's pulldown-cmark dep to respect downstream intent.",
+  "status": "closed",
+  "priority": 2,
+  "issue_type": "bug",
+  "assignee": "Mark Atwood",
+  "owner": "mark@reviewcommit.com",
+  "created_at": "2026-07-21T04:22:14.742088939Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-21T04:38:25.093623559Z",
+  "started_at": "2026-07-21T04:35:44.805462196Z",
+  "closed_at": "2026-07-21T04:38:25.093623559Z",
+  "close_reason": "Fixed: pulldown-cmark now has default-features = false, features = [html]",
+  "labels": [
+    "review"
+  ],
+  "dependencies": [
+    {
+      "issue_id": "fedistract-xzkb.40",
+      "depends_on_id": "fedistract-xzkb",
+      "type": "parent-child",
+      "created_at": "2026-07-21T04:22:14.7609177Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}

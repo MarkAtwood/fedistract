@@ -120,9 +120,9 @@ pub fn create_provenance(
 
 /// Verify a provenance claim against the given public key.
 ///
-/// Returns `Ok(true)` if the signature is valid, `Ok(false)` if the
-/// signature does not match, or `Err` if the proof or key is malformed.
-pub fn verify_provenance(claim: &ProvenanceClaim, public_key: &[u8; 32]) -> Result<bool> {
+/// Returns `Ok(())` if the signature is valid, or `Err` if the signature
+/// does not match or the proof/key is malformed.
+pub fn verify_provenance(claim: &ProvenanceClaim, public_key: &[u8; 32]) -> Result<()> {
     let canonical = canonical_without_proof(claim)?;
 
     let (_, sig_bytes) = multibase::decode(&claim.proof)
@@ -134,7 +134,9 @@ pub fn verify_provenance(claim: &ProvenanceClaim, public_key: &[u8; 32]) -> Resu
     let verifying_key =
         VerifyingKey::from_bytes(public_key).map_err(|_| ProvenanceError::InvalidPublicKey)?;
 
-    Ok(verifying_key.verify(canonical.as_bytes(), &signature).is_ok())
+    verifying_key
+        .verify(canonical.as_bytes(), &signature)
+        .map_err(|_| ProvenanceError::SignatureVerification)
 }
 
 /// Attach a provenance claim to a media attachment JSON object.
@@ -224,8 +226,7 @@ mod tests {
         assert!(claim.creator.starts_with("did:key:z6Mk"));
         assert!(!claim.proof.is_empty());
 
-        let valid = verify_provenance(&claim, &public_key).unwrap();
-        assert!(valid);
+        verify_provenance(&claim, &public_key).unwrap();
     }
 
     #[test]
@@ -236,8 +237,8 @@ mod tests {
 
         claim.integrity = "sha256-TAMPERED".to_string();
 
-        let valid = verify_provenance(&claim, &public_key).unwrap();
-        assert!(!valid);
+        let result = verify_provenance(&claim, &public_key);
+        assert!(matches!(result, Err(ProvenanceError::SignatureVerification)));
     }
 
     #[test]
@@ -248,8 +249,8 @@ mod tests {
         let claim =
             create_provenance("sha256-abc123", Assertion::Original, &private_key).unwrap();
 
-        let valid = verify_provenance(&claim, &wrong_public_key).unwrap();
-        assert!(!valid);
+        let result = verify_provenance(&claim, &wrong_public_key);
+        assert!(matches!(result, Err(ProvenanceError::SignatureVerification)));
     }
 
     #[test]

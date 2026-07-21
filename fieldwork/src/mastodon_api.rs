@@ -13,7 +13,8 @@ use serde::{Deserialize, Serialize};
 // ---------------------------------------------------------------------------
 
 /// Mastodon API Status entity (`/api/v1/statuses`).
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[non_exhaustive]
 pub struct Status {
     pub id: String,
     pub created_at: String,
@@ -39,6 +40,10 @@ pub struct Status {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reblog: Option<Box<Status>>,
     pub application: Application,
+    /// Kept as `serde_json::Value` intentionally: servers build account JSON
+    /// from heterogeneous sources (e.g. `json!()` macros, `account_to_json()`
+    /// helpers) that do not always originate from a `profile::Account` struct.
+    /// Using `Value` avoids forcing every server to construct a full `Account`.
     pub account: serde_json::Value,
     pub media_attachments: Vec<MediaAttachment>,
     pub mentions: Vec<Mention>,
@@ -55,7 +60,8 @@ pub struct Status {
 }
 
 /// Application sub-object inside Status.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[non_exhaustive]
 pub struct Application {
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -63,7 +69,8 @@ pub struct Application {
 }
 
 /// Media attachment entity.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[non_exhaustive]
 pub struct MediaAttachment {
     pub id: String,
     #[serde(rename = "type")]
@@ -78,7 +85,8 @@ pub struct MediaAttachment {
 }
 
 /// Mention entity.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[non_exhaustive]
 pub struct Mention {
     pub id: String,
     pub username: String,
@@ -87,7 +95,8 @@ pub struct Mention {
 }
 
 /// Hashtag entity.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[non_exhaustive]
 pub struct Tag {
     pub name: String,
     pub url: String,
@@ -98,7 +107,8 @@ pub struct Tag {
 // ---------------------------------------------------------------------------
 
 /// Mastodon API Relationship entity (`/api/v1/accounts/relationships`).
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[non_exhaustive]
 pub struct Relationship {
     pub id: String,
     pub following: bool,
@@ -143,7 +153,8 @@ impl Relationship {
 // ---------------------------------------------------------------------------
 
 /// Status context (ancestors + descendants).
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[non_exhaustive]
 pub struct Context {
     pub ancestors: Vec<Status>,
     pub descendants: Vec<Status>,
@@ -154,19 +165,22 @@ pub struct Context {
 // ---------------------------------------------------------------------------
 
 /// Instance configuration sub-object.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[non_exhaustive]
 pub struct InstanceConfiguration {
     pub statuses: StatusesConfig,
     pub media_attachments: MediaConfig,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[non_exhaustive]
 pub struct StatusesConfig {
     pub max_characters: u32,
     pub max_media_attachments: u32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[non_exhaustive]
 pub struct MediaConfig {
     pub supported_mime_types: Vec<String>,
     pub image_size_limit: u64,
@@ -178,6 +192,7 @@ pub struct MediaConfig {
 // ---------------------------------------------------------------------------
 
 /// Build a Status entity from common fields.
+#[non_exhaustive]
 pub struct StatusBuilder {
     pub id: i64,
     pub created_at: String,
@@ -202,6 +217,36 @@ pub struct StatusBuilder {
     pub muted: bool,
     pub bookmarked: bool,
     pub pinned: bool,
+}
+
+impl Default for StatusBuilder {
+    fn default() -> Self {
+        Self {
+            id: 0,
+            created_at: String::new(),
+            content_html: String::new(),
+            spoiler_text: String::new(),
+            visibility: "public".into(),
+            language: "en".into(),
+            username: String::new(),
+            domain: String::new(),
+            sensitive: false,
+            in_reply_to_id: None,
+            edited_at: None,
+            abstract_text: None,
+            app_name: String::new(),
+            app_website: None,
+            account_json: serde_json::Value::Object(Default::default()),
+            media_attachments: Vec::new(),
+            mentions: Vec::new(),
+            tags: Vec::new(),
+            favourited: false,
+            reblogged: false,
+            muted: false,
+            bookmarked: false,
+            pinned: false,
+        }
+    }
 }
 
 impl StatusBuilder {

@@ -1,0 +1,27 @@
+{
+  "id": "fedistract-xzkb.36",
+  "title": "audio_db playlist fns return raw tuples",
+  "description": "In fieldwork-db/src/audio_db.rs, playlist-related functions return raw tuples instead of typed structs:\n- get_audio_playlist returns Option\u003c(i64, i64, String, String, String, i64)\u003e (line 728)\n- list_audio_playlists returns Vec\u003c(i64, i64, String, String, String, i64)\u003e (line 759)\n- list_user_audio_playlists returns Vec\u003c(i64, String, String, i64)\u003e (line 793)\n\nThis forces callers (smallhold, gaja, broadside funkwhale_api.rs) to destructure via positional indexes (pl.0, pl.1, etc.), making the code fragile and unreadable. Every other entity in the db layer has a named row struct (TrackRow, AudioChannelRow, BookRow, etc.).\n\nThe same positional tuple destructuring appears in 3 server handlers that build PlaylistResponse from the 6-element tuple, and tests that assert on pl.0 through pl.5 (audio_db tests line 1559-1564).\n\nFix: add an AudioPlaylistRow struct consistent with the other row types.",
+  "status": "closed",
+  "priority": 2,
+  "issue_type": "task",
+  "owner": "mark@reviewcommit.com",
+  "created_at": "2026-07-21T04:21:22.237154594Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-21T04:21:57.387645383Z",
+  "closed_at": "2026-07-21T04:21:57.387645383Z",
+  "close_reason": "Duplicate of fedistract-xzkb.10 (already filed)",
+  "labels": [
+    "review"
+  ],
+  "dependencies": [
+    {
+      "issue_id": "fedistract-xzkb.36",
+      "depends_on_id": "fedistract-xzkb",
+      "type": "parent-child",
+      "created_at": "2026-07-21T04:21:22.255964414Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}

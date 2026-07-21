@@ -1,0 +1,29 @@
+{
+  "id": "fedistract-xzkb.29",
+  "title": "api-convert feature has implicit sanitize coupling",
+  "description": "fieldwork-db's api-convert feature enables fieldwork/sanitize to get access to fieldwork::util::epoch_to_iso (used in articles_db.rs line 542). This works but is fragile: the dependency is on epoch_to_iso (which needs chrono, not ammonia), but the feature gate pulls in the full sanitize stack (ammonia, pulldown-cmark, chrono). If util is ever refactored to separate the time utilities from the HTML sanitization utilities, api-convert would silently break. The coupling should be made explicit or the time utilities should be extracted to their own feature.",
+  "status": "closed",
+  "priority": 2,
+  "issue_type": "bug",
+  "assignee": "Mark Atwood",
+  "owner": "mark@reviewcommit.com",
+  "created_at": "2026-07-21T04:21:00.501798416Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-21T04:38:44.76164229Z",
+  "started_at": "2026-07-21T04:35:44.677791731Z",
+  "closed_at": "2026-07-21T04:38:44.76164229Z",
+  "close_reason": "Accepted: api-convert enabling sanitize is a consequence of xzkb.24. All consumers already have sanitize via 'full' feature.",
+  "labels": [
+    "review"
+  ],
+  "dependencies": [
+    {
+      "issue_id": "fedistract-xzkb.29",
+      "depends_on_id": "fedistract-xzkb",
+      "type": "parent-child",
+      "created_at": "2026-07-21T04:21:00.521584219Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}

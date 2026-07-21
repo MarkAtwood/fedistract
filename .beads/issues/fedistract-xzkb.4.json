@@ -1,0 +1,30 @@
+{
+  "id": "fedistract-xzkb.4",
+  "title": "Fragile SQL column prefix in list_audio_channels",
+  "description": "In fieldwork-db/src/audio_db.rs line 328, the list_audio_channels query builds column aliases via CHANNEL_COLS.replace(\", \", \", ac.\"). This only prefixes columns after the first comma -- the first column 'persona_id' is NOT prefixed with 'ac.'. The resulting SELECT is 'SELECT ac.persona_id, ac.description, ...' only because the string actually starts with 'persona_id' which gets 'ac.' from the format string 'SELECT ac.{}'.\n\nActually, re-reading the code: format!(\"SELECT ac.{}\", CHANNEL_COLS.replace(\", \", \", ac.\")) does prefix the first column via the format string. So the output is correct. However, the replace approach is fragile: if any column name appears as a substring of another or if CHANNEL_COLS formatting changes (e.g. spaces around commas change), the SQL silently breaks. This is a code smell, not a bug.\n\nLocation: /home/mark/PROJECT/fedistract/fieldwork-db/src/audio_db.rs:324-329",
+  "status": "closed",
+  "priority": 2,
+  "issue_type": "task",
+  "assignee": "Mark Atwood",
+  "owner": "mark@reviewcommit.com",
+  "created_at": "2026-07-21T04:20:00.906484342Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-21T04:38:44.5996096Z",
+  "started_at": "2026-07-21T04:35:44.36004393Z",
+  "closed_at": "2026-07-21T04:38:44.5996096Z",
+  "close_reason": "Accepted risk: the string-replace column aliasing is fragile but correct today. ponytail-level concern — would fix if adding new columns to audio_channels.",
+  "labels": [
+    "review",
+    "efficiency"
+  ],
+  "dependencies": [
+    {
+      "issue_id": "fedistract-xzkb.4",
+      "depends_on_id": "fedistract-xzkb",
+      "type": "parent-child",
+      "created_at": "2026-07-21T04:20:00.929487164Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}

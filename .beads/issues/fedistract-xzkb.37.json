@@ -1,0 +1,30 @@
+{
+  "id": "fedistract-xzkb.37",
+  "title": "fedi-e2ee HKDF uses None salt",
+  "description": "derive_encryption_key() at fedi-e2ee/src/lib.rs:178 passes None as the HKDF salt: Hkdf::\u003cSha256\u003e::new(None, shared_secret). RFC 5869 allows this but recommends a salt for stronger extraction. The info string 'fedi-e2ee-xchacha20-v1' provides domain separation, and X25519 DH output has good entropy, so this is not exploitable. Best practice: use a fixed public salt string (e.g. b'fedi-e2ee-v1-salt') to strengthen the extract step per the HKDF security proof.",
+  "status": "closed",
+  "priority": 3,
+  "issue_type": "bug",
+  "assignee": "Mark Atwood",
+  "owner": "mark@reviewcommit.com",
+  "created_at": "2026-07-21T04:21:27.731605262Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-21T04:39:20.976061196Z",
+  "started_at": "2026-07-21T04:39:05.191776457Z",
+  "closed_at": "2026-07-21T04:39:20.976061196Z",
+  "close_reason": "Accepted: HKDF security proof is weaker with None salt but not exploitable here. Shared secret comes from X25519 DH with full entropy. Info-string domain separation (fedi-e2ee-xchacha20-v1) prevents cross-protocol attacks. Adding a salt would change the wire format.",
+  "labels": [
+    "review",
+    "crypto"
+  ],
+  "dependencies": [
+    {
+      "issue_id": "fedistract-xzkb.37",
+      "depends_on_id": "fedistract-xzkb",
+      "type": "parent-child",
+      "created_at": "2026-07-21T04:21:27.756675195Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}

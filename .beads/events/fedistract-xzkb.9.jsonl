@@ -1,0 +1,3 @@
+{"id":"019f82e7-2ef8-7604-850f-5c5c84ed6b94","issue_id":"fedistract-xzkb.9","event_type":"created","actor":"Mark Atwood","old_value":"","new_value":"","created_at":"2026-07-21T04:20:16.760395165Z"}
+{"id":"019f82e7-2efd-769c-aa33-b6918a472d16","issue_id":"fedistract-xzkb.9","event_type":"label_added","actor":"Mark Atwood","comment":"Added label: review","created_at":"2026-07-21T04:20:16.765433822Z"}
+{"id":"019f82e9-c401-7a57-98b1-e01003009528","issue_id":"fedistract-xzkb.9","event_type":"closed","actor":"Mark Atwood","old_value":"","new_value":"Duplicate of xzkb.1","created_at":"2026-07-21T04:23:05.985678537Z"}

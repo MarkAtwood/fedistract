@@ -1,0 +1,27 @@
+{
+  "id": "fedistract-xzkb.9",
+  "title": "XSS in render_photo_grid: URLs unescaped",
+  "description": "In fieldwork/src/util.rs render_photo_grid(), post_url and file_url are interpolated directly into HTML href/src attributes via format\\!() without escaping. Only alt_text is sanitized via ammonia::clean(). A post_url or file_url containing a double-quote breaks out of the attribute, and a javascript: URI in either enables XSS. These values come from DB rows (media_db), so if any ingestion path (AP federation, API upload) stores a malicious URL, it renders unsanitized. Fix: run post_url and file_url through HTML attribute escaping (e.g., ammonia or html_escape) before interpolation, or build the HTML through ammonia's builder API.",
+  "status": "closed",
+  "priority": 0,
+  "issue_type": "bug",
+  "owner": "mark@reviewcommit.com",
+  "created_at": "2026-07-21T04:20:16.755159453Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-21T04:23:05.979142067Z",
+  "closed_at": "2026-07-21T04:23:05.979142067Z",
+  "close_reason": "Duplicate of xzkb.1",
+  "labels": [
+    "review"
+  ],
+  "dependencies": [
+    {
+      "issue_id": "fedistract-xzkb.9",
+      "depends_on_id": "fedistract-xzkb",
+      "type": "parent-child",
+      "created_at": "2026-07-21T04:20:16.774732577Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}

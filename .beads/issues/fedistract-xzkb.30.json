@@ -1,0 +1,29 @@
+{
+  "id": "fedistract-xzkb.30",
+  "title": "Broadside missing routes declared in read_only_paths()",
+  "description": "broadside/src/bookwyrm_api.rs routes() omits SHELVES_PATH and SHELF_STATUS_PATH that are declared in fieldwork::bookwyrm_api::read_only_paths(). broadside/src/funkwhale_api.rs routes() omits PLAYLIST_TRACKS_PATH, CHANNEL_PATH, PODCAST_RSS_PATH, and LISTEN_PATH that are declared in fieldwork::funkwhale_api::read_only_paths(). Either the read_only_paths() declarations are aspirational (not yet implemented) or broadside has route gaps. If read_only_paths() is the source of truth for what should be served, these are missing endpoints that will 404.",
+  "status": "closed",
+  "priority": 2,
+  "issue_type": "task",
+  "assignee": "Mark Atwood",
+  "owner": "mark@reviewcommit.com",
+  "created_at": "2026-07-21T04:21:05.045302468Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-21T04:38:57.692830161Z",
+  "started_at": "2026-07-21T04:35:44.722226195Z",
+  "closed_at": "2026-07-21T04:38:57.692830161Z",
+  "close_reason": "Accepted: broadside intentionally serves a subset of read-only routes. Shelf endpoints require user context (no auth in broadside). Funkwhale playlist_tracks/channel/podcast/listen need content that broadside doesn't host. The read_only_paths() function documents the full contract; broadside implements what makes sense for broadcast-only.",
+  "labels": [
+    "review"
+  ],
+  "dependencies": [
+    {
+      "issue_id": "fedistract-xzkb.30",
+      "depends_on_id": "fedistract-xzkb",
+      "type": "parent-child",
+      "created_at": "2026-07-21T04:21:05.06598086Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}

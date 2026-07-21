@@ -1,0 +1,27 @@
+{
+  "id": "fedistract-xzkb.18",
+  "title": "Missing doc comments on articles_db public fns",
+  "description": "All public functions in fieldwork-db/src/articles_db.rs (create_collection, get_collection, list_user_collections, update_collection, delete_collection, create_article, get_article, get_article_by_slug, list_collection_articles, list_user_articles, update_article, delete_article, increment_views, pin_article, unpin_article, move_to_collection) lack doc comments. The other db modules (books_db, audio_db, media_db) all have doc comments on their public functions. Standards require doc comments on all public items.",
+  "status": "closed",
+  "priority": 2,
+  "issue_type": "task",
+  "owner": "mark@reviewcommit.com",
+  "created_at": "2026-07-21T04:20:41.285153578Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-21T04:22:31.369524432Z",
+  "closed_at": "2026-07-21T04:22:31.369524432Z",
+  "close_reason": "Duplicate of fedistract-xzkb.25 (already filed)",
+  "labels": [
+    "review"
+  ],
+  "dependencies": [
+    {
+      "issue_id": "fedistract-xzkb.18",
+      "depends_on_id": "fedistract-xzkb",
+      "type": "parent-child",
+      "created_at": "2026-07-21T04:20:41.30535748Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}

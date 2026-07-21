@@ -1,0 +1,27 @@
+{
+  "id": "fedistract-xzkb.13",
+  "title": "gaja writefreely update/delete: no auth check",
+  "description": "In gaja/src/writefreely_api.rs, update_post (line 54) and delete_post (line 71) have no authentication or authorization checks. Any unauthenticated request can update or delete any article by ID. Compare with smallhold/src/writefreely_api.rs which checks edit tokens on both operations, or the create_post handler in the same file which calls auth.require_scope(\"write\"). This is a straightforward auth bypass for article mutation in the multi-tenant server.",
+  "status": "closed",
+  "priority": 0,
+  "issue_type": "bug",
+  "owner": "mark@reviewcommit.com",
+  "created_at": "2026-07-21T04:20:23.798330957Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-21T04:23:06.038305395Z",
+  "closed_at": "2026-07-21T04:23:06.038305395Z",
+  "close_reason": "Duplicate of xzkb.2",
+  "labels": [
+    "review"
+  ],
+  "dependencies": [
+    {
+      "issue_id": "fedistract-xzkb.13",
+      "depends_on_id": "fedistract-xzkb",
+      "type": "parent-child",
+      "created_at": "2026-07-21T04:20:23.816104813Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}

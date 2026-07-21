@@ -1,0 +1,29 @@
+{
+  "id": "fedistract-xzkb.39",
+  "title": "fieldwork reqwest dep uses default features (native-tls)",
+  "description": "fieldwork/Cargo.toml line 41: reqwest = { version = \"0.12\", features = [\"json\"], optional = true } -- this does not set default-features = false, so it pulls in reqwest's default TLS backend (native-tls/OpenSSL). All three downstream servers (smallhold, gaja, broadside) explicitly use default-features = false with rustls-tls. Because Cargo unifies features additively, the final binary compiles both native-tls AND rustls-tls, adding unnecessary binary size and attack surface. Fix: add default-features = false to fieldwork's reqwest dep and explicitly specify the TLS backend, or let the downstream server control TLS selection by not enabling any TLS feature in fieldwork.",
+  "status": "closed",
+  "priority": 1,
+  "issue_type": "bug",
+  "assignee": "Mark Atwood",
+  "owner": "mark@reviewcommit.com",
+  "created_at": "2026-07-21T04:21:59.725986568Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-21T04:35:36.778392409Z",
+  "started_at": "2026-07-21T04:28:01.750751071Z",
+  "closed_at": "2026-07-21T04:35:36.778392409Z",
+  "close_reason": "Fixed: reqwest dep now has default-features = false.",
+  "labels": [
+    "review"
+  ],
+  "dependencies": [
+    {
+      "issue_id": "fedistract-xzkb.39",
+      "depends_on_id": "fedistract-xzkb",
+      "type": "parent-child",
+      "created_at": "2026-07-21T04:21:59.74392196Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}

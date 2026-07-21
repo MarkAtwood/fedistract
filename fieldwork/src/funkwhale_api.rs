@@ -55,6 +55,7 @@ pub const LISTEN_PATH: &str = "/api/v1/listen/{track_id}";
 
 /// Standard pagination query parameters.
 #[derive(Debug, Clone, Deserialize)]
+#[non_exhaustive]
 pub struct PaginationParams {
     #[serde(default = "default_page")]
     pub page: u32,
@@ -82,7 +83,9 @@ impl PaginationParams {
 
 /// Paginated response wrapper.
 #[derive(Debug, Clone, Serialize)]
-pub struct PaginatedResponse<T: Serialize> {
+#[non_exhaustive]
+pub struct PaginatedResponse<T> {
+    /// Total number of items matching the query, not just the current page.
     pub count: usize,
     pub results: Vec<T>,
 }
@@ -92,7 +95,8 @@ pub struct PaginatedResponse<T: Serialize> {
 // ---------------------------------------------------------------------------
 
 /// JSON response for a single track.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[non_exhaustive]
 pub struct TrackResponse {
     pub id: i64,
     pub title: String,
@@ -113,6 +117,7 @@ pub struct TrackResponse {
 
 /// JSON request to upload a track.
 #[derive(Debug, Clone, Deserialize)]
+#[non_exhaustive]
 pub struct CreateTrackRequest {
     pub title: String,
     #[serde(default)]
@@ -136,7 +141,8 @@ fn default_visibility() -> String {
 // ---------------------------------------------------------------------------
 
 /// JSON response for an album (grouped by track album field).
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[non_exhaustive]
 pub struct AlbumResponse {
     pub album: String,
     pub artist: String,
@@ -148,7 +154,8 @@ pub struct AlbumResponse {
 // ---------------------------------------------------------------------------
 
 /// JSON response for a playlist.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[non_exhaustive]
 pub struct PlaylistResponse {
     pub id: i64,
     pub user_id: i64,
@@ -160,6 +167,7 @@ pub struct PlaylistResponse {
 
 /// JSON request to create a playlist.
 #[derive(Debug, Clone, Deserialize)]
+#[non_exhaustive]
 pub struct CreatePlaylistRequest {
     pub title: String,
     #[serde(default)]
@@ -173,7 +181,8 @@ pub struct CreatePlaylistRequest {
 // ---------------------------------------------------------------------------
 
 /// JSON response for an audio channel.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[non_exhaustive]
 pub struct ChannelResponse {
     pub persona_id: i64,
     pub description: String,

@@ -1,0 +1,19 @@
+{
+  "id": "fedistract-xzkb",
+  "title": "Review: fedistract 2026-07-21",
+  "description": "Review confidence: 25% chance of missed bug.\nLeast confident areas: handler authorization logic in servers not fully reviewed (only writefreely auth paths were checked in detail; funkwhale and bookwyrm write paths may have similar issues); postgres code paths are untested (all tests use sqlite feature only).\nWould raise confidence if: postgres integration tests existed; the remaining server handler code (not just API types) was reviewed for auth.",
+  "status": "in_progress",
+  "priority": 1,
+  "issue_type": "epic",
+  "assignee": "Mark Atwood",
+  "owner": "mark@reviewcommit.com",
+  "created_at": "2026-07-21T04:18:22.673537119Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-21T04:22:28.322419783Z",
+  "started_at": "2026-07-21T04:18:27.256482879Z",
+  "lease_expires_at": "2026-07-21T04:23:27.256482879Z",
+  "heartbeat_at": "2026-07-21T04:18:27.256482879Z",
+  "labels": [
+    "review"
+  ]
+}

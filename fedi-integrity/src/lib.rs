@@ -142,18 +142,15 @@ pub fn verify_object(
     let verifying_key = VerifyingKey::from_bytes(public_key)
         .map_err(|e| IntegrityError::InvalidKey(e.to_string()))?;
 
-    match verifying_key.verify(canonical.as_bytes(), &signature) {
-        Ok(()) => Ok(ProofStatus {
-            valid: true,
-            signer_did,
-            signed_at,
-        }),
-        Err(_) => Ok(ProofStatus {
-            valid: false,
-            signer_did,
-            signed_at,
-        }),
-    }
+    verifying_key
+        .verify(canonical.as_bytes(), &signature)
+        .map_err(|_| IntegrityError::VerificationFailed)?;
+
+    Ok(ProofStatus {
+        valid: true,
+        signer_did,
+        signed_at,
+    })
 }
 
 /// Remove the `proof` field from an object, returning it if present.
@@ -268,8 +265,8 @@ mod tests {
         // Tamper with content
         note["content"] = serde_json::Value::String("Tampered content".into());
 
-        let status = verify_object(&note, &public_key).unwrap();
-        assert!(!status.valid);
+        let result = verify_object(&note, &public_key);
+        assert!(matches!(result, Err(IntegrityError::VerificationFailed)));
     }
 
     #[test]
@@ -285,8 +282,8 @@ mod tests {
 
         sign_object(&mut note, &private_key, &did_key).unwrap();
 
-        let status = verify_object(&note, &wrong_public_key).unwrap();
-        assert!(!status.valid);
+        let result = verify_object(&note, &wrong_public_key);
+        assert!(matches!(result, Err(IntegrityError::VerificationFailed)));
     }
 
     #[test]

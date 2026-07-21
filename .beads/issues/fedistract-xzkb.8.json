@@ -1,0 +1,27 @@
+{
+  "id": "fedistract-xzkb.8",
+  "title": "XSS: render_photo_grid unescaped URLs",
+  "description": "In fieldwork/src/util.rs:render_photo_grid(), post_url and file_url are interpolated directly into HTML href and src attributes without escaping. Only alt text is sanitized via ammonia::clean(). An attacker-controlled URL containing a double quote can break out of the attribute context and inject arbitrary HTML. All three servers (broadside, smallhold, gaja) that render photo grids are affected. Fix: escape file_url and post_url through ammonia or html_escape before interpolation.",
+  "status": "closed",
+  "priority": 0,
+  "issue_type": "bug",
+  "owner": "mark@reviewcommit.com",
+  "created_at": "2026-07-21T04:20:14.244674373Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-21T04:21:57.282873706Z",
+  "closed_at": "2026-07-21T04:21:57.282873706Z",
+  "close_reason": "Duplicate of fedistract-xzkb.1 (already filed)",
+  "labels": [
+    "review"
+  ],
+  "dependencies": [
+    {
+      "issue_id": "fedistract-xzkb.8",
+      "depends_on_id": "fedistract-xzkb",
+      "type": "parent-child",
+      "created_at": "2026-07-21T04:20:14.263724283Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}

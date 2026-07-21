@@ -1,0 +1,29 @@
+{
+  "id": "fedistract-xzkb.14",
+  "title": "Trait bounds on struct defs instead of impls",
+  "description": "WfResponse\u003cT: Serialize\u003e (writefreely_api.rs:50) and PaginatedResponse\u003cT: Serialize\u003e (funkwhale_api.rs:85) put Serialize bounds on the struct definition. Rust convention is bounds on impls, not struct defs. The current approach infects all uses: you can't store a WfResponse\u003cMyType\u003e in a variable, pass it to a function, or pattern-match it without MyType: Serialize, even if you never serialize it. Should be: struct WfResponse\u003cT\u003e { ... } with impl\u003cT: Serialize\u003e Serialize for WfResponse\u003cT\u003e. Also, WfResponse derives Serialize but not Deserialize, while WfError derives only Serialize -- asymmetric for a wire type.",
+  "status": "closed",
+  "priority": 2,
+  "issue_type": "bug",
+  "assignee": "Mark Atwood",
+  "owner": "mark@reviewcommit.com",
+  "created_at": "2026-07-21T04:20:26.983362452Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-21T04:38:24.92597809Z",
+  "started_at": "2026-07-21T04:35:44.500734955Z",
+  "closed_at": "2026-07-21T04:38:24.92597809Z",
+  "close_reason": "Fixed: Serialize bound removed from WfResponse\u003cT\u003e and PaginatedResponse\u003cT\u003e struct defs",
+  "labels": [
+    "review"
+  ],
+  "dependencies": [
+    {
+      "issue_id": "fedistract-xzkb.14",
+      "depends_on_id": "fedistract-xzkb",
+      "type": "parent-child",
+      "created_at": "2026-07-21T04:20:27.002315643Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}

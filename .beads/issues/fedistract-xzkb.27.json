@@ -1,0 +1,27 @@
+{
+  "id": "fedistract-xzkb.27",
+  "title": "media_db: duplicate SELECT_COLS constants, ref borrow on Copy",
+  "description": "Two minor issues in fieldwork-db/src/media_db.rs:\n\n1. SELECT_COLS_PG and SELECT_COLS_SQ (lines 78-81) are identical strings. All other db modules use a single constant. This creates a maintenance risk where one gets updated but not the other.\n\n2. insert_media binds user_id and persona_id by reference (.bind(\u0026media.user_id), .bind(\u0026media.persona_id)) but these are i64 (Copy type). Every other db module correctly passes i64 by value. The unnecessary reference is harmless but inconsistent.",
+  "status": "closed",
+  "priority": 3,
+  "issue_type": "task",
+  "owner": "mark@reviewcommit.com",
+  "created_at": "2026-07-21T04:20:56.667910342Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-21T04:22:31.428360544Z",
+  "closed_at": "2026-07-21T04:22:31.428360544Z",
+  "close_reason": "Duplicate of fedistract-xzkb.28 (already filed, covers the SELECT_COLS part). The ref-borrow-on-Copy issue is too minor to file separately.",
+  "labels": [
+    "review"
+  ],
+  "dependencies": [
+    {
+      "issue_id": "fedistract-xzkb.27",
+      "depends_on_id": "fedistract-xzkb",
+      "type": "parent-child",
+      "created_at": "2026-07-21T04:20:56.688512037Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}

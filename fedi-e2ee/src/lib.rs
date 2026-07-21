@@ -42,6 +42,8 @@ pub enum E2eeError {
     InvalidNonce(String),
     #[error("invalid ciphertext encoding: {0}")]
     InvalidCiphertext(String),
+    #[error("invalid Ed25519 public key (decompression failed)")]
+    InvalidPublicKey,
 }
 
 /// An encrypted direct message.
@@ -64,7 +66,7 @@ pub fn encrypt_dm(
     sender_private: &[u8; 32],
     recipient_public: &[u8; 32],
 ) -> Result<EncryptedMessage, E2eeError> {
-    let mut shared_secret = derive_shared_secret(sender_private, recipient_public);
+    let mut shared_secret = derive_shared_secret(sender_private, recipient_public)?;
     let mut encryption_key = derive_encryption_key(&shared_secret);
     shared_secret.zeroize();
 
@@ -112,7 +114,7 @@ pub fn decrypt_dm(
         )));
     }
 
-    let mut shared_secret = derive_shared_secret(recipient_private, sender_public);
+    let mut shared_secret = derive_shared_secret(recipient_private, sender_public)?;
     let mut encryption_key = derive_encryption_key(&shared_secret);
     shared_secret.zeroize();
 
@@ -162,15 +164,15 @@ pub fn extract_encrypted_content(note: &serde_json::Value) -> Option<EncryptedMe
 // ---------------------------------------------------------------------------
 
 /// Convert Ed25519 private key to X25519 and perform ECDH.
-fn derive_shared_secret(our_private: &[u8; 32], their_public_ed: &[u8; 32]) -> [u8; 32] {
+fn derive_shared_secret(our_private: &[u8; 32], their_public_ed: &[u8; 32]) -> Result<[u8; 32], E2eeError> {
     // Ed25519 private → X25519 private: clamp and use as scalar
     let ed_signing = ed25519_dalek::SigningKey::from_bytes(our_private);
     let x_secret = ed25519_to_x25519_private(&ed_signing);
 
     // Ed25519 public → X25519 public: use Montgomery form
-    let x_public = ed25519_to_x25519_public(their_public_ed);
+    let x_public = ed25519_to_x25519_public(their_public_ed)?;
 
-    x_secret.diffie_hellman(&x_public).to_bytes()
+    Ok(x_secret.diffie_hellman(&x_public).to_bytes())
 }
 
 /// Derive a 32-byte encryption key from the shared secret using HKDF.
@@ -186,21 +188,25 @@ fn derive_encryption_key(shared_secret: &[u8; 32]) -> [u8; 32] {
 fn ed25519_to_x25519_private(signing_key: &ed25519_dalek::SigningKey) -> X25519Secret {
     // Hash the seed with SHA-512, take first 32 bytes, clamp
     use sha2::{Digest, Sha512};
-    let hash = Sha512::digest(signing_key.as_bytes());
+    use zeroize::Zeroize;
+    let mut hash = Sha512::digest(signing_key.as_bytes()).to_vec();
     let mut x_bytes = [0u8; 32];
     x_bytes.copy_from_slice(&hash[..32]);
-    X25519Secret::from(x_bytes)
+    hash.zeroize();
+    let secret = X25519Secret::from(x_bytes);
+    x_bytes.zeroize();
+    secret
 }
 
 /// Convert Ed25519 public key bytes to X25519 public key.
-fn ed25519_to_x25519_public(ed_public: &[u8; 32]) -> X25519Public {
+fn ed25519_to_x25519_public(ed_public: &[u8; 32]) -> Result<X25519Public, E2eeError> {
     // Convert Edwards point to Montgomery point
     let ed_point = curve25519_dalek::edwards::CompressedEdwardsY(*ed_public);
     let montgomery = ed_point
         .decompress()
-        .expect("valid Ed25519 public key")
+        .ok_or(E2eeError::InvalidPublicKey)?
         .to_montgomery();
-    X25519Public::from(montgomery.to_bytes())
+    Ok(X25519Public::from(montgomery.to_bytes()))
 }
 
 #[cfg(test)]

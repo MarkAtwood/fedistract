@@ -6,6 +6,7 @@
 use crate::db::Pool;
 
 /// A row in the `media` table.
+#[derive(Debug, Clone)]
 pub struct MediaRow {
     pub id: i64,
     pub user_id: i64,
@@ -75,9 +76,7 @@ pub async fn insert_media(pool: &Pool, media: &MediaRow) -> Result<(), sqlx::Err
     Ok(())
 }
 
-const SELECT_COLS_PG: &str = "id, user_id, persona_id, post_id, file_path, mime_type, \
-    file_size, width, height, blurhash, integrity, description, created_at";
-const SELECT_COLS_SQ: &str = "id, user_id, persona_id, post_id, file_path, mime_type, \
+const SELECT_COLS: &str = "id, user_id, persona_id, post_id, file_path, mime_type, \
     file_size, width, height, blurhash, integrity, description, created_at";
 
 type MediaTuple = (
@@ -91,7 +90,7 @@ pub async fn get_media(pool: &Pool, id: i64) -> Result<Option<MediaRow>, sqlx::E
         #[cfg(feature = "postgres")]
         Pool::Postgres(pg) => {
             let row = sqlx::query_as::<_, MediaTuple>(
-                &format!("SELECT {SELECT_COLS_PG} FROM media WHERE id = $1"),
+                &format!("SELECT {SELECT_COLS} FROM media WHERE id = $1"),
             )
             .bind(id)
             .fetch_optional(pg)
@@ -101,7 +100,7 @@ pub async fn get_media(pool: &Pool, id: i64) -> Result<Option<MediaRow>, sqlx::E
         #[cfg(feature = "sqlite")]
         Pool::Sqlite(sq) => {
             let row = sqlx::query_as::<_, MediaTuple>(
-                &format!("SELECT {SELECT_COLS_SQ} FROM media WHERE id = ?1"),
+                &format!("SELECT {SELECT_COLS} FROM media WHERE id = ?1"),
             )
             .bind(id)
             .fetch_optional(sq)
@@ -120,7 +119,7 @@ pub async fn attachments_for_post(
         #[cfg(feature = "postgres")]
         Pool::Postgres(pg) => {
             let rows = sqlx::query_as::<_, MediaTuple>(
-                &format!("SELECT {SELECT_COLS_PG} FROM media WHERE post_id = $1 ORDER BY id"),
+                &format!("SELECT {SELECT_COLS} FROM media WHERE post_id = $1 ORDER BY id"),
             )
             .bind(post_id)
             .fetch_all(pg)
@@ -130,7 +129,7 @@ pub async fn attachments_for_post(
         #[cfg(feature = "sqlite")]
         Pool::Sqlite(sq) => {
             let rows = sqlx::query_as::<_, MediaTuple>(
-                &format!("SELECT {SELECT_COLS_SQ} FROM media WHERE post_id = ?1 ORDER BY id"),
+                &format!("SELECT {SELECT_COLS} FROM media WHERE post_id = ?1 ORDER BY id"),
             )
             .bind(post_id)
             .fetch_all(sq)
@@ -152,7 +151,7 @@ pub async fn list_images_for_persona(
         #[cfg(feature = "postgres")]
         Pool::Postgres(pg) => {
             let rows: Vec<MediaTuple> = sqlx::query_as(&format!(
-                "SELECT {SELECT_COLS_PG} FROM media \
+                "SELECT {SELECT_COLS} FROM media \
                  WHERE persona_id = $1 AND mime_type LIKE 'image/%' \
                  ORDER BY created_at DESC LIMIT $2 OFFSET $3"
             ))
@@ -166,7 +165,7 @@ pub async fn list_images_for_persona(
         #[cfg(feature = "sqlite")]
         Pool::Sqlite(sq) => {
             let rows: Vec<MediaTuple> = sqlx::query_as(&format!(
-                "SELECT {SELECT_COLS_SQ} FROM media \
+                "SELECT {SELECT_COLS} FROM media \
                  WHERE persona_id = ?1 AND mime_type LIKE 'image/%' \
                  ORDER BY created_at DESC LIMIT ?2 OFFSET ?3"
             ))

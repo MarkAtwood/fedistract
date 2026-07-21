@@ -1,0 +1,27 @@
+{
+  "id": "fedistract-xzkb.16",
+  "title": "DB errors silently swallowed via unwrap_or_default",
+  "description": "Multiple handler functions across all three servers silently swallow database errors by calling .unwrap_or_default() on query results. This returns empty vectors/defaults on connection failures, query errors, or schema mismatches -- masking operational problems from operators and returning incorrect empty results to clients.\n\nLocations:\n- smallhold/src/funkwhale_api.rs: list_tracks (L23), list_albums (L57), list_channels (L83), list_playlists (L101)\n- smallhold/src/bookwyrm_api.rs: search_books (L24/28), shelf_by_status (L108), book_reviews (L182), me_posts (L390), me_collections (L407)\n- smallhold/src/writefreely_api.rs: me_posts (L389), me_collections (L406)\n- gaja/src/funkwhale_api.rs: list_tracks (L20), list_albums (L45), list_channels (L67), list_playlists (L82)\n- gaja/src/bookwyrm_api.rs: search_books (L19), shelves_summary (L69), shelf_by_status (L84), book_reviews (L139), user_reading (L178-180), me_posts (L195), me_collections (L205)\n- gaja/src/writefreely_api.rs: me_posts (L195), me_collections (L205)\n- broadside/src/funkwhale_api.rs: list_tracks (L19), list_albums (L43), list_channels (L65), list_playlists (L81)\n- broadside/src/bookwyrm_api.rs: search_books (L18), user_reading (L47-51)\n- broadside/src/writefreely_api.rs: collection_posts (L43)\n\nFix: propagate errors with ? or map_err(AppError::from)? like the get_* handlers already do.",
+  "status": "closed",
+  "priority": 1,
+  "issue_type": "bug",
+  "owner": "mark@reviewcommit.com",
+  "created_at": "2026-07-21T04:20:35.433175334Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-21T04:22:21.159251779Z",
+  "closed_at": "2026-07-21T04:22:21.159251779Z",
+  "close_reason": "Duplicate of fedistract-xzkb.20 (already filed). My filing had additional locations -- consider updating xzkb.20 with writefreely me_posts/me_collections locations.",
+  "labels": [
+    "review"
+  ],
+  "dependencies": [
+    {
+      "issue_id": "fedistract-xzkb.16",
+      "depends_on_id": "fedistract-xzkb",
+      "type": "parent-child",
+      "created_at": "2026-07-21T04:20:35.452042209Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}

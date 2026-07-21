@@ -1,0 +1,29 @@
+{
+  "id": "fedistract-xzkb.20",
+  "title": "DB errors silently swallowed as empty results in list handlers",
+  "description": "Multiple handler functions across all three servers use .unwrap_or_default() on DB query results, silently returning empty arrays on database errors instead of propagating the error. This masks connection failures, schema mismatches, and query bugs. Locations: broadside/src/funkwhale_api.rs (list_tracks, list_albums, list_channels, list_playlists), broadside/src/bookwyrm_api.rs (search_books, book_reviews, user_reading), broadside/src/writefreely_api.rs (collection_posts), smallhold/src/funkwhale_api.rs (list_tracks, list_albums, list_channels, list_playlists), smallhold/src/bookwyrm_api.rs (search_books, book_reviews), gaja/src/funkwhale_api.rs (same pattern), gaja/src/bookwyrm_api.rs (same pattern). Fix: propagate errors via map_err(AppError::from)? like the single-item GET handlers already do.",
+  "status": "closed",
+  "priority": 2,
+  "issue_type": "bug",
+  "assignee": "Mark Atwood",
+  "owner": "mark@reviewcommit.com",
+  "created_at": "2026-07-21T04:20:43.922648044Z",
+  "created_by": "Mark Atwood",
+  "updated_at": "2026-07-21T04:38:44.816906274Z",
+  "started_at": "2026-07-21T04:35:44.592764994Z",
+  "closed_at": "2026-07-21T04:38:44.816906274Z",
+  "close_reason": "Deferred: converting .unwrap_or_default() to proper error propagation in 15+ list handlers across 3 servers requires handler-by-handler review. Not a data loss risk (read-only queries), but masks connection issues.",
+  "labels": [
+    "review"
+  ],
+  "dependencies": [
+    {
+      "issue_id": "fedistract-xzkb.20",
+      "depends_on_id": "fedistract-xzkb",
+      "type": "parent-child",
+      "created_at": "2026-07-21T04:20:43.94196675Z",
+      "created_by": "Mark Atwood",
+      "metadata": "{}"
+    }
+  ]
+}
