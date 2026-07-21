@@ -147,7 +147,7 @@ pub struct Migration {
 /// The current schema version after all built-in migrations.
 /// Version 0 = fresh CREATE TABLE schema.
 /// Version 1+ = incremental migrations.
-const CURRENT_VERSION: u32 = 5;
+const CURRENT_VERSION: u32 = 6;
 
 /// Built-in migration chain. Version 0 is the fresh-install schema (handled
 /// separately). These run in order for version 1, 2, 3, etc.
@@ -536,6 +536,168 @@ CREATE TABLE IF NOT EXISTS album_items (
     UNIQUE (album_id, media_id)
 );
 CREATE INDEX IF NOT EXISTS idx_album_items_album ON album_items(album_id, position);
+"#,
+    },
+    Migration {
+        version: 6,
+        description: "add Lemmy-style communities, posts, comments, votes, bans",
+        sql_sqlite: r#"
+CREATE TABLE IF NOT EXISTS communities (
+    persona_id INTEGER PRIMARY KEY REFERENCES personas(id),
+    title TEXT NOT NULL,
+    sidebar_html TEXT NOT NULL DEFAULT '',
+    description TEXT NOT NULL DEFAULT '',
+    icon_media_id INTEGER REFERENCES media(id),
+    banner_media_id INTEGER REFERENCES media(id),
+    nsfw INTEGER NOT NULL DEFAULT 0,
+    posting_restricted INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS community_members (
+    community_id INTEGER NOT NULL REFERENCES communities(persona_id),
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    persona_id INTEGER NOT NULL REFERENCES personas(id),
+    role TEXT NOT NULL DEFAULT 'member',
+    created_at INTEGER NOT NULL,
+    UNIQUE (community_id, persona_id)
+);
+CREATE INDEX IF NOT EXISTS idx_community_members_community ON community_members(community_id);
+
+CREATE TABLE IF NOT EXISTS community_posts (
+    id INTEGER PRIMARY KEY,
+    community_id INTEGER NOT NULL REFERENCES communities(persona_id),
+    author_persona_id INTEGER NOT NULL REFERENCES personas(id),
+    author_user_id INTEGER NOT NULL REFERENCES users(id),
+    title TEXT NOT NULL,
+    body TEXT,
+    body_html TEXT,
+    url TEXT,
+    ap_id TEXT NOT NULL UNIQUE,
+    locked INTEGER NOT NULL DEFAULT 0,
+    pinned INTEGER NOT NULL DEFAULT 0,
+    removed INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_community_posts_community ON community_posts(community_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS community_comments (
+    id INTEGER PRIMARY KEY,
+    post_id INTEGER NOT NULL REFERENCES community_posts(id),
+    parent_comment_id INTEGER REFERENCES community_comments(id),
+    author_persona_id INTEGER NOT NULL REFERENCES personas(id),
+    author_user_id INTEGER NOT NULL REFERENCES users(id),
+    content TEXT NOT NULL,
+    content_html TEXT NOT NULL,
+    ap_id TEXT NOT NULL UNIQUE,
+    removed INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_community_comments_post ON community_comments(post_id);
+CREATE INDEX IF NOT EXISTS idx_community_comments_parent ON community_comments(parent_comment_id);
+
+CREATE TABLE IF NOT EXISTS votes (
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    persona_id INTEGER NOT NULL REFERENCES personas(id),
+    post_id INTEGER REFERENCES community_posts(id),
+    comment_id INTEGER REFERENCES community_comments(id),
+    score INTEGER NOT NULL,
+    created_at INTEGER NOT NULL,
+    CHECK ((post_id IS NOT NULL) != (comment_id IS NOT NULL)),
+    CHECK (score IN (-1, 1))
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_votes_post ON votes(persona_id, post_id) WHERE post_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_votes_comment ON votes(persona_id, comment_id) WHERE comment_id IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS community_bans (
+    community_id INTEGER NOT NULL REFERENCES communities(persona_id),
+    persona_id INTEGER NOT NULL REFERENCES personas(id),
+    reason TEXT NOT NULL DEFAULT '',
+    expires_at INTEGER,
+    created_at INTEGER NOT NULL,
+    UNIQUE (community_id, persona_id)
+);
+"#,
+        sql_postgres: r#"
+CREATE TABLE IF NOT EXISTS communities (
+    persona_id BIGINT PRIMARY KEY REFERENCES personas(id),
+    title TEXT NOT NULL,
+    sidebar_html TEXT NOT NULL DEFAULT '',
+    description TEXT NOT NULL DEFAULT '',
+    icon_media_id BIGINT REFERENCES media(id),
+    banner_media_id BIGINT REFERENCES media(id),
+    nsfw INTEGER NOT NULL DEFAULT 0,
+    posting_restricted INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS community_members (
+    community_id BIGINT NOT NULL REFERENCES communities(persona_id),
+    user_id BIGINT NOT NULL REFERENCES users(id),
+    persona_id BIGINT NOT NULL REFERENCES personas(id),
+    role TEXT NOT NULL DEFAULT 'member',
+    created_at INTEGER NOT NULL,
+    UNIQUE (community_id, persona_id)
+);
+CREATE INDEX IF NOT EXISTS idx_community_members_community ON community_members(community_id);
+
+CREATE TABLE IF NOT EXISTS community_posts (
+    id BIGINT PRIMARY KEY,
+    community_id BIGINT NOT NULL REFERENCES communities(persona_id),
+    author_persona_id BIGINT NOT NULL REFERENCES personas(id),
+    author_user_id BIGINT NOT NULL REFERENCES users(id),
+    title TEXT NOT NULL,
+    body TEXT,
+    body_html TEXT,
+    url TEXT,
+    ap_id TEXT NOT NULL UNIQUE,
+    locked INTEGER NOT NULL DEFAULT 0,
+    pinned INTEGER NOT NULL DEFAULT 0,
+    removed INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_community_posts_community ON community_posts(community_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS community_comments (
+    id BIGINT PRIMARY KEY,
+    post_id BIGINT NOT NULL REFERENCES community_posts(id),
+    parent_comment_id BIGINT REFERENCES community_comments(id),
+    author_persona_id BIGINT NOT NULL REFERENCES personas(id),
+    author_user_id BIGINT NOT NULL REFERENCES users(id),
+    content TEXT NOT NULL,
+    content_html TEXT NOT NULL,
+    ap_id TEXT NOT NULL UNIQUE,
+    removed INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_community_comments_post ON community_comments(post_id);
+CREATE INDEX IF NOT EXISTS idx_community_comments_parent ON community_comments(parent_comment_id);
+
+CREATE TABLE IF NOT EXISTS votes (
+    user_id BIGINT NOT NULL REFERENCES users(id),
+    persona_id BIGINT NOT NULL REFERENCES personas(id),
+    post_id BIGINT REFERENCES community_posts(id),
+    comment_id BIGINT REFERENCES community_comments(id),
+    score INTEGER NOT NULL,
+    created_at INTEGER NOT NULL,
+    CHECK ((post_id IS NOT NULL) != (comment_id IS NOT NULL)),
+    CHECK (score IN (-1, 1))
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_votes_post ON votes(persona_id, post_id) WHERE post_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_votes_comment ON votes(persona_id, comment_id) WHERE comment_id IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS community_bans (
+    community_id BIGINT NOT NULL REFERENCES communities(persona_id),
+    persona_id BIGINT NOT NULL REFERENCES personas(id),
+    reason TEXT NOT NULL DEFAULT '',
+    expires_at INTEGER,
+    created_at INTEGER NOT NULL,
+    UNIQUE (community_id, persona_id)
+);
 "#,
     },
 ];

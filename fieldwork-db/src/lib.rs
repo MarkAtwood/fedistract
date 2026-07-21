@@ -19,6 +19,8 @@ pub mod albums_db;
 #[cfg(any(feature = "postgres", feature = "sqlite"))]
 pub mod cards_db;
 #[cfg(any(feature = "postgres", feature = "sqlite"))]
+pub mod communities_db;
+#[cfg(any(feature = "postgres", feature = "sqlite"))]
 pub mod conversations_db;
 #[cfg(any(feature = "postgres", feature = "sqlite"))]
 pub mod db;

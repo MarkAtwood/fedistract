@@ -220,6 +220,25 @@ impl Serialize for ActorDocument {
 }
 
 impl ActorDocument {
+    /// Build a Group actor document for a community/forum.
+    ///
+    /// Produces a `"Group"` type actor suitable for Lemmy-style communities.
+    /// The `description` is set as the `summary` field. All other fields
+    /// (inbox, outbox, followers, following, key URLs) are derived identically
+    /// to [`Self::build`].
+    pub fn build_community(
+        domain: &str,
+        name: &str,
+        title: &str,
+        description: &str,
+        public_key_pem: &str,
+    ) -> Self {
+        let mut doc = Self::build(domain, name, title, public_key_pem);
+        doc.type_ = "Group".to_string();
+        doc.summary = description.to_string();
+        doc
+    }
+
     /// Build an actor document with reasonable defaults for a standard fediverse server.
     ///
     /// Derives inbox, outbox, followers, following, and key URLs from `domain` and `username`.
@@ -402,6 +421,39 @@ mod tests {
         assert_eq!(att[0]["type"], "PropertyValue");
         assert_eq!(att[0]["name"], "Website");
         assert_eq!(att[1]["name"], "GitHub");
+    }
+
+    #[test]
+    fn build_community_produces_group_actor() {
+        let actor = ActorDocument::build_community(
+            "example.com",
+            "rust",
+            "Rust Programming",
+            "A community for Rust developers",
+            TEST_PEM,
+        );
+
+        assert_eq!(actor.type_, "Group");
+        assert_eq!(actor.preferred_username, "rust");
+        assert_eq!(actor.name, "Rust Programming");
+        assert_eq!(actor.summary, "A community for Rust developers");
+        assert_eq!(actor.id, "https://example.com/users/rust");
+        assert_eq!(actor.inbox, "https://example.com/users/rust/inbox");
+        assert!(actor.discoverable);
+    }
+
+    #[test]
+    fn build_community_serializes_as_group() {
+        let actor = ActorDocument::build_community(
+            "example.com",
+            "tech",
+            "Technology",
+            "Tech discussion",
+            TEST_PEM,
+        );
+        let json: serde_json::Value = serde_json::to_value(&actor).unwrap();
+        assert_eq!(json["type"], "Group");
+        assert_eq!(json["summary"], "Tech discussion");
     }
 
     #[test]
