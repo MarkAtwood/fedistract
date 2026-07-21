@@ -140,6 +140,46 @@ pub async fn attachments_for_post(
     }
 }
 
+/// List image media for a persona, ordered by newest first.
+/// Only returns image/* MIME types for photo grid display.
+pub async fn list_images_for_persona(
+    pool: &Pool,
+    persona_id: i64,
+    limit: i64,
+    offset: i64,
+) -> Result<Vec<MediaRow>, sqlx::Error> {
+    match pool {
+        #[cfg(feature = "postgres")]
+        Pool::Postgres(pg) => {
+            let rows: Vec<MediaTuple> = sqlx::query_as(&format!(
+                "SELECT {SELECT_COLS_PG} FROM media \
+                 WHERE persona_id = $1 AND mime_type LIKE 'image/%' \
+                 ORDER BY created_at DESC LIMIT $2 OFFSET $3"
+            ))
+            .bind(persona_id)
+            .bind(limit)
+            .bind(offset)
+            .fetch_all(pg)
+            .await?;
+            Ok(rows.into_iter().map(row_to_media).collect())
+        }
+        #[cfg(feature = "sqlite")]
+        Pool::Sqlite(sq) => {
+            let rows: Vec<MediaTuple> = sqlx::query_as(&format!(
+                "SELECT {SELECT_COLS_SQ} FROM media \
+                 WHERE persona_id = ?1 AND mime_type LIKE 'image/%' \
+                 ORDER BY created_at DESC LIMIT ?2 OFFSET ?3"
+            ))
+            .bind(persona_id)
+            .bind(limit)
+            .bind(offset)
+            .fetch_all(sq)
+            .await?;
+            Ok(rows.into_iter().map(row_to_media).collect())
+        }
+    }
+}
+
 /// Delete a media row by ID.
 pub async fn delete_media(pool: &Pool, id: i64) -> Result<(), sqlx::Error> {
     match pool {

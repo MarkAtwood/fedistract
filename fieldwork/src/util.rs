@@ -75,6 +75,33 @@ pub fn render_markdown_simple(md: &str) -> String {
     )
 }
 
+/// CSS for Instagram-style photo grid layout.
+pub const PHOTO_GRID_CSS: &str = "\
+.photo-grid { display: grid; gap: 4px; grid-template-columns: repeat(3, 1fr); }\
+.photo-grid a { display: block; position: relative; aspect-ratio: 1; overflow: hidden; }\
+.photo-grid img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.2s; }\
+.photo-grid a:hover img { transform: scale(1.05); }\
+@media (max-width: 640px) { .photo-grid { grid-template-columns: repeat(2, 1fr); } }\
+@media (max-width: 400px) { .photo-grid { grid-template-columns: 1fr; } }";
+
+/// Render a photo grid HTML fragment from media items.
+///
+/// Each item is `(file_url, alt_text, post_url)`.
+pub fn render_photo_grid(items: &[(String, String, String)]) -> String {
+    if items.is_empty() {
+        return "<p class=\"empty\">No photos yet.</p>".into();
+    }
+    let mut html = String::from("<div class=\"photo-grid\">");
+    for (file_url, alt, post_url) in items {
+        let alt_escaped = ammonia::clean(alt);
+        html.push_str(&format!(
+            "<a href=\"{post_url}\"><img src=\"{file_url}\" alt=\"{alt_escaped}\" loading=\"lazy\"></a>"
+        ));
+    }
+    html.push_str("</div>");
+    html
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

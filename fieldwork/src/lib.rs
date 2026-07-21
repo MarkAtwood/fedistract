@@ -66,6 +66,8 @@ pub mod video;
 pub mod podcast_rss;
 #[cfg(feature = "funkwhale-api")]
 pub mod funkwhale_api;
+#[cfg(feature = "mastodon-api")]
+pub mod mastodon_api;
 #[cfg(feature = "bookwyrm-api")]
 pub mod bookwyrm_api;
 #[cfg(feature = "writefreely-api")]
