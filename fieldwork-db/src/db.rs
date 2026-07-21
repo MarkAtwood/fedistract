@@ -147,7 +147,7 @@ pub struct Migration {
 /// The current schema version after all built-in migrations.
 /// Version 0 = fresh CREATE TABLE schema.
 /// Version 1+ = incremental migrations.
-const CURRENT_VERSION: u32 = 4;
+const CURRENT_VERSION: u32 = 5;
 
 /// Built-in migration chain. Version 0 is the fresh-install schema (handled
 /// separately). These run in order for version 1, 2, 3, etc.
@@ -490,6 +490,52 @@ ALTER TABLE also_known_as ALTER COLUMN persona_id TYPE BIGINT USING persona_id::
 ALTER TABLE conversation_read_markers ALTER COLUMN user_id TYPE BIGINT USING user_id::bigint;
 ALTER TABLE conversation_hidden ALTER COLUMN user_id TYPE BIGINT USING user_id::bigint;
 ALTER TABLE feed_state ALTER COLUMN persona_id TYPE BIGINT USING persona_id::bigint;
+"#,
+    },
+    Migration {
+        version: 5,
+        description: "add albums and album_items tables for Pixelfed collections",
+        sql_sqlite: r#"
+CREATE TABLE IF NOT EXISTS albums (
+    id INTEGER PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    persona_id INTEGER NOT NULL REFERENCES personas(id),
+    title TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    visibility TEXT NOT NULL DEFAULT 'public',
+    cover_media_id INTEGER REFERENCES media(id),
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS album_items (
+    album_id INTEGER NOT NULL REFERENCES albums(id) ON DELETE CASCADE,
+    media_id INTEGER NOT NULL REFERENCES media(id),
+    position INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (album_id, media_id)
+);
+CREATE INDEX IF NOT EXISTS idx_album_items_album ON album_items(album_id, position);
+"#,
+        sql_postgres: r#"
+CREATE TABLE IF NOT EXISTS albums (
+    id BIGINT PRIMARY KEY,
+    user_id BIGINT NOT NULL REFERENCES users(id),
+    persona_id BIGINT NOT NULL REFERENCES personas(id),
+    title TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    visibility TEXT NOT NULL DEFAULT 'public',
+    cover_media_id BIGINT REFERENCES media(id),
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS album_items (
+    album_id BIGINT NOT NULL REFERENCES albums(id) ON DELETE CASCADE,
+    media_id BIGINT NOT NULL REFERENCES media(id),
+    position INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (album_id, media_id)
+);
+CREATE INDEX IF NOT EXISTS idx_album_items_album ON album_items(album_id, position);
 "#,
     },
 ];
@@ -1319,6 +1365,27 @@ CREATE TABLE IF NOT EXISTS feed_state (
     last_seen_id TEXT,
     last_poll    INTEGER
 );
+
+-- Albums / collections (Pixelfed-compatible).
+CREATE TABLE IF NOT EXISTS albums (
+    id               BIGINT PRIMARY KEY,
+    user_id          BIGINT NOT NULL REFERENCES users(id),
+    persona_id       BIGINT NOT NULL REFERENCES personas(id),
+    title            TEXT NOT NULL,
+    description      TEXT NOT NULL DEFAULT '',
+    visibility       TEXT NOT NULL DEFAULT 'public',
+    cover_media_id   BIGINT REFERENCES media(id),
+    created_at       INTEGER NOT NULL,
+    updated_at       INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS album_items (
+    album_id BIGINT NOT NULL REFERENCES albums(id) ON DELETE CASCADE,
+    media_id BIGINT NOT NULL REFERENCES media(id),
+    position INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (album_id, media_id)
+);
+CREATE INDEX IF NOT EXISTS idx_album_items_album ON album_items(album_id, position);
 "#;
 
 // ---------------------------------------------------------------------------
@@ -1804,6 +1871,27 @@ CREATE TABLE IF NOT EXISTS feed_state (
     last_seen_id TEXT,
     last_poll    INTEGER
 );
+
+-- Albums / collections (Pixelfed-compatible).
+CREATE TABLE IF NOT EXISTS albums (
+    id             INTEGER PRIMARY KEY,
+    user_id        INTEGER NOT NULL REFERENCES users(id),
+    persona_id     INTEGER NOT NULL REFERENCES personas(id),
+    title          TEXT NOT NULL,
+    description    TEXT NOT NULL DEFAULT '',
+    visibility     TEXT NOT NULL DEFAULT 'public',
+    cover_media_id INTEGER REFERENCES media(id),
+    created_at     INTEGER NOT NULL,
+    updated_at     INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS album_items (
+    album_id INTEGER NOT NULL REFERENCES albums(id) ON DELETE CASCADE,
+    media_id INTEGER NOT NULL REFERENCES media(id),
+    position INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (album_id, media_id)
+);
+CREATE INDEX IF NOT EXISTS idx_album_items_album ON album_items(album_id, position);
 "#;
 
 // ---------------------------------------------------------------------------

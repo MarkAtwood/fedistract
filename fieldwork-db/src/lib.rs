@@ -15,6 +15,8 @@ pub mod actor_cache;
 #[cfg(any(feature = "postgres", feature = "sqlite"))]
 pub mod admin_db;
 #[cfg(any(feature = "postgres", feature = "sqlite"))]
+pub mod albums_db;
+#[cfg(any(feature = "postgres", feature = "sqlite"))]
 pub mod cards_db;
 #[cfg(any(feature = "postgres", feature = "sqlite"))]
 pub mod conversations_db;
@@ -74,5 +76,7 @@ pub mod search_db;
 pub mod tenant_db;
 #[cfg(any(feature = "postgres", feature = "sqlite"))]
 pub mod timeline_db;
+#[cfg(any(feature = "postgres", feature = "sqlite"))]
+pub mod trending_db;
 #[cfg(any(feature = "postgres", feature = "sqlite"))]
 pub mod webauthn_db;
