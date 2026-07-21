@@ -1,1 +1,2 @@
 {"id":"019f81f5-8504-7747-8406-584e7ecd8891","issue_id":"fedistract-30s8","event_type":"created","actor":"Mark Atwood","old_value":"","new_value":"","created_at":"2026-07-20T23:56:19.076477516Z"}
+{"id":"019f820f-7cd5-78ef-b6c0-95dce58171da","issue_id":"fedistract-30s8","event_type":"closed","actor":"Mark Atwood","old_value":"","new_value":"Pixelfed API endpoints implemented in all 3 servers: collections CRUD (smallhold+gaja), discover/trending (all 3). 8 endpoints per server.","created_at":"2026-07-21T00:24:40.917586174Z"}
