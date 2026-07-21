@@ -2,15 +2,15 @@
   "id": "fedistract-dj9n",
   "title": "Extract fieldwork-api-mastodon crate from server inline code",
   "description": "When we start building the second client API (Pixelfed), first extract the existing Mastodon Client API handlers from the three servers into a fieldwork-api-mastodon crate. This establishes the pattern for all subsequent API crates. The Mastodon API routes, request/response types, and serialization logic that are currently inline in each server's api.rs/posting.rs/interactions.rs move to the shared crate. Servers just mount the router. Do NOT do this until we're actively building the Pixelfed API — premature extraction will guess wrong about the abstraction boundary.",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "issue_type": "task",
   "assignee": "Mark Atwood",
   "owner": "mark@reviewcommit.com",
   "created_at": "2026-07-21T00:00:20.884453668Z",
   "created_by": "Mark Atwood",
-  "updated_at": "2026-07-21T03:51:28.184994717Z",
+  "updated_at": "2026-07-21T03:57:10.216820873Z",
   "started_at": "2026-07-21T03:51:28.184994717Z",
-  "lease_expires_at": "2026-07-21T03:56:28.184994717Z",
-  "heartbeat_at": "2026-07-21T03:51:28.184994717Z"
+  "closed_at": "2026-07-21T03:57:10.216820873Z",
+  "close_reason": "Extracted fieldwork::mastodon_api with Status, Relationship, MediaAttachment, Mention, Tag, Context, StatusBuilder (5 tests). Mastodon API types now shared across all 3 servers."
 }

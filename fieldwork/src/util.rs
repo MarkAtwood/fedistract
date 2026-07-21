@@ -8,45 +8,25 @@ pub fn now_secs() -> i64 {
         .as_secs() as i64
 }
 
-/// Current time as ISO 8601 string (requires chrono at call site).
-/// Returns seconds-precision UTC: `2026-01-02T15:04:05.000000Z`
+/// Current time as ISO 8601 string.
 pub fn now_iso() -> String {
     epoch_to_iso(now_secs())
 }
 
 /// Convert Unix epoch seconds to ISO 8601 string.
-/// Uses Howard Hinnant's civil_from_days algorithm.
 pub fn epoch_to_iso(epoch: i64) -> String {
-    const SECS_PER_DAY: i64 = 86400;
-
-    // Floor-divide to get day count and time-of-day
-    let mut days = epoch.div_euclid(SECS_PER_DAY);
-    let day_secs = epoch.rem_euclid(SECS_PER_DAY);
-
-    // Shift epoch from 1970-01-01 to 0000-03-01 (civil_from_days convention)
-    days += 719_468;
-
-    let era = if days >= 0 { days } else { days - 146096 } / 146097;
-    let doe = (days - era * 146097) as u32; // day of era [0, 146096]
-    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
-    let y = yoe as i64 + era * 400;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let d = doy - (153 * mp + 2) / 5 + 1;
-    let m = if mp < 10 { mp + 3 } else { mp - 9 };
-    let y = if m <= 2 { y + 1 } else { y };
-
-    let h = day_secs / 3600;
-    let min = (day_secs % 3600) / 60;
-    let s = day_secs % 60;
-
-    format!("{y:04}-{m:02}-{d:02}T{h:02}:{min:02}:{s:02}.000000Z")
+    chrono::DateTime::from_timestamp(epoch, 0)
+        .unwrap_or_default()
+        .format("%Y-%m-%dT%H:%M:%S%.6fZ")
+        .to_string()
 }
 
 /// Convert a title string to a URL-safe slug.
 ///
 /// Lowercases, replaces non-alphanumeric chars with hyphens, collapses
 /// consecutive hyphens, and trims leading/trailing hyphens.
+// ponytail: ASCII-only. Handles English titles fine. Ceiling: add `deunicode`
+// crate for Unicode folding (é→e, ñ→n) when non-English titles appear.
 pub fn slugify(title: &str) -> String {
     title
         .to_lowercase()
@@ -59,20 +39,19 @@ pub fn slugify(title: &str) -> String {
         .join("-")
 }
 
-/// Render markdown-ish text to basic HTML.
+/// Render Markdown to sanitized HTML.
 ///
-/// Uses ammonia for sanitization. This is intentionally simple — full
-/// pulldown-cmark rendering is available via the `sanitize` feature.
-pub fn render_markdown_simple(md: &str) -> String {
-    // ponytail: paragraph-splitting is good enough for WriteFreely API.
-    // Ceiling: use pulldown-cmark when we need headings, code blocks, etc.
-    let cleaned = ammonia::clean(md);
-    format!(
-        "<p>{}</p>",
-        cleaned
-            .replace("\n\n", "</p><p>")
-            .replace('\n', "<br>")
-    )
+/// Uses pulldown-cmark for parsing and ammonia for sanitization.
+pub fn render_markdown(md: &str) -> String {
+    use pulldown_cmark::{html, Options, Parser};
+
+    let options = Options::ENABLE_STRIKETHROUGH
+        | Options::ENABLE_TABLES
+        | Options::ENABLE_FOOTNOTES;
+    let parser = Parser::new_ext(md, options);
+    let mut html_output = String::new();
+    html::push_html(&mut html_output, parser);
+    ammonia::clean(&html_output)
 }
 
 /// CSS for Instagram-style photo grid layout.
@@ -109,7 +88,6 @@ mod tests {
     #[test]
     fn now_secs_is_reasonable() {
         let ts = now_secs();
-        // After 2024-01-01
         assert!(ts > 1_704_067_200);
     }
 
@@ -124,7 +102,6 @@ mod tests {
         let s = now_iso();
         assert!(s.ends_with('Z'));
         assert!(s.contains('T'));
-        assert_eq!(s.len(), 27); // YYYY-MM-DDTHH:MM:SS.000000Z
     }
 
     #[test]
@@ -143,15 +120,35 @@ mod tests {
     }
 
     #[test]
-    fn render_markdown_simple_basic() {
-        let html = render_markdown_simple("Hello **world**");
-        assert!(html.contains("<p>"));
+    fn render_markdown_heading() {
+        let html = render_markdown("# Hello");
+        assert!(html.contains("<h1>"));
+        assert!(html.contains("Hello"));
+    }
+
+    #[test]
+    fn render_markdown_bold_italic() {
+        let html = render_markdown("**bold** and *italic*");
+        assert!(html.contains("<strong>bold</strong>"));
+        assert!(html.contains("<em>italic</em>"));
+    }
+
+    #[test]
+    fn render_markdown_sanitizes_script() {
+        let html = render_markdown("<script>alert('xss')</script>");
         assert!(!html.contains("<script>"));
     }
 
     #[test]
-    fn render_markdown_simple_paragraphs() {
-        let html = render_markdown_simple("First\n\nSecond");
-        assert!(html.contains("</p><p>"));
+    fn render_markdown_paragraphs() {
+        let html = render_markdown("First\n\nSecond");
+        assert!(html.contains("<p>First</p>"));
+        assert!(html.contains("<p>Second</p>"));
+    }
+
+    #[test]
+    fn render_markdown_code_block() {
+        let html = render_markdown("```\nlet x = 1;\n```");
+        assert!(html.contains("<code>"));
     }
 }
