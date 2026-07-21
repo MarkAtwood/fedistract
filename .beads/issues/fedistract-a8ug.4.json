@@ -2,13 +2,15 @@
   "id": "fedistract-a8ug.4",
   "title": "fieldwork::misskey_api — Misskey Client API route handlers",
   "description": "Implement Misskey API endpoints. Misskey API uses POST for everything (no GET for data), JSON-RPC-style. Key endpoints: /api/notes/create, /api/notes/reactions/create, /api/drive/files/create, /api/users/show, /api/antennas/create, /api/i (current user). Very different from REST-style Mastodon API. Reusable by all three servers.",
-  "status": "open",
+  "status": "closed",
   "priority": 3,
   "issue_type": "feature",
   "owner": "mark@reviewcommit.com",
   "created_at": "2026-07-20T23:58:15.162218281Z",
   "created_by": "Mark Atwood",
-  "updated_at": "2026-07-20T23:58:15.162218281Z",
+  "updated_at": "2026-07-21T02:14:45.581796458Z",
+  "closed_at": "2026-07-21T02:14:45.581796458Z",
+  "close_reason": "Implemented: reactions_db.rs with migration v9, misskey_api.rs in all three servers (broadside read-only, smallhold/gaja full)",
   "dependencies": [
     {
       "issue_id": "fedistract-a8ug.4",

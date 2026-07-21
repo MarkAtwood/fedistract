@@ -23,6 +23,8 @@
 //! - **`profile`** — Profile metadata types and validation.
 //! - **`media`** — Image processing: MIME sniffing, validation, resize, EXIF strip, blurhash.
 //! - **`video`** — FFmpeg command builder for HLS transcoding (pure logic, no subprocess).
+//! - **`podcast`** — Podcast RSS 2.0 feed generation (iTunes namespace).
+//! - **`funkwhale-api`** — Funkwhale-compatible REST API route builders.
 
 pub mod circuit_breaker;
 pub mod id;
@@ -58,5 +60,9 @@ pub mod sanitize;
 pub mod theme;
 #[cfg(feature = "video")]
 pub mod video;
+#[cfg(feature = "podcast")]
+pub mod podcast_rss;
+#[cfg(feature = "funkwhale-api")]
+pub mod funkwhale_api;
 #[cfg(feature = "webfinger")]
 pub mod webfinger;

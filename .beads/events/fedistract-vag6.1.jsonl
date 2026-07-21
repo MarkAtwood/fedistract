@@ -1,1 +1,2 @@
 {"id":"019f81f7-4b0b-7a45-a6b0-77ed32d14814","issue_id":"fedistract-vag6.1","event_type":"created","actor":"Mark Atwood","old_value":"","new_value":"","created_at":"2026-07-20T23:58:15.30767363Z"}
+{"id":"019f8274-e174-7d31-b921-2fc4deb12bc0","issue_id":"fedistract-vag6.1","event_type":"closed","actor":"Mark Atwood","old_value":"","new_value":"Funkwhale audio mode complete. audio_db (25 functions, 28 tests), podcast_rss (XML generator, 10 tests), funkwhale_api (types+routes, 15 tests).","created_at":"2026-07-21T02:15:25.812865523Z"}

@@ -17,6 +17,8 @@ pub mod admin_db;
 #[cfg(any(feature = "postgres", feature = "sqlite"))]
 pub mod albums_db;
 #[cfg(any(feature = "postgres", feature = "sqlite"))]
+pub mod audio_db;
+#[cfg(any(feature = "postgres", feature = "sqlite"))]
 pub mod cards_db;
 #[cfg(any(feature = "postgres", feature = "sqlite"))]
 pub mod communities_db;
@@ -64,6 +66,8 @@ pub mod post_tags_db;
 pub mod posts_db;
 #[cfg(any(feature = "postgres", feature = "sqlite"))]
 pub mod push_db;
+#[cfg(any(feature = "postgres", feature = "sqlite"))]
+pub mod reactions_db;
 #[cfg(any(feature = "postgres", feature = "sqlite"))]
 pub mod relay;
 #[cfg(any(feature = "postgres", feature = "sqlite"))]

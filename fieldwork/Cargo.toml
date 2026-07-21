@@ -56,7 +56,9 @@ webfinger = ["dep:serde", "dep:serde_json"]
 profile = ["dep:serde", "dep:serde_json"]
 media = ["dep:image", "dep:blurhash"]
 video = []
-full = ["activities", "actor", "collections", "error", "auth", "inbox", "sanitize", "content", "theme", "nodeinfo", "webfinger", "fetch", "profile", "media", "video"]
+podcast = []
+funkwhale-api = ["dep:serde", "dep:serde_json", "dep:axum"]
+full = ["activities", "actor", "collections", "error", "auth", "inbox", "sanitize", "content", "theme", "nodeinfo", "webfinger", "fetch", "profile", "media", "video", "podcast", "funkwhale-api"]
 
 [dev-dependencies]
 tokio = { version = "1", features = ["rt", "macros"] }

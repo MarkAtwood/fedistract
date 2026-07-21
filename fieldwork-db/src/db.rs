@@ -147,7 +147,7 @@ pub struct Migration {
 /// The current schema version after all built-in migrations.
 /// Version 0 = fresh CREATE TABLE schema.
 /// Version 1+ = incremental migrations.
-const CURRENT_VERSION: u32 = 7;
+const CURRENT_VERSION: u32 = 9;
 
 /// Built-in migration chain. Version 0 is the fresh-install schema (handled
 /// separately). These run in order for version 1, 2, 3, etc.
@@ -892,6 +892,216 @@ CREATE TABLE IF NOT EXISTS video_playlist_items (
 );
 "#,
     },
+    Migration {
+        version: 8,
+        description: "add Funkwhale-style audio hosting and podcast tables",
+        sql_sqlite: r#"
+CREATE TABLE IF NOT EXISTS audio_channels (
+    persona_id INTEGER PRIMARY KEY REFERENCES personas(id),
+    description TEXT NOT NULL DEFAULT '',
+    category TEXT NOT NULL DEFAULT 'music',
+    language TEXT,
+    rss_enabled INTEGER NOT NULL DEFAULT 0,
+    itunes_category TEXT,
+    created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS tracks (
+    id INTEGER PRIMARY KEY,
+    channel_id INTEGER NOT NULL REFERENCES audio_channels(persona_id),
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    title TEXT NOT NULL,
+    artist TEXT NOT NULL DEFAULT '',
+    album TEXT NOT NULL DEFAULT '',
+    track_number INTEGER,
+    duration INTEGER,
+    file_path TEXT NOT NULL,
+    file_size INTEGER NOT NULL,
+    mime_type TEXT NOT NULL,
+    cover_media_id INTEGER REFERENCES media(id),
+    description TEXT NOT NULL DEFAULT '',
+    ap_id TEXT NOT NULL UNIQUE,
+    visibility TEXT NOT NULL DEFAULT 'public',
+    created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_tracks_channel ON tracks(channel_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS audio_playlists (
+    id INTEGER PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    title TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    visibility TEXT NOT NULL DEFAULT 'public',
+    created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS audio_playlist_items (
+    playlist_id INTEGER NOT NULL REFERENCES audio_playlists(id) ON DELETE CASCADE,
+    track_id INTEGER NOT NULL REFERENCES tracks(id),
+    position INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (playlist_id, track_id)
+);
+CREATE INDEX IF NOT EXISTS idx_audio_playlist_items ON audio_playlist_items(playlist_id, position);
+
+CREATE TABLE IF NOT EXISTS podcast_series (
+    id INTEGER PRIMARY KEY,
+    channel_id INTEGER NOT NULL REFERENCES audio_channels(persona_id),
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    title TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    description_html TEXT NOT NULL DEFAULT '',
+    author TEXT NOT NULL DEFAULT '',
+    language TEXT,
+    category TEXT,
+    itunes_category TEXT,
+    cover_media_id INTEGER REFERENCES media(id),
+    explicit INTEGER NOT NULL DEFAULT 0,
+    rss_link TEXT,
+    created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS podcast_episodes (
+    id INTEGER PRIMARY KEY,
+    series_id INTEGER NOT NULL REFERENCES podcast_series(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    description_html TEXT NOT NULL DEFAULT '',
+    duration INTEGER,
+    file_path TEXT NOT NULL,
+    file_size INTEGER NOT NULL,
+    mime_type TEXT NOT NULL,
+    episode_number INTEGER,
+    season_number INTEGER,
+    explicit INTEGER NOT NULL DEFAULT 0,
+    ap_id TEXT NOT NULL UNIQUE,
+    published_at INTEGER NOT NULL,
+    created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_podcast_episodes_series ON podcast_episodes(series_id, published_at DESC);
+"#,
+        sql_postgres: r#"
+CREATE TABLE IF NOT EXISTS audio_channels (
+    persona_id BIGINT PRIMARY KEY REFERENCES personas(id),
+    description TEXT NOT NULL DEFAULT '',
+    category TEXT NOT NULL DEFAULT 'music',
+    language TEXT,
+    rss_enabled BOOLEAN NOT NULL DEFAULT false,
+    itunes_category TEXT,
+    created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS tracks (
+    id BIGINT PRIMARY KEY,
+    channel_id BIGINT NOT NULL REFERENCES audio_channels(persona_id),
+    user_id BIGINT NOT NULL REFERENCES users(id),
+    title TEXT NOT NULL,
+    artist TEXT NOT NULL DEFAULT '',
+    album TEXT NOT NULL DEFAULT '',
+    track_number INTEGER,
+    duration INTEGER,
+    file_path TEXT NOT NULL,
+    file_size BIGINT NOT NULL,
+    mime_type TEXT NOT NULL,
+    cover_media_id BIGINT REFERENCES media(id),
+    description TEXT NOT NULL DEFAULT '',
+    ap_id TEXT NOT NULL UNIQUE,
+    visibility TEXT NOT NULL DEFAULT 'public',
+    created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_tracks_channel ON tracks(channel_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS audio_playlists (
+    id BIGINT PRIMARY KEY,
+    user_id BIGINT NOT NULL REFERENCES users(id),
+    title TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    visibility TEXT NOT NULL DEFAULT 'public',
+    created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS audio_playlist_items (
+    playlist_id BIGINT NOT NULL REFERENCES audio_playlists(id) ON DELETE CASCADE,
+    track_id BIGINT NOT NULL REFERENCES tracks(id),
+    position INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (playlist_id, track_id)
+);
+CREATE INDEX IF NOT EXISTS idx_audio_playlist_items ON audio_playlist_items(playlist_id, position);
+
+CREATE TABLE IF NOT EXISTS podcast_series (
+    id BIGINT PRIMARY KEY,
+    channel_id BIGINT NOT NULL REFERENCES audio_channels(persona_id),
+    user_id BIGINT NOT NULL REFERENCES users(id),
+    title TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    description_html TEXT NOT NULL DEFAULT '',
+    author TEXT NOT NULL DEFAULT '',
+    language TEXT,
+    category TEXT,
+    itunes_category TEXT,
+    cover_media_id BIGINT REFERENCES media(id),
+    explicit BOOLEAN NOT NULL DEFAULT false,
+    rss_link TEXT,
+    created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS podcast_episodes (
+    id BIGINT PRIMARY KEY,
+    series_id BIGINT NOT NULL REFERENCES podcast_series(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    description_html TEXT NOT NULL DEFAULT '',
+    duration INTEGER,
+    file_path TEXT NOT NULL,
+    file_size BIGINT NOT NULL,
+    mime_type TEXT NOT NULL,
+    episode_number INTEGER,
+    season_number INTEGER,
+    explicit BOOLEAN NOT NULL DEFAULT false,
+    ap_id TEXT NOT NULL UNIQUE,
+    published_at INTEGER NOT NULL,
+    created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_podcast_episodes_series ON podcast_episodes(series_id, published_at DESC);
+"#,
+    },
+    Migration {
+        version: 9,
+        description: "add Misskey-style emoji reactions table",
+        sql_sqlite: r#"
+CREATE TABLE IF NOT EXISTS reactions (
+    id INTEGER PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    persona_id INTEGER NOT NULL REFERENCES personas(id),
+    post_id INTEGER REFERENCES posts(id),
+    remote_post_id INTEGER REFERENCES remote_posts(id),
+    emoji TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    CHECK ((post_id IS NOT NULL) != (remote_post_id IS NOT NULL))
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_reactions_unique
+    ON reactions(persona_id, post_id, emoji) WHERE post_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_reactions_remote_unique
+    ON reactions(persona_id, remote_post_id, emoji) WHERE remote_post_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_reactions_post ON reactions(post_id) WHERE post_id IS NOT NULL;
+"#,
+        sql_postgres: r#"
+CREATE TABLE IF NOT EXISTS reactions (
+    id BIGINT PRIMARY KEY,
+    user_id BIGINT NOT NULL REFERENCES users(id),
+    persona_id BIGINT NOT NULL REFERENCES personas(id),
+    post_id BIGINT REFERENCES posts(id),
+    remote_post_id BIGINT REFERENCES remote_posts(id),
+    emoji TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    CHECK ((post_id IS NOT NULL) != (remote_post_id IS NOT NULL))
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_reactions_unique
+    ON reactions(persona_id, post_id, emoji) WHERE post_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_reactions_remote_unique
+    ON reactions(persona_id, remote_post_id, emoji) WHERE remote_post_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_reactions_post ON reactions(post_id) WHERE post_id IS NOT NULL;
+"#,
+    },
 ];
 
 /// SQL to transform a legacy (pre-versioned) database to canonical schema.
@@ -1393,6 +1603,23 @@ CREATE TABLE IF NOT EXISTS favourites (
     UNIQUE (persona_id, post_id, remote_post_id)
 );
 
+-- Misskey-style emoji reactions.
+CREATE TABLE IF NOT EXISTS reactions (
+    id             BIGINT PRIMARY KEY,
+    user_id        BIGINT NOT NULL REFERENCES users(id),
+    persona_id     BIGINT NOT NULL REFERENCES personas(id),
+    post_id        BIGINT REFERENCES posts(id),
+    remote_post_id BIGINT REFERENCES remote_posts(id),
+    emoji          TEXT NOT NULL,
+    created_at     INTEGER NOT NULL,
+    CHECK ((post_id IS NOT NULL) != (remote_post_id IS NOT NULL))
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_reactions_unique
+    ON reactions(persona_id, post_id, emoji) WHERE post_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_reactions_remote_unique
+    ON reactions(persona_id, remote_post_id, emoji) WHERE remote_post_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_reactions_post ON reactions(post_id) WHERE post_id IS NOT NULL;
+
 -- Bookmarks.
 CREATE TABLE IF NOT EXISTS bookmarks (
     user_id        BIGINT NOT NULL REFERENCES users(id),
@@ -1834,6 +2061,90 @@ CREATE TABLE IF NOT EXISTS video_playlist_items (
     position INTEGER NOT NULL DEFAULT 0,
     UNIQUE (playlist_id, video_id)
 );
+
+-- Funkwhale-style audio hosting
+CREATE TABLE IF NOT EXISTS audio_channels (
+    persona_id BIGINT PRIMARY KEY REFERENCES personas(id),
+    description TEXT NOT NULL DEFAULT '',
+    category TEXT NOT NULL DEFAULT 'music',
+    language TEXT,
+    rss_enabled BOOLEAN NOT NULL DEFAULT false,
+    itunes_category TEXT,
+    created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS tracks (
+    id BIGINT PRIMARY KEY,
+    channel_id BIGINT NOT NULL REFERENCES audio_channels(persona_id),
+    user_id BIGINT NOT NULL REFERENCES users(id),
+    title TEXT NOT NULL,
+    artist TEXT NOT NULL DEFAULT '',
+    album TEXT NOT NULL DEFAULT '',
+    track_number INTEGER,
+    duration INTEGER,
+    file_path TEXT NOT NULL,
+    file_size BIGINT NOT NULL,
+    mime_type TEXT NOT NULL,
+    cover_media_id BIGINT REFERENCES media(id),
+    description TEXT NOT NULL DEFAULT '',
+    ap_id TEXT NOT NULL UNIQUE,
+    visibility TEXT NOT NULL DEFAULT 'public',
+    created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_tracks_channel ON tracks(channel_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS audio_playlists (
+    id BIGINT PRIMARY KEY,
+    user_id BIGINT NOT NULL REFERENCES users(id),
+    title TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    visibility TEXT NOT NULL DEFAULT 'public',
+    created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS audio_playlist_items (
+    playlist_id BIGINT NOT NULL REFERENCES audio_playlists(id) ON DELETE CASCADE,
+    track_id BIGINT NOT NULL REFERENCES tracks(id),
+    position INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (playlist_id, track_id)
+);
+CREATE INDEX IF NOT EXISTS idx_audio_playlist_items ON audio_playlist_items(playlist_id, position);
+
+CREATE TABLE IF NOT EXISTS podcast_series (
+    id BIGINT PRIMARY KEY,
+    channel_id BIGINT NOT NULL REFERENCES audio_channels(persona_id),
+    user_id BIGINT NOT NULL REFERENCES users(id),
+    title TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    description_html TEXT NOT NULL DEFAULT '',
+    author TEXT NOT NULL DEFAULT '',
+    language TEXT,
+    category TEXT,
+    itunes_category TEXT,
+    cover_media_id BIGINT REFERENCES media(id),
+    explicit BOOLEAN NOT NULL DEFAULT false,
+    rss_link TEXT,
+    created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS podcast_episodes (
+    id BIGINT PRIMARY KEY,
+    series_id BIGINT NOT NULL REFERENCES podcast_series(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    description_html TEXT NOT NULL DEFAULT '',
+    duration INTEGER,
+    file_path TEXT NOT NULL,
+    file_size BIGINT NOT NULL,
+    mime_type TEXT NOT NULL,
+    episode_number INTEGER,
+    season_number INTEGER,
+    explicit BOOLEAN NOT NULL DEFAULT false,
+    ap_id TEXT NOT NULL UNIQUE,
+    published_at INTEGER NOT NULL,
+    created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_podcast_episodes_series ON podcast_episodes(series_id, published_at DESC);
 "#;
 
 // ---------------------------------------------------------------------------
@@ -2022,6 +2333,22 @@ CREATE TABLE IF NOT EXISTS favourites (
     CHECK ((post_id IS NOT NULL) != (remote_post_id IS NOT NULL)),
     UNIQUE (persona_id, post_id, remote_post_id)
 );
+
+CREATE TABLE IF NOT EXISTS reactions (
+    id             INTEGER PRIMARY KEY,
+    user_id        INTEGER NOT NULL REFERENCES users(id),
+    persona_id     INTEGER NOT NULL REFERENCES personas(id),
+    post_id        INTEGER REFERENCES posts(id),
+    remote_post_id INTEGER REFERENCES remote_posts(id),
+    emoji          TEXT NOT NULL,
+    created_at     INTEGER NOT NULL,
+    CHECK ((post_id IS NOT NULL) != (remote_post_id IS NOT NULL))
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_reactions_unique
+    ON reactions(persona_id, post_id, emoji) WHERE post_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_reactions_remote_unique
+    ON reactions(persona_id, remote_post_id, emoji) WHERE remote_post_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_reactions_post ON reactions(post_id) WHERE post_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS bookmarks (
     user_id        INTEGER NOT NULL REFERENCES users(id),
@@ -2434,6 +2761,90 @@ CREATE TABLE IF NOT EXISTS video_playlist_items (
     position INTEGER NOT NULL DEFAULT 0,
     UNIQUE (playlist_id, video_id)
 );
+
+-- Funkwhale-style audio hosting
+CREATE TABLE IF NOT EXISTS audio_channels (
+    persona_id INTEGER PRIMARY KEY REFERENCES personas(id),
+    description TEXT NOT NULL DEFAULT '',
+    category TEXT NOT NULL DEFAULT 'music',
+    language TEXT,
+    rss_enabled INTEGER NOT NULL DEFAULT 0,
+    itunes_category TEXT,
+    created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS tracks (
+    id INTEGER PRIMARY KEY,
+    channel_id INTEGER NOT NULL REFERENCES audio_channels(persona_id),
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    title TEXT NOT NULL,
+    artist TEXT NOT NULL DEFAULT '',
+    album TEXT NOT NULL DEFAULT '',
+    track_number INTEGER,
+    duration INTEGER,
+    file_path TEXT NOT NULL,
+    file_size INTEGER NOT NULL,
+    mime_type TEXT NOT NULL,
+    cover_media_id INTEGER REFERENCES media(id),
+    description TEXT NOT NULL DEFAULT '',
+    ap_id TEXT NOT NULL UNIQUE,
+    visibility TEXT NOT NULL DEFAULT 'public',
+    created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_tracks_channel ON tracks(channel_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS audio_playlists (
+    id INTEGER PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    title TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    visibility TEXT NOT NULL DEFAULT 'public',
+    created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS audio_playlist_items (
+    playlist_id INTEGER NOT NULL REFERENCES audio_playlists(id) ON DELETE CASCADE,
+    track_id INTEGER NOT NULL REFERENCES tracks(id),
+    position INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (playlist_id, track_id)
+);
+CREATE INDEX IF NOT EXISTS idx_audio_playlist_items ON audio_playlist_items(playlist_id, position);
+
+CREATE TABLE IF NOT EXISTS podcast_series (
+    id INTEGER PRIMARY KEY,
+    channel_id INTEGER NOT NULL REFERENCES audio_channels(persona_id),
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    title TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    description_html TEXT NOT NULL DEFAULT '',
+    author TEXT NOT NULL DEFAULT '',
+    language TEXT,
+    category TEXT,
+    itunes_category TEXT,
+    cover_media_id INTEGER REFERENCES media(id),
+    explicit INTEGER NOT NULL DEFAULT 0,
+    rss_link TEXT,
+    created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS podcast_episodes (
+    id INTEGER PRIMARY KEY,
+    series_id INTEGER NOT NULL REFERENCES podcast_series(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    description_html TEXT NOT NULL DEFAULT '',
+    duration INTEGER,
+    file_path TEXT NOT NULL,
+    file_size INTEGER NOT NULL,
+    mime_type TEXT NOT NULL,
+    episode_number INTEGER,
+    season_number INTEGER,
+    explicit INTEGER NOT NULL DEFAULT 0,
+    ap_id TEXT NOT NULL UNIQUE,
+    published_at INTEGER NOT NULL,
+    created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_podcast_episodes_series ON podcast_episodes(series_id, published_at DESC);
 "#;
 
 // ---------------------------------------------------------------------------
