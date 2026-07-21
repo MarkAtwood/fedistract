@@ -147,7 +147,7 @@ pub struct Migration {
 /// The current schema version after all built-in migrations.
 /// Version 0 = fresh CREATE TABLE schema.
 /// Version 1+ = incremental migrations.
-const CURRENT_VERSION: u32 = 11;
+const CURRENT_VERSION: u32 = 12;
 
 /// Built-in migration chain. Version 0 is the fresh-install schema (handled
 /// separately). These run in order for version 1, 2, 3, etc.
@@ -1237,6 +1237,84 @@ CREATE INDEX IF NOT EXISTS idx_reviews_book ON book_reviews(book_id, created_at 
         description: "add abstract column to posts table",
         sql_sqlite: "__ADD_COLUMN_IF_NOT_EXISTS:posts:abstract:TEXT",
         sql_postgres: "ALTER TABLE posts ADD COLUMN IF NOT EXISTS abstract TEXT;",
+    },
+    Migration {
+        version: 12,
+        description: "add articles and collections tables for WriteFreely-style blogging",
+        sql_sqlite: r#"
+CREATE TABLE IF NOT EXISTS collections (
+    alias       TEXT PRIMARY KEY,
+    user_id     INTEGER NOT NULL REFERENCES users(id),
+    persona_id  INTEGER NOT NULL REFERENCES personas(id),
+    title       TEXT NOT NULL DEFAULT '',
+    description TEXT NOT NULL DEFAULT '',
+    style_sheet TEXT NOT NULL DEFAULT '',
+    visibility  TEXT NOT NULL DEFAULT 'public',
+    created_at  INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS articles (
+    id          INTEGER PRIMARY KEY,
+    user_id     INTEGER NOT NULL REFERENCES users(id),
+    persona_id  INTEGER NOT NULL REFERENCES personas(id),
+    collection_alias TEXT REFERENCES collections(alias),
+    slug        TEXT,
+    title       TEXT NOT NULL DEFAULT '',
+    body        TEXT NOT NULL DEFAULT '',
+    body_html   TEXT NOT NULL DEFAULT '',
+    font        TEXT NOT NULL DEFAULT 'norm',
+    language    TEXT,
+    rtl         INTEGER NOT NULL DEFAULT 0,
+    pinned      INTEGER NOT NULL DEFAULT 0,
+    pin_position INTEGER,
+    draft       INTEGER NOT NULL DEFAULT 0,
+    ap_id       TEXT NOT NULL DEFAULT '',
+    edit_token  TEXT,
+    views       INTEGER NOT NULL DEFAULT 0,
+    created_at  INTEGER NOT NULL,
+    updated_at  INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_articles_collection ON articles(collection_alias);
+CREATE INDEX IF NOT EXISTS idx_articles_user ON articles(user_id);
+CREATE INDEX IF NOT EXISTS idx_articles_slug ON articles(collection_alias, slug);
+"#,
+        sql_postgres: r#"
+CREATE TABLE IF NOT EXISTS collections (
+    alias       TEXT PRIMARY KEY,
+    user_id     BIGINT NOT NULL REFERENCES users(id),
+    persona_id  BIGINT NOT NULL REFERENCES personas(id),
+    title       TEXT NOT NULL DEFAULT '',
+    description TEXT NOT NULL DEFAULT '',
+    style_sheet TEXT NOT NULL DEFAULT '',
+    visibility  TEXT NOT NULL DEFAULT 'public',
+    created_at  BIGINT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS articles (
+    id          BIGINT PRIMARY KEY,
+    user_id     BIGINT NOT NULL REFERENCES users(id),
+    persona_id  BIGINT NOT NULL REFERENCES personas(id),
+    collection_alias TEXT REFERENCES collections(alias),
+    slug        TEXT,
+    title       TEXT NOT NULL DEFAULT '',
+    body        TEXT NOT NULL DEFAULT '',
+    body_html   TEXT NOT NULL DEFAULT '',
+    font        TEXT NOT NULL DEFAULT 'norm',
+    language    TEXT,
+    rtl         BOOLEAN NOT NULL DEFAULT FALSE,
+    pinned      BOOLEAN NOT NULL DEFAULT FALSE,
+    pin_position INTEGER,
+    draft       BOOLEAN NOT NULL DEFAULT FALSE,
+    ap_id       TEXT NOT NULL DEFAULT '',
+    edit_token  TEXT,
+    views       BIGINT NOT NULL DEFAULT 0,
+    created_at  BIGINT NOT NULL,
+    updated_at  BIGINT
+);
+CREATE INDEX IF NOT EXISTS idx_articles_collection ON articles(collection_alias);
+CREATE INDEX IF NOT EXISTS idx_articles_user ON articles(user_id);
+CREATE INDEX IF NOT EXISTS idx_articles_slug ON articles(collection_alias, slug);
+"#,
     },
 ];
 

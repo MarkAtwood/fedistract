@@ -66,5 +66,7 @@ pub mod podcast_rss;
 pub mod funkwhale_api;
 #[cfg(feature = "bookwyrm-api")]
 pub mod bookwyrm_api;
+#[cfg(feature = "writefreely-api")]
+pub mod writefreely_api;
 #[cfg(feature = "webfinger")]
 pub mod webfinger;

@@ -2,11 +2,15 @@
   "id": "fedistract-9lyb",
   "title": "[EPIC] Long-form writing mode — WriteFreely replacement",
   "description": "Add Medium/WordPress-style long-form writing to all three servers as a fieldwork capability. WriteFreely is the fediverse's blogging platform — federates articles as AP Article objects (not Notes). Supports custom CSS, anonymous blogs, and monetization stubs. Broadside: org blog/newsletter. Smallhold: personal blog with AP federation. Gaja: multi-tenant blogging platform (like write.as or Medium).",
-  "status": "open",
+  "status": "closed",
   "priority": 3,
   "issue_type": "epic",
+  "assignee": "Mark Atwood",
   "owner": "mark@reviewcommit.com",
   "created_at": "2026-07-21T02:33:49.677486946Z",
   "created_by": "Mark Atwood",
-  "updated_at": "2026-07-21T02:33:49.677486946Z"
+  "updated_at": "2026-07-21T03:15:38.211506584Z",
+  "started_at": "2026-07-21T03:06:43.581597551Z",
+  "closed_at": "2026-07-21T03:15:38.211506584Z",
+  "close_reason": "WriteFreely API complete. P4 newsletter deferred to Sept."
 }
