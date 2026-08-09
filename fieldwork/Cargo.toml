@@ -62,7 +62,8 @@ funkwhale-api = ["dep:serde", "dep:serde_json", "dep:axum"]
 bookwyrm-api = ["dep:serde", "dep:serde_json"]
 writefreely-api = ["dep:serde", "dep:serde_json"]
 mastodon-api = ["dep:serde", "dep:serde_json"]
-full = ["activities", "actor", "collections", "error", "auth", "inbox", "sanitize", "content", "theme", "nodeinfo", "webfinger", "fetch", "profile", "media", "video", "podcast", "funkwhale-api", "bookwyrm-api", "writefreely-api", "mastodon-api"]
+cards = ["dep:regex", "dep:serde_json"]
+full = ["activities", "actor", "collections", "error", "auth", "inbox", "sanitize", "content", "theme", "nodeinfo", "webfinger", "fetch", "profile", "media", "video", "podcast", "funkwhale-api", "bookwyrm-api", "writefreely-api", "mastodon-api", "cards"]
 
 [dev-dependencies]
 tokio = { version = "1", features = ["rt", "macros"] }

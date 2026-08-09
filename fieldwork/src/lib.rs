@@ -19,6 +19,7 @@
 //! - **`fetch`** — SSRF-safe remote actor and object fetching with HTTP Signatures.
 //! - **`inbox`** — Inbox POST validation: size limits, digest verification, host checks.
 //! - **`nodeinfo`** — NodeInfo 2.1 data types and discovery document construction.
+//! - **`cards`** — Link card logic: OG tag parsing, HTML entity decoding, card JSON serialization.
 //! - **`webfinger`** — RFC 7033 WebFinger JRD types and response construction.
 //! - **`profile`** — Profile metadata types and validation.
 //! - **`media`** — Image processing: MIME sniffing, validation, resize, EXIF strip, blurhash.
@@ -70,6 +71,8 @@ pub mod funkwhale_api;
 pub mod mastodon_api;
 #[cfg(feature = "bookwyrm-api")]
 pub mod bookwyrm_api;
+#[cfg(feature = "cards")]
+pub mod cards;
 #[cfg(feature = "writefreely-api")]
 pub mod writefreely_api;
 #[cfg(feature = "webfinger")]
