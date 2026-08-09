@@ -12,7 +12,7 @@ const COLUMNS: &str = "\
     in_reply_to_id, in_reply_to_uri, boost_of_id, boost_of_uri, \
     content, content_html, spoiler_text, visibility, \
     sensitive, language, context_url, \
-    created_at, edited_at, deleted_at, deleted_reason, abstract";
+    created_at, edited_at, deleted_at, deleted_reason, abstract, content_path";
 
 #[cfg(feature = "sqlite")]
 fn sqlite_row_to_post(r: sqlx::sqlite::SqliteRow) -> PostRow {
@@ -38,6 +38,7 @@ fn sqlite_row_to_post(r: sqlx::sqlite::SqliteRow) -> PostRow {
         deleted_at: r.get(17),
         deleted_reason: r.get(18),
         abstract_text: r.get(19),
+        content_path: r.get(20),
     }
 }
 
@@ -65,6 +66,7 @@ fn pg_row_to_post(r: sqlx::postgres::PgRow) -> PostRow {
         deleted_at: r.get(17),
         deleted_reason: r.get(18),
         abstract_text: r.get(19),
+        content_path: r.get(20),
     }
 }
 
@@ -352,6 +354,7 @@ mod tests {
             deleted_at: None,
             deleted_reason: None,
             abstract_text: None,
+            content_path: None,
         }
     }
 
