@@ -147,7 +147,7 @@ pub struct Migration {
 /// The current schema version after all built-in migrations.
 /// Version 0 = fresh CREATE TABLE schema.
 /// Version 1+ = incremental migrations.
-const CURRENT_VERSION: u32 = 12;
+const CURRENT_VERSION: u32 = 13;
 
 /// Built-in migration chain. Version 0 is the fresh-install schema (handled
 /// separately). These run in order for version 1, 2, 3, etc.
@@ -578,7 +578,8 @@ CREATE TABLE IF NOT EXISTS community_posts (
     pinned INTEGER NOT NULL DEFAULT 0,
     removed INTEGER NOT NULL DEFAULT 0,
     created_at INTEGER NOT NULL,
-    updated_at INTEGER
+    updated_at INTEGER,
+    content_path TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_community_posts_community ON community_posts(community_id, created_at DESC);
 
@@ -657,7 +658,8 @@ CREATE TABLE IF NOT EXISTS community_posts (
     pinned INTEGER NOT NULL DEFAULT 0,
     removed INTEGER NOT NULL DEFAULT 0,
     created_at INTEGER NOT NULL,
-    updated_at INTEGER
+    updated_at INTEGER,
+    content_path TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_community_posts_community ON community_posts(community_id, created_at DESC);
 
@@ -1316,6 +1318,17 @@ CREATE INDEX IF NOT EXISTS idx_articles_user ON articles(user_id);
 CREATE INDEX IF NOT EXISTS idx_articles_slug ON articles(collection_alias, slug);
 "#,
     },
+    Migration {
+        version: 13,
+        description: "add content_path for file-backed long-form content",
+        sql_sqlite: "\
+__ADD_COLUMN_IF_NOT_EXISTS:posts:content_path:TEXT
+__ADD_COLUMN_IF_NOT_EXISTS:community_posts:content_path:TEXT",
+        sql_postgres: r#"
+ALTER TABLE posts ADD COLUMN IF NOT EXISTS content_path TEXT;
+ALTER TABLE community_posts ADD COLUMN IF NOT EXISTS content_path TEXT;
+"#,
+    },
 ];
 
 /// SQL to transform a legacy (pre-versioned) database to canonical schema.
@@ -1571,15 +1584,21 @@ async fn run_migration(pool: &Pool, migration: &Migration) -> Result<(), Migrate
         Pool::Sqlite(sq) => {
             // SQLite lacks ALTER TABLE ADD COLUMN IF NOT EXISTS.
             // Handle our directive format: __ADD_COLUMN_IF_NOT_EXISTS:table:column:type
-            if let Some(rest) = migration.sql_sqlite.strip_prefix("__ADD_COLUMN_IF_NOT_EXISTS:") {
-                let parts: Vec<&str> = rest.split(':').collect();
-                if parts.len() == 3 {
-                    sqlite_add_column_if_not_exists(sq, parts[0], parts[1], parts[2]).await
-                        .map_err(|e| MigrateError::MigrationFailed {
-                            version: migration.version,
-                            description: migration.description,
-                            source: e,
-                        })?;
+            // Multiple directives can appear on separate lines.
+            if migration.sql_sqlite.contains("__ADD_COLUMN_IF_NOT_EXISTS:") {
+                for line in migration.sql_sqlite.lines() {
+                    let line = line.trim();
+                    if let Some(rest) = line.strip_prefix("__ADD_COLUMN_IF_NOT_EXISTS:") {
+                        let parts: Vec<&str> = rest.split(':').collect();
+                        if parts.len() == 3 {
+                            sqlite_add_column_if_not_exists(sq, parts[0], parts[1], parts[2]).await
+                                .map_err(|e| MigrateError::MigrationFailed {
+                                    version: migration.version,
+                                    description: migration.description,
+                                    source: e,
+                                })?;
+                        }
+                    }
                 }
             } else {
                 sqlx::raw_sql(migration.sql_sqlite).execute(sq).await
@@ -1716,7 +1735,8 @@ CREATE TABLE IF NOT EXISTS posts (
     edited_at       INTEGER,
     deleted_at      INTEGER,
     deleted_reason  TEXT,
-    abstract        TEXT
+    abstract        TEXT,
+    content_path    TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_posts_user ON posts(user_id);
 CREATE INDEX IF NOT EXISTS idx_posts_persona_created ON posts(persona_id, created_at DESC);
@@ -2456,7 +2476,8 @@ CREATE TABLE IF NOT EXISTS posts (
     edited_at       INTEGER,
     deleted_at      INTEGER,
     deleted_reason  TEXT,
-    abstract        TEXT
+    abstract        TEXT,
+    content_path    TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_posts_user ON posts(user_id);
 CREATE INDEX IF NOT EXISTS idx_posts_persona_created ON posts(persona_id, created_at DESC);
