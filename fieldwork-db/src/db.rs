@@ -147,7 +147,7 @@ pub struct Migration {
 /// The current schema version after all built-in migrations.
 /// Version 0 = fresh CREATE TABLE schema.
 /// Version 1+ = incremental migrations.
-const CURRENT_VERSION: u32 = 14;
+const CURRENT_VERSION: u32 = 15;
 
 /// Built-in migration chain. Version 0 is the fresh-install schema (handled
 /// separately). These run in order for version 1, 2, 3, etc.
@@ -1351,6 +1351,36 @@ CREATE TABLE IF NOT EXISTS webhooks (
     enabled    BOOLEAN NOT NULL DEFAULT true,
     created_at INTEGER NOT NULL
 );
+"#,
+    },
+    Migration {
+        version: 15,
+        description: "add webhook_log table",
+        sql_sqlite: r#"
+CREATE TABLE IF NOT EXISTS webhook_log (
+    id          INTEGER PRIMARY KEY,
+    webhook_id  INTEGER NOT NULL REFERENCES webhooks(id) ON DELETE CASCADE,
+    event       TEXT NOT NULL,
+    status_code INTEGER,
+    attempts    INTEGER NOT NULL DEFAULT 1,
+    next_retry  INTEGER,
+    payload     TEXT NOT NULL,
+    created_at  INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_webhook_log_retry ON webhook_log(next_retry) WHERE next_retry IS NOT NULL;
+"#,
+        sql_postgres: r#"
+CREATE TABLE IF NOT EXISTS webhook_log (
+    id          BIGSERIAL PRIMARY KEY,
+    webhook_id  BIGINT NOT NULL REFERENCES webhooks(id) ON DELETE CASCADE,
+    event       TEXT NOT NULL,
+    status_code INTEGER,
+    attempts    INTEGER NOT NULL DEFAULT 1,
+    next_retry  BIGINT,
+    payload     TEXT NOT NULL,
+    created_at  BIGINT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_webhook_log_retry ON webhook_log(next_retry) WHERE next_retry IS NOT NULL;
 "#,
     },
 ];
