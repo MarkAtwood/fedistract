@@ -147,7 +147,7 @@ pub struct Migration {
 /// The current schema version after all built-in migrations.
 /// Version 0 = fresh CREATE TABLE schema.
 /// Version 1+ = incremental migrations.
-const CURRENT_VERSION: u32 = 13;
+const CURRENT_VERSION: u32 = 14;
 
 /// Built-in migration chain. Version 0 is the fresh-install schema (handled
 /// separately). These run in order for version 1, 2, 3, etc.
@@ -1329,6 +1329,30 @@ ALTER TABLE posts ADD COLUMN IF NOT EXISTS content_path TEXT;
 ALTER TABLE community_posts ADD COLUMN IF NOT EXISTS content_path TEXT;
 "#,
     },
+    Migration {
+        version: 14,
+        description: "add webhooks table",
+        sql_sqlite: r#"
+CREATE TABLE IF NOT EXISTS webhooks (
+    id         INTEGER PRIMARY KEY,
+    url        TEXT NOT NULL,
+    events     TEXT NOT NULL,
+    secret     TEXT NOT NULL,
+    enabled    INTEGER NOT NULL DEFAULT 1,
+    created_at INTEGER NOT NULL
+);
+"#,
+        sql_postgres: r#"
+CREATE TABLE IF NOT EXISTS webhooks (
+    id         BIGINT PRIMARY KEY,
+    url        TEXT NOT NULL,
+    events     TEXT NOT NULL,
+    secret     TEXT NOT NULL,
+    enabled    BOOLEAN NOT NULL DEFAULT true,
+    created_at INTEGER NOT NULL
+);
+"#,
+    },
 ];
 
 /// SQL to transform a legacy (pre-versioned) database to canonical schema.
@@ -2380,6 +2404,15 @@ CREATE TABLE IF NOT EXISTS podcast_episodes (
     created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_podcast_episodes_series ON podcast_episodes(series_id, published_at DESC);
+
+CREATE TABLE IF NOT EXISTS webhooks (
+    id         BIGINT PRIMARY KEY,
+    url        TEXT NOT NULL,
+    events     TEXT NOT NULL,
+    secret     TEXT NOT NULL,
+    enabled    BOOLEAN NOT NULL DEFAULT true,
+    created_at INTEGER NOT NULL
+);
 "#;
 
 // ---------------------------------------------------------------------------
@@ -3082,6 +3115,15 @@ CREATE TABLE IF NOT EXISTS podcast_episodes (
     created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_podcast_episodes_series ON podcast_episodes(series_id, published_at DESC);
+
+CREATE TABLE IF NOT EXISTS webhooks (
+    id         INTEGER PRIMARY KEY,
+    url        TEXT NOT NULL,
+    events     TEXT NOT NULL,
+    secret     TEXT NOT NULL,
+    enabled    INTEGER NOT NULL DEFAULT 1,
+    created_at INTEGER NOT NULL
+);
 "#;
 
 // ---------------------------------------------------------------------------
