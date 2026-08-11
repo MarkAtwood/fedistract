@@ -147,7 +147,7 @@ pub struct Migration {
 /// The current schema version after all built-in migrations.
 /// Version 0 = fresh CREATE TABLE schema.
 /// Version 1+ = incremental migrations.
-const CURRENT_VERSION: u32 = 15;
+const CURRENT_VERSION: u32 = 16;
 
 /// Built-in migration chain. Version 0 is the fresh-install schema (handled
 /// separately). These run in order for version 1, 2, 3, etc.
@@ -1381,6 +1381,134 @@ CREATE TABLE IF NOT EXISTS webhook_log (
     created_at  BIGINT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_webhook_log_retry ON webhook_log(next_retry) WHERE next_retry IS NOT NULL;
+"#,
+    },
+    Migration {
+        version: 16,
+        description: "add media_items, media_identifiers, media_shelves, media_reviews tables",
+        sql_sqlite: r#"
+CREATE TABLE IF NOT EXISTS media_items (
+    id INTEGER PRIMARY KEY,
+    media_type TEXT NOT NULL DEFAULT 'book',
+    format TEXT,
+    title TEXT NOT NULL,
+    creator TEXT NOT NULL DEFAULT '',
+    description TEXT NOT NULL DEFAULT '',
+    cover_url TEXT,
+    language TEXT,
+    pages INTEGER,
+    runtime_min INTEGER,
+    issue TEXT,
+    season INTEGER,
+    episode INTEGER,
+    tracks INTEGER,
+    publisher TEXT,
+    label TEXT,
+    published_year INTEGER,
+    release_date TEXT,
+    source TEXT,
+    created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_media_type ON media_items(media_type);
+CREATE INDEX IF NOT EXISTS idx_media_title ON media_items(title);
+
+CREATE TABLE IF NOT EXISTS media_identifiers (
+    media_id INTEGER NOT NULL REFERENCES media_items(id) ON DELETE CASCADE,
+    id_type TEXT NOT NULL,
+    id_value TEXT NOT NULL,
+    PRIMARY KEY (media_id, id_type, id_value)
+);
+CREATE INDEX IF NOT EXISTS idx_media_id_lookup ON media_identifiers(id_type, id_value);
+
+CREATE TABLE IF NOT EXISTS media_shelves (
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    media_id INTEGER NOT NULL REFERENCES media_items(id),
+    status TEXT NOT NULL,
+    started_at INTEGER,
+    finished_at INTEGER,
+    rating INTEGER,
+    updated_at INTEGER NOT NULL,
+    PRIMARY KEY (user_id, media_id),
+    CHECK (rating IS NULL OR (rating >= 1 AND rating <= 5))
+);
+CREATE INDEX IF NOT EXISTS idx_media_shelves_status ON media_shelves(user_id, status);
+
+CREATE TABLE IF NOT EXISTS media_reviews (
+    id INTEGER PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    persona_id INTEGER NOT NULL REFERENCES personas(id),
+    media_id INTEGER NOT NULL REFERENCES media_items(id),
+    content TEXT NOT NULL,
+    content_html TEXT NOT NULL,
+    rating INTEGER,
+    spoiler INTEGER NOT NULL DEFAULT 0,
+    ap_id TEXT NOT NULL UNIQUE,
+    created_at INTEGER NOT NULL,
+    CHECK (rating IS NULL OR (rating >= 1 AND rating <= 5))
+);
+CREATE INDEX IF NOT EXISTS idx_media_reviews_item ON media_reviews(media_id, created_at DESC);
+"#,
+        sql_postgres: r#"
+CREATE TABLE IF NOT EXISTS media_items (
+    id BIGINT PRIMARY KEY,
+    media_type TEXT NOT NULL DEFAULT 'book',
+    format TEXT,
+    title TEXT NOT NULL,
+    creator TEXT NOT NULL DEFAULT '',
+    description TEXT NOT NULL DEFAULT '',
+    cover_url TEXT,
+    language TEXT,
+    pages INTEGER,
+    runtime_min INTEGER,
+    issue TEXT,
+    season INTEGER,
+    episode INTEGER,
+    tracks INTEGER,
+    publisher TEXT,
+    label TEXT,
+    published_year INTEGER,
+    release_date TEXT,
+    source TEXT,
+    created_at BIGINT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_media_type ON media_items(media_type);
+CREATE INDEX IF NOT EXISTS idx_media_title ON media_items(title);
+
+CREATE TABLE IF NOT EXISTS media_identifiers (
+    media_id BIGINT NOT NULL REFERENCES media_items(id) ON DELETE CASCADE,
+    id_type TEXT NOT NULL,
+    id_value TEXT NOT NULL,
+    PRIMARY KEY (media_id, id_type, id_value)
+);
+CREATE INDEX IF NOT EXISTS idx_media_id_lookup ON media_identifiers(id_type, id_value);
+
+CREATE TABLE IF NOT EXISTS media_shelves (
+    user_id BIGINT NOT NULL REFERENCES users(id),
+    media_id BIGINT NOT NULL REFERENCES media_items(id),
+    status TEXT NOT NULL,
+    started_at BIGINT,
+    finished_at BIGINT,
+    rating INTEGER,
+    updated_at BIGINT NOT NULL,
+    PRIMARY KEY (user_id, media_id),
+    CHECK (rating IS NULL OR (rating >= 1 AND rating <= 5))
+);
+CREATE INDEX IF NOT EXISTS idx_media_shelves_status ON media_shelves(user_id, status);
+
+CREATE TABLE IF NOT EXISTS media_reviews (
+    id BIGINT PRIMARY KEY,
+    user_id BIGINT NOT NULL REFERENCES users(id),
+    persona_id BIGINT NOT NULL REFERENCES personas(id),
+    media_id BIGINT NOT NULL REFERENCES media_items(id),
+    content TEXT NOT NULL,
+    content_html TEXT NOT NULL,
+    rating INTEGER,
+    spoiler BOOLEAN NOT NULL DEFAULT false,
+    ap_id TEXT NOT NULL UNIQUE,
+    created_at BIGINT NOT NULL,
+    CHECK (rating IS NULL OR (rating >= 1 AND rating <= 5))
+);
+CREATE INDEX IF NOT EXISTS idx_media_reviews_item ON media_reviews(media_id, created_at DESC);
 "#,
     },
 ];

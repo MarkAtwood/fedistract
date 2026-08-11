@@ -21,6 +21,8 @@ pub mod articles_db;
 #[cfg(any(feature = "postgres", feature = "sqlite"))]
 pub mod books_db;
 #[cfg(any(feature = "postgres", feature = "sqlite"))]
+pub mod catalog_db;
+#[cfg(any(feature = "postgres", feature = "sqlite"))]
 pub mod audio_db;
 #[cfg(any(feature = "postgres", feature = "sqlite"))]
 pub mod cards_db;
