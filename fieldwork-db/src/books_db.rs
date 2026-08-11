@@ -200,6 +200,55 @@ pub async fn get_book_by_isbn(pool: &Pool, isbn: &str) -> Result<Option<BookRow>
     }
 }
 
+/// Update book metadata (for hydration from external sources).
+#[allow(clippy::too_many_arguments)]
+pub async fn update_book_metadata(
+    pool: &Pool,
+    id: i64,
+    title: &str,
+    author: &str,
+    pages: Option<i32>,
+    published_year: Option<i32>,
+    cover_url: Option<&str>,
+    openlibrary_id: Option<&str>,
+) -> Result<(), sqlx::Error> {
+    match pool {
+        #[cfg(feature = "postgres")]
+        Pool::Postgres(pg) => {
+            sqlx::query(
+                "UPDATE books SET title = $2, author = $3, pages = $4, published_year = $5, \
+                 cover_url = $6, openlibrary_id = $7 WHERE id = $1",
+            )
+            .bind(id)
+            .bind(title)
+            .bind(author)
+            .bind(pages)
+            .bind(published_year)
+            .bind(cover_url)
+            .bind(openlibrary_id)
+            .execute(pg)
+            .await?;
+        }
+        #[cfg(feature = "sqlite")]
+        Pool::Sqlite(sq) => {
+            sqlx::query(
+                "UPDATE books SET title = ?2, author = ?3, pages = ?4, published_year = ?5, \
+                 cover_url = ?6, openlibrary_id = ?7 WHERE id = ?1",
+            )
+            .bind(id)
+            .bind(title)
+            .bind(author)
+            .bind(pages)
+            .bind(published_year)
+            .bind(cover_url)
+            .bind(openlibrary_id)
+            .execute(sq)
+            .await?;
+        }
+    }
+    Ok(())
+}
+
 // ---------------------------------------------------------------------------
 // Reading shelves
 // ---------------------------------------------------------------------------
